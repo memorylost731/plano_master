@@ -1,0 +1,39 @@
+import { Store } from 'redux';
+
+import actions from '../actions/export';
+import { ReactPlannerStateExtractor } from '../types';
+
+export default function consoleDebugger() {
+  return (store: Store, stateExtractor: ReactPlannerStateExtractor) => {
+    (window as any).ReactPlanner = {
+      ...actions,
+
+      getStore() {
+        return store;
+      },
+
+      getState() {
+        return stateExtractor(store.getState());
+      },
+
+      do(actions: any[], delay = 300) {
+        actions = actions.reverse();
+        const dispatch = store.dispatch;
+        const dispatchAction = () => {
+          console.info(`There are other ${actions.length} actions on stack`);
+          if (actions.length === 0) return;
+          dispatch(actions.pop());
+          if (actions.length === 0) return;
+          setTimeout(dispatchAction, delay);
+        };
+        setTimeout(dispatchAction, 0);
+      }
+    };
+
+    console.groupCollapsed('ReactPlanner');
+    console.info('ReactPlanner is ready');
+    console.info('console.log(ReactPlanner)');
+    console.log((window as any).ReactPlanner);
+    console.groupEnd();
+  };
+}

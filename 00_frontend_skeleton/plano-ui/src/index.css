@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+
+/* =========================================================
+   PlanO — Liquid Glass + Backgrounds (RESTORE)
+   ========================================================= */
+
+:root {
+  /* These are set at runtime from src/main.tsx (or similar) */
+  --plano-bg-landing: none;
+  --plano-bg-2d: none;
+  --plano-bg-3d: none;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: rgb(24 24 27);
+  background: #0b0f14; /* fallback behind images */
+}
+
+/* ---------------------------------------------------------
+   Global liquid wrapper (your “all-day” glass look)
+   Keep this class on your outer wrapper (main.tsx / root)
+   --------------------------------------------------------- */
+.plano-liquid {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 600px at 20% 0%, rgba(120, 170, 255, 0.20), transparent 55%),
+    radial-gradient(700px 500px at 80% 10%, rgba(180, 120, 255, 0.14), transparent 60%),
+    radial-gradient(900px 700px at 50% 100%, rgba(255, 220, 140, 0.10), transparent 60%),
+    #0b0f14;
+}
+
+.plano-liquid::before {
+  /* very subtle noise-ish overlay */
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.00) 40%,
+    rgba(255, 255, 255, 0.04)
+  );
+  opacity: 0.55;
+}
+
+/* ---------------------------------------------------------
+   Planner backgrounds (2D/3D/landing)
+   These bring back your images.
+   --------------------------------------------------------- */
+.landing-bg,
+.planner2d-bg,
+.planner3d-bg {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Background image layer */
+.landing-bg::before,
+.planner2d-bg::before,
+.planner3d-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: translateZ(0);
+  filter: saturate(1.05) contrast(1.04);
+}
+
+.landing-bg::before {
+  background-image: var(--plano-bg-landing);
+}
+.planner2d-bg::before {
+  background-image: var(--plano-bg-2d);
+}
+.planner3d-bg::before {
+  background-image: var(--plano-bg-3d);
+}
+
+/* Soft overlay to ensure legibility */
+.landing-bg::after,
+.planner2d-bg::after,
+.planner3d-bg::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(900px 600px at 50% 0%, rgba(255, 255, 255, 0.22), transparent 60%),
+    linear-gradient(180deg, rgba(245, 246, 248, 0.78), rgba(245, 246, 248, 0.86));
+}
+
+/* ---------------------------------------------------------
+   Liquid glass panel system
+   --------------------------------------------------------- */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  border-radius: 22px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+/* Buttons that should look like small glass pills */
+.plano-glass-btn {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+  border-radius: 18px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.plano-glass-btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* Dock items (small, not huge) */
+.plano-dock-item {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  border-radius: 18px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.plano-dock-item:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* ---------------------------------------------------------
+   Tailwind “bg-white/xx” overrides inside planner
+   (so your panels don’t become flat white)
+   --------------------------------------------------------- */
+.planner2d-bg .bg-white\/90,
+.planner2d-bg .bg-white\/80,
+.planner2d-bg .bg-white\/75,
+.planner2d-bg .bg-white\/70,
+.planner2d-bg .bg-white\/60,
+.planner2d-bg .bg-white\/85,
+.planner3d-bg .bg-white\/90,
+.planner3d-bg .bg-white\/80,
+.planner3d-bg .bg-white\/75,
+.planner3d-bg .bg-white\/70,
+.planner3d-bg .bg-white\/60,
+.planner3d-bg .bg-white\/85 {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border: 1px solid rgba(255, 255, 255, 0.26) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+}
+/* ===========================
+   PlanO Liquid Glass (safe add-on)
+   =========================== */
+
+.plano-liquid {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 600px at 20% 0%, rgba(120, 170, 255, 0.20), transparent 55%),
+    radial-gradient(700px 500px at 80% 10%, rgba(180, 120, 255, 0.14), transparent 60%),
+    radial-gradient(900px 700px at 50% 100%, rgba(255, 220, 140, 0.10), transparent 60%),
+    #0b0f14;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  border-radius: 22px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.plano-glass-btn {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+  border-radius: 18px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.plano-glass-btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.plano-dock-item {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  border-radius: 18px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.plano-dock-item:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
