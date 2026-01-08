@@ -26,16 +26,8 @@ export default function GeoSelect() {
     !!serviceType;
 
   function handleContinue() {
-    /**
-     * Excel logic:
-     * - refurbishing / new → go through 2D first
-     * - individual service → go directly to 3D
-     */
-    if (serviceType === "individual") {
-      navigate("/planner/3d");
-    } else {
-      navigate("/planner/2d");
-    }
+    // Single planner route: React-Planner handles 2D/3D internally.
+    navigate("/planner");
   }
 
   return (

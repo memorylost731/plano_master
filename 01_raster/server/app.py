@@ -3,9 +3,8 @@ import json
 import tempfile
 import subprocess
 from pathlib import Path
+
 from fastapi.middleware.cors import CORSMiddleware
-
-
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -18,7 +17,11 @@ OUTDIR = ROOT / "out"
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",  # react-planner engine
+        "http://localhost:5174",  # plano-ui (common)
+        "http://localhost:5175",  # plano-ui (fallback)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,46 +30,42 @@ app.add_middleware(
 
 @app.post("/upload-plan")
 async def upload_plan(file: UploadFile = File(...)):
-  api_key = os.environ.get("RASTERSCAN_API_KEY")
-  if not api_key:
-    raise HTTPException(status_code=500, detail="RASTERSCAN_API_KEY is not set in environment")
+    api_key = os.environ.get("RASTERSCAN_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="RASTERSCAN_API_KEY is not set in environment")
 
-  OUTDIR.mkdir(parents=True, exist_ok=True)
+    OUTDIR.mkdir(parents=True, exist_ok=True)
 
-  # Save upload to a temp file
-  suffix = Path(file.filename or "").suffix or ".bin"
-  with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-    tmp_path = Path(tmp.name)
-    tmp.write(await file.read())
+    suffix = Path(file.filename or "").suffix or ".bin"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp_path = Path(tmp.name)
+        tmp.write(await file.read())
 
-  raw_json = OUTDIR / "rasterscan_raw.json"
-  scene_json = OUTDIR / "scene.react.json"
+    raw_json = OUTDIR / "rasterscan_raw.json"
+    scene_json = OUTDIR / "scene.react.json"
 
-  try:
-    # 1) Send to RasterScan -> rasterscan_raw.json
-    subprocess.run(
-      [str(SEND), str(tmp_path), str(raw_json)],
-      check=True,
-      cwd=str(ROOT),
-      env=os.environ.copy(),
-    )
-
-    # 2) Convert RasterScan JSON -> React-Planner Scene JSON
-    subprocess.run(
-      [str(CONVERT), str(TEMPLATE), str(raw_json), str(scene_json)],
-      check=True,
-      cwd=str(ROOT),
-      env=os.environ.copy(),
-    )
-
-    # Return final scene json
-    scene = json.loads(scene_json.read_text(encoding="utf-8"))
-    return JSONResponse(scene)
-
-  except subprocess.CalledProcessError as e:
-    raise HTTPException(status_code=500, detail=f"Pipeline failed: {e}")
-  finally:
     try:
-      tmp_path.unlink(missing_ok=True)
-    except Exception:
-      pass
+        subprocess.run(
+            [str(SEND), str(tmp_path), str(raw_json)],
+            check=True,
+            cwd=str(ROOT),
+            env=os.environ.copy(),
+        )
+
+        subprocess.run(
+            [str(CONVERT), str(TEMPLATE), str(raw_json), str(scene_json)],
+            check=True,
+            cwd=str(ROOT),
+            env=os.environ.copy(),
+        )
+
+        scene = json.loads(scene_json.read_text(encoding="utf-8"))
+        return JSONResponse(scene)
+
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Pipeline failed: {e}")
+    finally:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass

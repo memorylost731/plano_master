@@ -1,19 +1,13 @@
 <!DOCTYPE html>
 <html>
-
 <head>
   <meta charset="UTF-8" />
-  <title>
-    <%= htmlWebpackPlugin.options.title %>
-  </title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+  <title><%= htmlWebpackPlugin.options.title %></title>
 
-    html,
-    body,
-    #app {
+  <style>
+    * { box-sizing: border-box; }
+
+    html, body, #app {
       width: 100%;
       height: 100%;
       padding: 0;
@@ -23,11 +17,36 @@
       left: 0;
       top: 0;
     }
+
+    /* ============================================================
+       PlanO integration: hide React-Planner built-in toolbar/footer
+       (PlanO UI provides the controls; canvas must remain visible)
+       ============================================================ */
+
+    /* Left toolbar (icons) */
+    .toolbar {
+      display: none !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+
+    /* Footer bar (coords/snap/errors) - react-planner uses inline styles
+       but still renders a root div; we hide it via common class hooks + position.
+       The footer container often has no class, so we target by structure:
+       - FooterBar is appended as last child in main wrapper.
+       This selector is safe in the demo because #app is only the planner. */
+    #app > div > div > div:last-child {
+      display: none !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+
+    /* If a sidebar exists, keep it (your properties overlay). If you want it hidden too,
+       we can hide .sidebar.sidebar--floating later. */
   </style>
 </head>
 
 <body>
   <div id="app"></div>
 </body>
-
 </html>
