@@ -66,12 +66,64 @@ class Project {
     });
   }
 
+  /**
+   * IMPORTANT FIX (PlanO):
+   * - Raster-loaded scenes may not keep layer.selected arrays in sync.
+   * - UI selection in our sidebar is based on element.selected flags.
+   * - So we apply updates to:
+   *   (a) layer.selected (original behavior) AND
+   *   (b) any line with line.selected === true (fallback)
+   */
   static setLinesAttributes(state: State, attributes: Partial<Line>) {
-    //TODO apply only to lines
+    // Original behavior (works for native-drawn scenes)
     Object.values(state.scene.layers).forEach((layer) => {
       state = Layer.setAttributesOnSelected(state, layer.id, attributes);
     });
-    return state;
+
+    // Fallback behavior (works for Raster-loaded scenes where selection lists may be empty)
+    return produce(state, (draft) => {
+      for (const layer of Object.values(draft.scene.layers) as any[]) {
+        if (!layer?.lines || !layer?.vertices) continue;
+
+        for (const line of Object.values(layer.lines) as any[]) {
+          if (!line || line.prototype !== 'lines') continue;
+          if (!line.selected) continue;
+
+          // Update endpoints (length edits come as vertexOne/vertexTwo)
+          if (attributes && (attributes as any).vertexOne && Array.isArray(line.vertices) && line.vertices[0]) {
+            const vId = line.vertices[0];
+            const v = layer.vertices[vId];
+            const nv = (attributes as any).vertexOne;
+            if (v && nv) {
+              if (nv.x !== undefined) v.x = nv.x;
+              if (nv.y !== undefined) v.y = nv.y;
+            }
+          }
+
+          if (attributes && (attributes as any).vertexTwo && Array.isArray(line.vertices) && line.vertices[1]) {
+            const vId = line.vertices[1];
+            const v = layer.vertices[vId];
+            const nv = (attributes as any).vertexTwo;
+            if (v && nv) {
+              if (nv.x !== undefined) v.x = nv.x;
+              if (nv.y !== undefined) v.y = nv.y;
+            }
+          }
+
+          // Apply other simple line-level fields if present (safe merge)
+          // (We intentionally do NOT overwrite vertices[] here.)
+          const shallow: any = { ...(attributes as any) };
+          delete shallow.vertexOne;
+          delete shallow.vertexTwo;
+          delete shallow.lineLength;
+
+          for (const k of Object.keys(shallow)) {
+            // only assign defined values
+            if (shallow[k] !== undefined) (line as any)[k] = shallow[k];
+          }
+        }
+      }
+    });
   }
 
   static setHolesAttributes(state: State, attributes: Partial<Hole>) {
