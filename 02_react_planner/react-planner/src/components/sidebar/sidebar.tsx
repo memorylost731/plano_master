@@ -8,17 +8,33 @@ import PanelElementEditor from './panel-element-editor/panel-element-editor';
 import PanelMultiElementsEditor from './panel-element-editor/panel-multi-elements-editor';
 import PanelGroupEditor from './panel-group-editor';
 
+/**
+ * PlanO placement:
+ * - top-right corner
+ * - below PlanO header (header is in parent app overlay)
+ * Adjust TOP_OFFSET_PX if your header height changes.
+ */
+const TOP_OFFSET_PX = 78;
+
+const FIXED_WIDTH_PX = 300;
+const FIXED_HEIGHT_PX = 520;
+
 const FLOAT_SIDEBAR_STYLE: React.CSSProperties = {
   position: 'fixed',
-  top: 12,
+  top: TOP_OFFSET_PX,
   right: 12,
-  width: 380,
-  maxHeight: 320,
+  width: FIXED_WIDTH_PX,
+  height: FIXED_HEIGHT_PX,
   overflow: 'auto',
   zIndex: 9999,
-  background: '#1f1f1f',
-  borderRadius: 10,
-  boxShadow: '0 10px 30px rgba(0,0,0,0.35)'
+
+  // PlanO glass style
+  background: 'rgba(20, 20, 24, 0.62)',
+  backdropFilter: 'blur(24px) saturate(140%)',
+  WebkitBackdropFilter: 'blur(24px) saturate(140%)',
+  border: '1px solid rgba(255,255,255,0.14)',
+  borderRadius: 14,
+  boxShadow: '0 18px 50px rgba(0,0,0,0.45)'
 };
 
 const STYLE = {
@@ -33,10 +49,10 @@ interface SidebarProps {
   state: State;
   width: number;
   height: number;
-  sidebarComponents: ComponentType[]; // kept for API compatibility; not used in "properties-only" mode
+  sidebarComponents: ComponentType[]; // kept for API compatibility; not used
 }
 
-export default function Sidebar({ state, width, height }: SidebarProps) {
+export default function Sidebar({ state }: SidebarProps) {
   const selectedLayer = state.scene.selectedLayer;
   if (!selectedLayer) return null;
 
@@ -53,14 +69,13 @@ export default function Sidebar({ state, width, height }: SidebarProps) {
 
   return (
     <aside
-      style={{ width, height, ...STYLE, ...FLOAT_SIDEBAR_STYLE }}
+      style={{ ...STYLE, ...FLOAT_SIDEBAR_STYLE }}
       onKeyDown={(event) => event.stopPropagation()}
       onKeyUp={(event) => event.stopPropagation()}
       className="sidebar sidebar--floating"
     >
       {!multiselected && <PanelElementEditor state={state} />}
       {multiselected && <PanelMultiElementsEditor state={state} />}
-
       {!!selectedGroup && <PanelGroupEditor state={state} groupID={selectedGroup.id} />}
     </aside>
   );
