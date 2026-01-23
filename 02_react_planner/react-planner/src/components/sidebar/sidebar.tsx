@@ -1,5 +1,6 @@
 import React from 'react';
 
+import * as constants from '../../constants';
 import { State } from '../../models';
 import * as SharedStyle from '../../shared-style';
 import { ComponentType } from '../../types';
@@ -61,6 +62,9 @@ function EmptyState() {
 }
 
 export default function Sidebar({ state }: SidebarProps) {
+  // ONLY CHANGE: hide the right specs box while Catalog is open.
+  if (state.mode === constants.MODE_VIEWING_CATALOG) return null;
+
   const selectedLayer = state.scene.selectedLayer;
 
   // Always show the box even if nothing is selected or no layer exists.

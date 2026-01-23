@@ -183,6 +183,33 @@ function usePlanOMessageBridge() {
 function ResponsiveReactPlanner() {
   usePlanOMessageBridge();
 
+  // ONLY PURPOSE: inform PlanO when mode changes so it can hide its left panel on catalog.
+  // Also used to hide engine sidebar while catalog is open.
+  useEffect(() => {
+    let lastMode: any = getPlannerState()?.mode;
+
+    // Send initial mode once
+    postToParent({
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'MODE_CHANGED',
+      payload: { mode: lastMode }
+    });
+
+    const unsub = store.subscribe(() => {
+      const nextMode: any = getPlannerState()?.mode;
+      if (nextMode !== lastMode) {
+        lastMode = nextMode;
+        postToParent({
+          protocolVersion: PROTOCOL_VERSION,
+          type: 'MODE_CHANGED',
+          payload: { mode: nextMode }
+        });
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
   const [ref, bounds] = useMeasure();
   const catalog = useMemo(() => createCatalog(), []);
 

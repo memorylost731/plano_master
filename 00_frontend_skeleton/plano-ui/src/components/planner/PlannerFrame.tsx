@@ -30,6 +30,7 @@ export type PlannerApi = {
 
 type Props = {
   onApi?: (api: PlannerApi) => void;
+  onModeChange?: (mode: string) => void;
 };
 
 function downloadJson(filename: string, data: any) {
@@ -47,11 +48,11 @@ function downloadJson(filename: string, data: any) {
   URL.revokeObjectURL(url);
 }
 
-export default function PlannerFrame({ onApi }: Props) {
+export default function PlannerFrame({ onApi, onModeChange }: Props) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   // IMPORTANT: Use '*' to avoid targetOrigin mismatch during dev.
-  // Engine already validates event.origin == http://localhost:5174
+  // Engine validates event.origin.
   const postToEngine = (msg: any) => {
     const w = iframeRef.current?.contentWindow;
     if (!w) return;
@@ -107,13 +108,19 @@ export default function PlannerFrame({ onApi }: Props) {
     onApi?.({ cmd, loadProjectPicker, saveProjectDownload });
 
     const onMessage = (event: MessageEvent) => {
-      // accept only messages coming from the engine origin
       if (event.origin !== "http://localhost:5173") return;
 
       const data: any = event.data;
       if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
 
       if (data.type === "ERROR") console.error("[ENGINE ERROR]", data.message);
+
+      // ONLY CHANGE: allow PlanO to know when catalog mode is active
+      if (data.type === "MODE_CHANGED") {
+        const mode = data?.payload?.mode;
+        if (typeof mode === "string") onModeChange?.(mode);
+        return;
+      }
 
       if (data.type === "SCENE_JSON") {
         const scene = data?.payload?.scene;
@@ -123,7 +130,7 @@ export default function PlannerFrame({ onApi }: Props) {
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [onApi]);
+  }, [onApi, onModeChange]);
 
   return (
     <iframe

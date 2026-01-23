@@ -47,7 +47,6 @@ export default function Planner() {
   const didInitRef = useRef(false);
 
   const [viewMode, setViewMode] = useState<ViewMode>("2D");
-  const [engineMode, setEngineMode] = useState<string>("");
 
   const {
     activeMain,
@@ -82,11 +81,9 @@ export default function Planner() {
     apiRef.current?.cmd("VIEW_3D");
   }, []);
 
-  const isCatalogOpen = engineMode === "MODE_VIEWING_CATALOG";
-
   return (
     <div className={`${viewMode === "2D" ? "planner2d-bg" : "planner3d-bg"} fixed inset-0 text-zinc-900`}>
-      <PlannerFrame onApi={handleApi} onModeChange={setEngineMode} />
+      <PlannerFrame onApi={handleApi} />
 
       {/* TOP BAR (FULL WIDTH – NO SLIDER, NO WRAP) */}
       <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex justify-center p-2">
@@ -234,8 +231,8 @@ export default function Planner() {
         </div>
       </div>
 
-      {/* LEFT SUBSERVICES only in 3D (HIDDEN while catalog is open) */}
-      {viewMode === "3D" && !isCatalogOpen && (
+      {/* LEFT SUBSERVICES only in 3D */}
+      {viewMode === "3D" && (
         <div className="pointer-events-none absolute left-4 top-36 z-50">
           <div className="pointer-events-auto w-[300px] glass-panel overflow-hidden">
             <div className="px-4 py-3 border-b border-white/20">
