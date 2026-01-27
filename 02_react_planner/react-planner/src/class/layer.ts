@@ -39,17 +39,13 @@ class Layer {
     elementID: string
   ) {
     return produce(state, (draft) => {
-      const layer: any = draft.scene.layers[layerID];
+      const layer = draft.scene.layers[layerID];
       if (!layer) return;
-      const element = layer[elementPrototype]?.[elementID];
+      const element = layer[elementPrototype][elementID];
       if (!element) return;
-
       element.selected = true;
-
-      const list = layer.selected?.[elementPrototype];
-      if (!Array.isArray(list)) return;
-      if (list.includes(elementID)) return;
-      list.push(elementID);
+      if (elementID in layer.selected[elementPrototype]) return;
+      layer.selected[elementPrototype].push(elementID);
     });
   }
 
@@ -60,15 +56,12 @@ class Layer {
     elementID: string
   ) {
     return produce(state, (draft) => {
-      const layer: any = draft.scene.layers[layerID];
+      const layer = draft.scene.layers[layerID];
       if (!layer) return;
-
-      const list = layer.selected?.[elementPrototype];
-      if (Array.isArray(list)) {
-        layer.selected[elementPrototype] = list.filter((el: string) => el !== elementID);
-      }
-
-      const element = layer[elementPrototype]?.[elementID];
+      layer.selected[elementPrototype] = layer.selected[
+        elementPrototype
+      ].filter((el) => el !== elementID);
+      const element = layer[elementPrototype][elementID];
       if (!element) return;
       element.selected = false;
     });
@@ -76,28 +69,27 @@ class Layer {
 
   static unselectAll(state: State, layerID: string) {
     state = produce(state, (draft) => {
-      const layer: any = draft.scene.layers[layerID];
+      const layer = draft.scene.layers[layerID];
       if (!layer) return;
 
       const { lines, holes, items, areas } = layer;
 
-      Object.values(lines).forEach((line: any) => {
+      Object.values(lines).forEach((line) => {
         draft = Line.unselect(draft, layerID, line.id);
       });
-      Object.values(holes).forEach((hole: any) => {
+      Object.values(holes).forEach((hole) => {
         draft = Hole.unselect(draft, layerID, hole.id);
       });
-      Object.values(items).forEach((item: any) => {
+      Object.values(items).forEach((item) => {
         draft = Item.unselect(draft, layerID, item.id);
       });
-      Object.values(areas).forEach((area: any) => {
+      Object.values(areas).forEach((area) => {
         draft = Area.unselect(draft, layerID, area.id);
       });
       return draft;
     });
-
     return produce(state, (draft) => {
-      const layer: any = draft.scene.layers[layerID];
+      const layer = draft.scene.layers[layerID];
       if (!layer) return;
 
       layer.selected = {
@@ -110,19 +102,20 @@ class Layer {
     });
   }
 
-  static setProperties(state: State, layerID: string, properties: Partial<LayerModel>) {
+  static setProperties(
+    state: State,
+    layerID: string,
+    properties: Partial<LayerModel>
+  ) {
     return produce(state, (draft) => {
-      const layer: any = draft.scene.layers[layerID];
+      const layer = draft.scene.layers[layerID];
       if (!layer) return;
-
       Object.assign(layer, properties);
-
-      const sortedLayers = Object.values(draft.scene.layers).sort((a: any, b: any) =>
+      const sortedLayers = Object.values(draft.scene.layers).sort((a, b) =>
         a.altitude !== b.altitude ? a.altitude - b.altitude : a.order - b.order
       );
-
       draft.scene.layers = sortedLayers.reduce(
-        (acc: any, l: any) => ({ ...acc, [l.id]: l }),
+        (acc, l) => ({ ...acc, [l.id]: l }),
         {}
       );
     });
@@ -130,7 +123,7 @@ class Layer {
 
   static remove(state: State, layerID: string) {
     return produce(state, (draft) => {
-      delete (draft.scene.layers as any)[layerID];
+      delete draft.scene.layers[layerID];
       if (draft.scene.selectedLayer === layerID) {
         const newSelectedLayer = Object.keys(draft.scene.layers)[0];
         draft.scene.selectedLayer = newSelectedLayer;
@@ -145,7 +138,7 @@ class Layer {
     elementID: string
   ) {
     return produce(state, (draft) => {
-      const layer: any = draft.scene.layers[layerID];
+      const layer = draft.scene.layers[layerID];
       if (layer && layer[elementPrototype]) {
         delete layer[elementPrototype][elementID];
       }
@@ -153,39 +146,44 @@ class Layer {
   }
 
   static detectAndUpdateAreas(state: State, layerID: string) {
-    const layer0: any = state.scene.layers[layerID];
+    // Compute cycles from the current state first
+    const layer0 = state.scene.layers[layerID];
     if (!layer0) return state;
 
     const verticesArray: Array<[number, number]> = [];
     const vertexID_to_verticesArrayIndex: Record<string, number> = {};
     const verticesArrayIndex_to_vertexID: Record<number, string> = {};
 
-    Object.values(layer0.vertices).forEach((vertex: any, i: number) => {
+    Object.values(layer0.vertices).forEach((vertex, i) => {
       verticesArray.push([vertex.x, vertex.y]);
       vertexID_to_verticesArrayIndex[vertex.id] = i;
       verticesArrayIndex_to_vertexID[i] = vertex.id;
     });
 
-    const linesArray = Object.values(layer0.lines).map((line: any) =>
-      line.vertices.map((vertexID: string) => vertexID_to_verticesArrayIndex[vertexID])
+    const linesArray = Object.values(layer0.lines).map((line) =>
+      line.vertices.map((vertexID) => vertexID_to_verticesArrayIndex[vertexID])
     );
 
-    const innerCyclesByVerticesID1 = GraphInnerCycles.calculateInnerCycles(verticesArray, linesArray);
-    const innerCyclesByVerticesID2 = innerCyclesByVerticesID1.map((cycle: any) =>
-      cycle.map((vertexIndex: number) => verticesArrayIndex_to_vertexID[vertexIndex])
+    const innerCyclesByVerticesID1 = GraphInnerCycles.calculateInnerCycles(
+      verticesArray,
+      linesArray
+    );
+    const innerCyclesByVerticesID2 = innerCyclesByVerticesID1.map((cycle) =>
+      cycle.map((vertexIndex) => verticesArrayIndex_to_vertexID[vertexIndex])
     );
 
-    const innerCyclesByVerticesID = innerCyclesByVerticesID2.map((area: any) =>
+    const innerCyclesByVerticesID = innerCyclesByVerticesID2.map((area) =>
       GraphInnerCycles.isClockWiseOrder(
-        area.map((vertexID: string) => layer0.vertices[vertexID])
+        area.map((vertexID) => layer0.vertices[vertexID])
       )
         ? area.reverse()
         : area
     );
 
-    Object.values((state.scene.layers as any)[layerID].areas).forEach((area: any) => {
+    // Remove old areas
+    Object.values(state.scene.layers[layerID].areas).forEach((area) => {
       if (
-        !innerCyclesByVerticesID.some((vertices: any) =>
+        !innerCyclesByVerticesID.some((vertices) =>
           sameSet(new Set(vertices), new Set(area.vertices))
         )
       ) {
@@ -193,47 +191,57 @@ class Layer {
       }
     });
 
-    let layer: any = (state.scene.layers as any)[layerID];
+    let layer = state.scene.layers[layerID];
     const areaIDs: string[] = [];
     const areasToReset: string[] = [];
 
-    innerCyclesByVerticesID.forEach((cycle: any, ind: number) => {
-      const areaInUse = Object.values(layer.areas).find((area: any) =>
+    // Add new areas or mark reused ones for holes reset
+    innerCyclesByVerticesID.forEach((cycle, ind) => {
+      const areaInUse = Object.values(layer.areas).find((area) =>
         sameSet(new Set(area.vertices), new Set(cycle))
       );
 
       if (areaInUse) {
-        areaIDs[ind] = (areaInUse as any).id;
-        areasToReset.push((areaInUse as any).id);
+        areaIDs[ind] = areaInUse.id;
+        areasToReset.push(areaInUse.id);
       } else {
-        const areaVerticesCoords = cycle.map((vertexID: string) => {
+        const areaVerticesCoords = cycle.map((vertexID) => {
           const vertex = layer.vertices[vertexID];
           return { x: vertex.x, y: vertex.y };
         });
-
-        const resultAdd: any = Area.add(state, layerID, 'area', areaVerticesCoords, (state as any).catalog);
+        const resultAdd = Area.add(
+          state,
+          layerID,
+          'area',
+          areaVerticesCoords,
+          state.catalog
+        );
         areaIDs[ind] = resultAdd.area.id;
         state = resultAdd.updatedState;
-        layer = (state.scene.layers as any)[layerID];
+        layer = state.scene.layers[layerID];
       }
     });
 
+    // Finally, mutate holes in a single produce call
     state = produce(state, (draft) => {
-      const lay: any = draft.scene.layers[layerID];
+      const lay = draft.scene.layers[layerID];
 
+      // Reset holes on reused areas
       areasToReset.forEach((id) => {
         if (lay.areas[id]) lay.areas[id].holes = [];
       });
 
+      // Prepare vertices for containment checks
       const verticesCoordsForArea = areaIDs.map((id) => {
         const area = lay.areas[id];
-        const vertices = area.vertices.map((vertexID: string) => {
+        const vertices = area.vertices.map((vertexID) => {
           const { x, y } = lay.vertices[vertexID];
           return [x, y] as [number, number];
         });
         return { id, vertices };
       });
 
+      // Update holes lists
       verticesCoordsForArea.forEach((area1) => {
         const holesList: string[] = [];
         verticesCoordsForArea.forEach((area2) => {
@@ -252,20 +260,22 @@ class Layer {
         lay.areas[area1.id].holes = holesList;
       });
 
+      // Deduplicate holes
       areaIDs.forEach((areaID) => {
         const doubleHoles = new Set<string>();
         const areaHoles = lay.areas[areaID].holes;
-        areaHoles.forEach((areaHoleID: string) => {
+        areaHoles.forEach((areaHoleID) => {
           const holesOfholes = lay.areas[areaHoleID].holes;
-          holesOfholes.forEach((holeID: string) => {
+          holesOfholes.forEach((holeID) => {
             if (areaHoles.indexOf(holeID) !== -1) {
               doubleHoles.add(holeID);
             }
           });
         });
-
         if (doubleHoles.size) {
-          lay.areas[areaID].holes = areaHoles.filter((holeID: string) => !doubleHoles.has(holeID));
+          lay.areas[areaID].holes = areaHoles.filter(
+            (holeID) => !doubleHoles.has(holeID)
+          );
         }
       });
     });
@@ -275,9 +285,9 @@ class Layer {
 
   static removeZeroLengthLines(state: State, layerID: string) {
     return produce(state, (draft) => {
-      const layer: any = draft.scene.layers[layerID];
+      const layer = draft.scene.layers[layerID];
       if (!layer) return;
-      Object.values(layer.lines).forEach((line: any) => {
+      Object.values(layer.lines).forEach((line) => {
         const v0 = layer.vertices[line.vertices[0]];
         const v1 = layer.vertices[line.vertices[1]];
         if (GeometryUtils.verticesDistance(v0, v1) === 0) {
@@ -288,162 +298,126 @@ class Layer {
   }
 
   static mergeEqualsVertices(state: State, layerID: string, vertexID: string) {
-    const layer: any = state.scene.layers[layerID];
+    const layer = state.scene.layers[layerID];
     if (!layer) return state;
     const vertex = layer.vertices[vertexID];
     if (!vertex) return state;
 
     const doubleVertices = Object.values(layer.vertices).filter(
-      (v: any) => v.id !== vertexID && GeometryUtils.samePoints(vertex, v)
+      (v) => v.id !== vertexID && GeometryUtils.samePoints(vertex, v)
     );
 
-    doubleVertices.forEach((doubleVertex: any) => {
-      doubleVertex.lines.forEach((lineID: string) => {
+    doubleVertices.forEach((doubleVertex) => {
+      doubleVertex.lines.forEach((lineID) => {
         const line = layer.lines[lineID];
         if (line) {
           state = produce(state, (draft) => {
-            (draft.scene.layers as any)[layerID].lines[lineID].vertices =
-              line.vertices.map((v: string) => (v === doubleVertex.id ? vertexID : v)) as [string, string];
+            draft.scene.layers[layerID].lines[lineID].vertices =
+              line.vertices.map((v) =>
+                v === doubleVertex.id ? vertexID : v
+              ) as [string, string];
           });
           state = Vertex.addElement(state, layerID, vertexID, 'lines', lineID);
         }
       });
 
-      doubleVertex.areas.forEach((areaID: string) => {
+      doubleVertex.areas.forEach((areaID) => {
         const area = layer.areas[areaID];
         if (area) {
           state = produce(state, (draft) => {
-            (draft.scene.layers as any)[layerID].areas[areaID].vertices =
-              area.vertices.map((v: string) => (v === doubleVertex.id ? vertexID : v)) as any;
+            draft.scene.layers[layerID].areas[areaID].vertices =
+              area.vertices.map((v) =>
+                v === doubleVertex.id ? vertexID : v
+              ) as [string, string];
           });
           state = Vertex.addElement(state, layerID, vertexID, 'areas', areaID);
         }
       });
 
-      state = Vertex.remove(state, layerID, doubleVertex.id, null as any, null as any, true);
+      state = Vertex.remove(state, layerID, doubleVertex.id, null, null, true);
     });
-
     return state;
   }
 
-  static setPropertiesOnSelected(state: State, layerID: string, properties: Record<string, any>) {
+  static setPropertiesOnSelected(
+    state: State,
+    layerID: string,
+    properties: Record<string, any>
+  ) {
     return produce(state, (draft) => {
-      const selected: any = (draft.scene.layers as any)[layerID].selected;
-
-      selected.lines.forEach((lineID: string) => (draft = Line.setProperties(draft, layerID, lineID, properties)));
-      selected.holes.forEach((holeID: string) => (draft = Hole.setProperties(draft, layerID, holeID, properties)));
-      selected.areas.forEach((areaID: string) => (draft = Area.setProperties(draft, layerID, areaID, properties)));
-      selected.items.forEach((itemID: string) => (draft = Item.setProperties(draft, layerID, itemID, properties)));
-
+      const selected = draft.scene.layers[layerID].selected;
+      selected.lines.forEach(
+        (lineID) =>
+          (draft = Line.setProperties(draft, layerID, lineID, properties))
+      );
+      selected.holes.forEach(
+        (holeID) =>
+          (draft = Hole.setProperties(draft, layerID, holeID, properties))
+      );
+      selected.areas.forEach(
+        (areaID) =>
+          (draft = Area.setProperties(draft, layerID, areaID, properties))
+      );
+      selected.items.forEach(
+        (itemID) =>
+          (draft = Item.setProperties(draft, layerID, itemID, properties))
+      );
       return draft;
     });
   }
 
-  static updatePropertiesOnSelected(state: State, layerID: string, properties: Record<string, any>) {
+  static updatePropertiesOnSelected(
+    state: State,
+    layerID: string,
+    properties: Record<string, any>
+  ) {
     return produce(state, (draft) => {
-      const selected: any = (draft.scene.layers as any)[layerID].selected;
-
-      selected.lines.forEach((lineID: string) => (draft = Line.updateProperties(draft, layerID, lineID, properties)));
-      selected.holes.forEach((holeID: string) => (draft = Hole.updateProperties(draft, layerID, holeID, properties)));
-      selected.areas.forEach((areaID: string) => (draft = Area.updateProperties(draft, layerID, areaID, properties)));
-      selected.items.forEach((itemID: string) => (draft = Item.updateProperties(draft, layerID, itemID, properties)));
-
+      const selected = draft.scene.layers[layerID].selected;
+      selected.lines.forEach(
+        (lineID) =>
+          (draft = Line.updateProperties(draft, layerID, lineID, properties))
+      );
+      selected.holes.forEach(
+        (holeID) =>
+          (draft = Hole.updateProperties(draft, layerID, holeID, properties))
+      );
+      selected.areas.forEach(
+        (areaID) =>
+          (draft = Area.updateProperties(draft, layerID, areaID, properties))
+      );
+      selected.items.forEach(
+        (itemID) =>
+          (draft = Item.updateProperties(draft, layerID, itemID, properties))
+      );
       return draft;
     });
   }
 
-  /**
-   * PlanO FIX:
-   * - Do NOT call Line.setAttributes inside an Immer producer (it returns a new state).
-   * - Apply setAttributes sequentially outside produce.
-   * - Fallback to element.selected flags when selection lists are empty (common for converted scenes).
-   */
-  static setAttributesOnSelected(state: State, layerID: string, attributes: any) {
-    const layer: any = (state.scene.layers as any)[layerID];
-    if (!layer) return state;
-
-    const selected: any = layer.selected;
-    const listCount =
-      (selected?.lines?.length || 0) +
-      (selected?.holes?.length || 0) +
-      (selected?.items?.length || 0) +
-      (selected?.areas?.length || 0);
-
-    const useFallback = listCount === 0;
-
-    // 1) Apply to selected lists (normal behavior)
-    if (!useFallback) {
-      (selected.lines || []).forEach((lineID: string) => {
-        state = Line.setAttributes(state, layerID, lineID, attributes);
-      });
-      (selected.holes || []).forEach((holeID: string) => {
-        state = Hole.setAttributes(state, layerID, holeID, attributes);
-      });
-      (selected.items || []).forEach((itemID: string) => {
-        state = Item.setAttributes(state, layerID, itemID, attributes);
-      });
-      (selected.areas || []).forEach((areaID: string) => {
-        state = Area.setAttributes(state, layerID, areaID, attributes);
-      });
-
-      // If vertices moved, update areas
-      if (attributes?.vertexOne || attributes?.vertexTwo) {
-        state = Layer.detectAndUpdateAreas(state, layerID);
-      }
-      return state;
-    }
-
-    // 2) Fallback: apply to elements with .selected === true
-    const hasVertexEdit = !!(attributes?.vertexOne || attributes?.vertexTwo);
-
-    // If we are editing vertices, update them directly (works even when vertices are shared)
-    if (hasVertexEdit) {
-      state = produce(state, (draft) => {
-        const lay: any = (draft.scene.layers as any)[layerID];
-        if (!lay) return;
-
-        for (const line of Object.values(lay.lines || {}) as any[]) {
-          if (!line?.selected) continue;
-
-          if (attributes?.vertexOne && Array.isArray(line.vertices) && line.vertices[0]) {
-            const v = lay.vertices?.[line.vertices[0]];
-            if (v) {
-              if (attributes.vertexOne.x !== undefined) v.x = attributes.vertexOne.x;
-              if (attributes.vertexOne.y !== undefined) v.y = attributes.vertexOne.y;
-            }
-          }
-          if (attributes?.vertexTwo && Array.isArray(line.vertices) && line.vertices[1]) {
-            const v = lay.vertices?.[line.vertices[1]];
-            if (v) {
-              if (attributes.vertexTwo.x !== undefined) v.x = attributes.vertexTwo.x;
-              if (attributes.vertexTwo.y !== undefined) v.y = attributes.vertexTwo.y;
-            }
-          }
-        }
-      });
-    }
-
-    // Then apply line/hole/item/area attributes through their normal setters
-    const lay2: any = (state.scene.layers as any)[layerID];
-
-    for (const line of Object.values(lay2.lines || {}) as any[]) {
-      if (line?.selected) state = Line.setAttributes(state, layerID, line.id, attributes);
-    }
-    for (const hole of Object.values(lay2.holes || {}) as any[]) {
-      if (hole?.selected) state = Hole.setAttributes(state, layerID, hole.id, attributes);
-    }
-    for (const item of Object.values(lay2.items || {}) as any[]) {
-      if (item?.selected) state = Item.setAttributes(state, layerID, item.id, attributes);
-    }
-    for (const area of Object.values(lay2.areas || {}) as any[]) {
-      if (area?.selected) state = Area.setAttributes(state, layerID, area.id, attributes);
-    }
-
-    if (hasVertexEdit) {
-      state = Layer.detectAndUpdateAreas(state, layerID);
-    }
-
-    return state;
+  static setAttributesOnSelected(
+    state: State,
+    layerID: string,
+    attributes: any
+  ) {
+    return produce(state, (draft) => {
+      const selected = draft.scene.layers[layerID].selected;
+      selected.lines.forEach(
+        (lineID) =>
+          (draft = Line.setAttributes(draft, layerID, lineID, attributes))
+      );
+      selected.holes.forEach(
+        (holeID) =>
+          (draft = Hole.setAttributes(draft, layerID, holeID, attributes))
+      );
+      selected.items.forEach(
+        (itemID) =>
+          (draft = Item.setAttributes(draft, layerID, itemID, attributes))
+      );
+      selected.areas.forEach(
+        (areaID) =>
+          (draft = Area.setAttributes(draft, layerID, areaID, attributes))
+      );
+      return draft;
+    });
   }
 }
 

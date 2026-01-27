@@ -10,12 +10,16 @@ export default function Estimate() {
         </div>
         <div>
           <h1 className="text-2xl font-semibold">Estimate</h1>
-          <div className="text-sm text-zinc-600">BOQ / cost breakdown (UI only)</div>
+          <div className="text-sm text-zinc-600">
+            BOQ / cost breakdown (UI only)
+          </div>
         </div>
       </div>
 
       <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-        <div className="border-b px-4 py-3 text-sm font-semibold">Items</div>
+        <div className="border-b px-4 py-3 text-sm font-semibold">
+          Items
+        </div>
 
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -56,7 +60,7 @@ export default function Estimate() {
       </div>
 
       <Link
-        to="/planner"
+        to="/planner/3d"
         className="inline-flex items-center rounded-lg border bg-white px-3 py-2 text-sm hover:bg-zinc-50"
       >
         Back to Planner

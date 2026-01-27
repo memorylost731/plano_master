@@ -26,8 +26,16 @@ export default function GeoSelect() {
     !!serviceType;
 
   function handleContinue() {
-    // Single planner route: React-Planner handles 2D/3D internally.
-    navigate("/planner");
+    /**
+     * Excel logic:
+     * - refurbishing / new → go through 2D first
+     * - individual service → go directly to 3D
+     */
+    if (serviceType === "individual") {
+      navigate("/planner/3d");
+    } else {
+      navigate("/planner/2d");
+    }
   }
 
   return (
