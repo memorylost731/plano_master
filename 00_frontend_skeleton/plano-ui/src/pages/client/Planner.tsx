@@ -100,8 +100,8 @@ export default function Planner() {
               <span className="text-base">PlanO</span>
             </button>
 
-            {/* SERVICES (3D only) — NO WRAP, NO SCROLLBAR */}
-            {viewMode === "3D" ? (
+            {/* SERVICES (3D only) — hidden while catalog is open */}
+            {viewMode === "3D" && !isCatalogOpen ? (
               <div className="flex-1 min-w-0 overflow-hidden">
                 <div className="flex items-center gap-2 justify-center px-1">
                   {MAIN_SERVICES.map((s) => {
@@ -128,108 +128,110 @@ export default function Planner() {
               <div className="flex-1" />
             )}
 
-            {/* ACTIONS */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => apiRef.current?.cmd("NEW_PROJECT")}
-                className="plano-glass-btn h-10 w-10 grid place-items-center"
-                title="New project"
-              >
-                <FilePlus className="h-5 w-5" />
-              </button>
+            {/* ACTIONS — hidden while catalog is open */}
+            {!isCatalogOpen && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("NEW_PROJECT")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="New project"
+                >
+                  <FilePlus className="h-5 w-5" />
+                </button>
 
-              <button
-                type="button"
-                onClick={() => apiRef.current?.saveProjectDownload()}
-                className="plano-glass-btn h-10 w-10 grid place-items-center"
-                title="Save project"
-              >
-                <Save className="h-5 w-5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.saveProjectDownload()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Save project"
+                >
+                  <Save className="h-5 w-5" />
+                </button>
 
-              <button
-                type="button"
-                onClick={() => apiRef.current?.loadProjectPicker()}
-                className="plano-glass-btn h-10 w-10 grid place-items-center"
-                title="Load project (JSON/PDF/Image via Raster)"
-              >
-                <FolderOpen className="h-5 w-5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.loadProjectPicker()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Load project (JSON/PDF/Image via Raster)"
+                >
+                  <FolderOpen className="h-5 w-5" />
+                </button>
 
-              <button
-                type="button"
-                onClick={() => apiRef.current?.cmd("OPEN_CATALOG")}
-                className="plano-glass-btn h-10 w-10 grid place-items-center"
-                title="Open catalog"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_CATALOG")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Open catalog"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
 
-              <button
-                type="button"
-                onClick={go3D}
-                className={`plano-glass-btn px-4 py-2 text-sm font-semibold ${
-                  viewMode === "3D" ? "ring-2 ring-white/70" : ""
-                }`}
-                title="3D View"
-              >
-                3D
-              </button>
+                <button
+                  type="button"
+                  onClick={go3D}
+                  className={`plano-glass-btn px-4 py-2 text-sm font-semibold ${
+                    viewMode === "3D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                  title="3D View"
+                >
+                  3D
+                </button>
 
-              <button
-                type="button"
-                onClick={go2D}
-                className={`plano-glass-btn px-4 py-2 text-sm font-semibold ${
-                  viewMode === "2D" ? "ring-2 ring-white/70" : ""
-                }`}
-                title="2D View"
-              >
-                2D
-              </button>
+                <button
+                  type="button"
+                  onClick={go2D}
+                  className={`plano-glass-btn px-4 py-2 text-sm font-semibold ${
+                    viewMode === "2D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                  title="2D View"
+                >
+                  2D
+                </button>
 
-              <button
-                type="button"
-                onClick={() => viewMode === "3D" && apiRef.current?.cmd("VIEW_3D_FIRST_PERSON")}
-                className={`plano-glass-btn h-10 w-10 grid place-items-center ${
-                  viewMode === "3D" ? "" : "opacity-40 cursor-not-allowed"
-                }`}
-                title="3D First Person (3D only)"
-                disabled={viewMode !== "3D"}
-              >
-                <PersonStanding className="h-5 w-5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => viewMode === "3D" && apiRef.current?.cmd("VIEW_3D_FIRST_PERSON")}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    viewMode === "3D" ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                  title="3D First Person (3D only)"
+                  disabled={viewMode !== "3D"}
+                >
+                  <PersonStanding className="h-5 w-5" />
+                </button>
 
-              <button
-                type="button"
-                onClick={() => apiRef.current?.cmd("UNDO")}
-                className="plano-glass-btn h-10 w-10 grid place-items-center"
-                title="Undo"
-              >
-                <Undo2 className="h-5 w-5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("UNDO")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Undo"
+                >
+                  <Undo2 className="h-5 w-5" />
+                </button>
 
-              <button
-                type="button"
-                onClick={() => apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")}
-                className="plano-glass-btn h-10 w-10 grid place-items-center"
-                title="Configure project"
-              >
-                <Settings className="h-5 w-5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Configure project"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
 
-              <button
-                type="button"
-                onClick={() => navigate("/estimate")}
-                disabled={!hasAnySelection}
-                className={`plano-glass-btn h-10 w-10 grid place-items-center ${
-                  hasAnySelection ? "" : "opacity-40 cursor-not-allowed"
-                }`}
-                title="Estimate"
-              >
-                <FileText className="h-5 w-5" />
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/estimate")}
+                  disabled={!hasAnySelection}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    hasAnySelection ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                  title="Estimate"
+                >
+                  <FileText className="h-5 w-5" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

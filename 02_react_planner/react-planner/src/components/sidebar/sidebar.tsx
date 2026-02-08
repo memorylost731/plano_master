@@ -10,9 +10,9 @@ import PanelGroupEditor from './panel-group-editor';
 
 const FLOAT_SIDEBAR_STYLE: React.CSSProperties = {
   position: 'fixed',
-  top: 12,
+  top: 72,
   right: 12,
-  width: 380,
+  width: 220,
   maxHeight: 320,
   overflow: 'auto',
   zIndex: 9999,

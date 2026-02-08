@@ -2,7 +2,6 @@ import React, { Component } from 'react';
 
 import convert from 'convert-units';
 import { produce } from 'immer';
-import { MdContentCopy, MdContentPaste } from 'react-icons/md';
 
 import { CatalogFn } from '../../../catalog/catalog';
 import { Area, Item, Layer, StateProps } from '../../../models';
@@ -558,13 +557,7 @@ export default class ElementEditor extends Component<
     }
   }
 
-  copyProperties(properties: Record<string, any>) {
-    this.context.projectActions.copyProperties(properties);
-  }
-
-  pasteProperties() {
-    this.context.projectActions.pasteProperties();
-  }
+ 
 
   private computeSelectedAreaM2(): number | null {
     const { element, layer } = this.props;
@@ -721,80 +714,9 @@ export default class ElementEditor extends Component<
           </div>
         )}
 
-        {/* Estimator basket box */}
-        <div style={estimatorBoxStyle}>
-          <div style={estimatorHeaderStyle}>
-            <div style={estimatorTitleStyle}>{translator.t('Estimator')}</div>
-            <div style={estimatorActionsStyle}>
-              <button
-                type="button"
-                style={currentSurface ? miniBtnStyle : miniBtnDisabledStyle}
-                onClick={this.addCurrentSurfaceToBasket}
-                disabled={!currentSurface}
-                title={
-                  currentSurface
-                    ? `${currentSurface.label}: ${currentSurface.m2} m²`
-                    : 'Select a wall or an area'
-                }
-              >
-                {translator.t('Add')}
-              </button>
-              <button
-                type="button"
-                style={basket.length ? miniBtnStyle : miniBtnDisabledStyle}
-                onClick={this.clearSurfaceBasket}
-                disabled={!basket.length}
-              >
-                {translator.t('Clear')}
-              </button>
-            </div>
-          </div>
+        
 
-          <div style={estimatorRowStyle}>
-            <div style={infoLabelStyle}>{translator.t('Total')}</div>
-            <div style={infoValueStyle}>{totalM2} m²</div>
-          </div>
-
-          {basket.slice(0, 10).map((it) => (
-            <div key={it.id} style={estimatorItemStyle}>
-              <div style={{ ...infoLabelStyle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {it.label}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em' }}>
-                <div style={infoValueStyle}>{MathUtils.toFixedFloat(it.m2, 2)} m²</div>
-                <button
-                  type="button"
-                  style={removeBtnStyle}
-                  onClick={() => this.removeBasketItem(it.id)}
-                  title={translator.t('Remove')}
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div style={attrPorpSeparatorStyle}>
-          <div style={headActionStyle}>
-            <div
-              title={translator.t('Copy')}
-              style={iconHeadStyle}
-              onClick={(e) => this.copyProperties((element as any).properties)}
-            >
-              <MdContentCopy />
-            </div>
-            {appState.clipboardProperties && (appState as any).clipboardProperties.size ? (
-              <div
-                title={translator.t('Paste')}
-                style={iconHeadStyle}
-                onClick={(e) => this.pasteProperties()}
-              >
-                <MdContentPaste />
-              </div>
-            ) : null}
-          </div>
-        </div>
+        
 
         {Object.entries(propertiesFormData).map(([propertyName, data]) => {
           const currentValue = (data as any).currentValue,
