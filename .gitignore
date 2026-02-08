@@ -33,3 +33,7 @@ Thumbs.db
 
 # Local DB / volumes (if any)
 db_data/
+
+# Local scratch / dumps (do not commit)
+*.bak
+PLANO_REACT_PLANNER_FULL_DUMP.txt
