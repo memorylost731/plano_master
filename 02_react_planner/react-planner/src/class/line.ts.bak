@@ -519,15 +519,7 @@ class Line {
       x,
       y
     ).updatedState;
-        const scene = state.scene as any;
-    
-    if (!scene?.meta?.__normalized) {
-    
-      state = Layer.detectAndUpdateAreas(state, layerID);
-    
-    }
-    
-    // __RASTER_GUARD_APPLIED__
+    state = Layer.detectAndUpdateAreas(state, layerID);
 
     return produce(state, (draft) => {
       draft.mode = MODE_WAITING_DRAWING_LINE;
@@ -773,15 +765,7 @@ class Line {
       });
     }
 
-        const scene = state.scene as any;
-    
-    if (!scene?.meta?.__normalized) {
-    
-      state = Layer.detectAndUpdateAreas(state, layerID);
-    
-    }
-    
-    // __RASTER_GUARD_APPLIED__
+    state = Layer.detectAndUpdateAreas(state, layerID);
 
     return produce(state, (draft) => {
       draft.mode = MODE_IDLE;
@@ -865,15 +849,7 @@ class Line {
       state = Layer.mergeEqualsVertices(state, layerID, vertexTwo.id);
     }
 
-        const scene = state.scene as any;
-    
-    if (!scene?.meta?.__normalized) {
-    
-      state = Layer.detectAndUpdateAreas(state, layerID);
-    
-    }
-    
-    // __RASTER_GUARD_APPLIED__
+    state = Layer.detectAndUpdateAreas(state, layerID);
     return state;
   }
 

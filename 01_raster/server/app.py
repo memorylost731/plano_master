@@ -3,12 +3,15 @@ import json
 import tempfile
 import subprocess
 from pathlib import Path
+from dotenv import load_dotenv
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 
 ROOT = Path(__file__).resolve().parents[1]  # .../01_raster
+load_dotenv(ROOT / ".env")
+
 SEND = ROOT / "send_to_rasterscan.py"
 CONVERT = ROOT / "convert_raster_to_scene.py"
 TEMPLATE = ROOT / "templates" / "react_planner_template.json"
