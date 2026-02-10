@@ -1,0 +1,5728 @@
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx
+================================================================
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+export type MainService =
+  | "electricity"
+  | "plumbing"
+  | "painting"
+  | "flooring"
+  | "plastering"
+  | "boards"
+  | "other";
+
+export const MAIN_SERVICES: Array<{ key: MainService; label: string }> = [
+  { key: "electricity", label: "Electricity" },
+  { key: "plumbing", label: "Plumbing" },
+  { key: "painting", label: "Painting" },
+  { key: "flooring", label: "Flooring" },
+  { key: "plastering", label: "Plastering" },
+  { key: "boards", label: "Boards" },
+  { key: "other", label: "Other" },
+];
+
+export const SUBSERVICES: Record<MainService, string[]> = {
+  electricity: [
+    "Switches & plugs",
+    "Overlaps with plumbing",
+    "Oven",
+    "Hob",
+    "Fridge freezer",
+    "Microwave",
+    "AC",
+  ],
+  plumbing: [
+    "Floor drain",
+    "Shower cubical",
+    "Bathroom sink",
+    "Mixers",
+    "Kitchen sink",
+    "Water heater",
+    "Washing machine",
+    "Dishwasher",
+    "Tap for water",
+  ],
+  painting: ["Internal paint", "External paint"],
+  flooring: [
+    "Ceramic tiles 60×60",
+    "Ceramic tiles 120×60",
+    "Ceramic tiles custom",
+    "Laminate",
+    "Microcement",
+    "Polished concrete",
+    "Parquet",
+  ],
+  plastering: [
+    "Internal (monacote+finittura)",
+    "Internal (microcement)",
+    "External (GR1000)",
+    "External (silicato)",
+    "Stone restoration",
+  ],
+  boards: ["Flat ceiling", "L-shape bulkhead", "U-shape bulkhead", "Custom shapes"],
+  other: ["To be defined", "Custom request", "Special works"],
+};
+
+type State = {
+  activeMain: MainService;
+  setActiveMain: (s: MainService) => void;
+
+  selected: Record<MainService, Set<string>>;
+  toggleSub: (main: MainService, sub: string) => void;
+  clearAll: () => void;
+
+  hasAnySelection: boolean;
+  selectedCount: number;
+};
+
+const KEY = "plano:plannerSelections:v1";
+const Ctx = createContext<State | null>(null);
+
+function load(): { activeMain: MainService; selected: Record<MainService, string[]> } | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const activeMain = (parsed.activeMain as MainService) || "electricity";
+    const sel = (parsed.selected as Record<string, string[]>) || {};
+
+    const out: Record<MainService, string[]> = {
+      electricity: sel.electricity || [],
+      plumbing: sel.plumbing || [],
+      painting: sel.painting || [],
+      flooring: sel.flooring || [],
+      plastering: sel.plastering || [],
+      boards: sel.boards || [],
+      other: sel.other || [],
+    };
+
+    return { activeMain, selected: out };
+  } catch {
+    return null;
+  }
+}
+
+function save(activeMain: MainService, selected: Record<MainService, Set<string>>) {
+  const payload = {
+    activeMain,
+    selected: {
+      electricity: Array.from(selected.electricity),
+      plumbing: Array.from(selected.plumbing),
+      painting: Array.from(selected.painting),
+      flooring: Array.from(selected.flooring),
+      plastering: Array.from(selected.plastering),
+      boards: Array.from(selected.boards),
+      other: Array.from(selected.other),
+    },
+  };
+  localStorage.setItem(KEY, JSON.stringify(payload));
+}
+
+/** ✅ This name must match your main.tsx import */
+export function PlannerStateProvider({ children }: { children: React.ReactNode }) {
+  const initial = load();
+
+  const [activeMain, setActiveMain] = useState<MainService>(initial?.activeMain || "electricity");
+  const [selected, setSelected] = useState<Record<MainService, Set<string>>>(() => ({
+    electricity: new Set(initial?.selected.electricity || []),
+    plumbing: new Set(initial?.selected.plumbing || []),
+    painting: new Set(initial?.selected.painting || []),
+    flooring: new Set(initial?.selected.flooring || []),
+    plastering: new Set(initial?.selected.plastering || []),
+    boards: new Set(initial?.selected.boards || []),
+    other: new Set(initial?.selected.other || []),
+  }));
+
+  useEffect(() => {
+    save(activeMain, selected);
+  }, [activeMain, selected]);
+
+  const toggleSub = (main: MainService, sub: string) => {
+    setSelected((prev) => {
+      const next: Record<MainService, Set<string>> = {
+        electricity: new Set(prev.electricity),
+        plumbing: new Set(prev.plumbing),
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+        other: new Set(prev.other),
+      };
+      if (next[main].has(sub)) next[main].delete(sub);
+      else next[main].add(sub);
+      return next;
+    });
+  };
+
+  const clearAll = () => {
+    setSelected({
+      electricity: new Set(),
+      plumbing: new Set(),
+      painting: new Set(),
+      flooring: new Set(),
+      plastering: new Set(),
+      boards: new Set(),
+      other: new Set(),
+    });
+  };
+
+  const selectedCount = useMemo(() => {
+    return (
+      selected.electricity.size +
+      selected.plumbing.size +
+      selected.painting.size +
+      selected.flooring.size +
+      selected.plastering.size +
+      selected.boards.size +
+      selected.other.size
+    );
+  }, [selected]);
+
+  const hasAnySelection = selectedCount > 0;
+
+  const value: State = {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    clearAll,
+    hasAnySelection,
+    selectedCount,
+  };
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/** ✅ This name must match Planner3D.tsx import */
+export function usePlannerState() {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("usePlannerState must be used inside PlannerStateProvider");
+  return ctx;
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/renderer.tsx
+================================================================
+import React, { useEffect } from 'react';
+
+import {
+  Models as PlannerModels,
+  Plugins as PlannerPlugins,
+  reducer as PlannerReducer,
+  ReactPlanner
+} from '@archef2000/react-planner';
+import { configureStore } from '@reduxjs/toolkit';
+import { produce } from 'immer';
+import { createRoot } from 'react-dom/client';
+import { Provider } from 'react-redux';
+import useMeasure from 'react-use-measure';
+
+import { createCatalog } from './catalog_custom/mycatalog';
+
+/**
+ * We wire PlanO UI -> React-Planner engine via postMessage.
+ * PlanO sends messages from:
+ * /00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx
+ *
+ * This engine:
+ * - listens for CMD messages
+ * - dispatches the same Redux actions that the React-Planner toolbar would call
+ * - reports MODE_CHANGED + SCENE_JSON back to the parent
+ */
+
+// ------- Protocol (must match PlanO PlannerFrame.tsx) -------
+const PROTOCOL_VERSION = 1;
+
+// ------- Import action creators + constants from local source -------
+import * as constants from '../../src/constants';
+import { normalizeSceneFromRaster } from '../../src/utils/scene-normalizer';
+
+import * as projectActions from '../../src/actions/project-actions';
+import * as viewer2DActions from '../../src/actions/viewer2d-actions';
+import * as viewer3DActions from '../../src/actions/viewer3d-actions';
+import * as linesActions from '../../src/actions/lines-actions';
+import * as holesActions from '../../src/actions/holes-actions';
+import * as itemsActions from '../../src/actions/items-actions';
+
+//define state
+const AppState = {
+  'react-planner': PlannerModels.State()
+};
+
+//define reducer
+const reducer = (state: { [key: string]: any } | undefined, action: any) => {
+  state = state || AppState;
+  state = produce(state, (draft) => {
+    draft['react-planner'] = PlannerReducer(draft['react-planner'], action);
+  });
+  return state;
+};
+
+const store = configureStore({
+  reducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      thunk: true,
+      immutableCheck: true,
+      serializableCheck: false,
+      actionCreatorCheck: true
+    }).concat()
+});
+
+const plugins = [PlannerPlugins.Keyboard(), PlannerPlugins.ConsoleDebugger()];
+
+// ---- helpers to talk to parent (PlanO) ----
+function postToParent(msg: any) {
+  try {
+    // targetOrigin '*' is OK; parent verifies origin is http://localhost:5173
+    window.parent?.postMessage(msg, '*');
+  } catch (e: any) {
+    // ignore
+  }
+}
+
+function emitModeChanged(mode: string) {
+  postToParent({
+    protocolVersion: PROTOCOL_VERSION,
+    type: 'MODE_CHANGED',
+    payload: { mode }
+  });
+}
+
+function emitError(message: string) {
+  postToParent({
+    protocolVersion: PROTOCOL_VERSION,
+    type: 'ERROR',
+    message
+  });
+}
+
+function emitSceneJson(scene: any) {
+  postToParent({
+    protocolVersion: PROTOCOL_VERSION,
+    type: 'SCENE_JSON',
+    payload: { scene }
+  });
+}
+
+// Component that uses useMeasure hook
+function ResponsiveReactPlanner() {
+  const [ref, bounds] = useMeasure();
+  const catalog = createCatalog();
+
+  useEffect(() => {
+    // Send initial mode to PlanO as soon as possible
+    const st: any = store.getState()['react-planner'];
+    if (st?.mode) emitModeChanged(String(st.mode));
+
+    // Subscribe to mode changes
+    let lastMode = st?.mode;
+    const unsubscribe = store.subscribe(() => {
+      const cur: any = store.getState()['react-planner'];
+      const mode = cur?.mode;
+      if (mode && mode !== lastMode) {
+        lastMode = mode;
+        emitModeChanged(String(mode));
+      }
+    });
+
+    // Listen for PlanO commands
+    const onMessage = (event: MessageEvent) => {
+      // PlanO uses '*' targetOrigin, so accept but validate message shape
+      const data: any = event.data;
+      if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
+
+      // Basic ping (PlanO sends on iframe load)
+      if (data.type === 'PING') {
+        const cur: any = store.getState()['react-planner'];
+        if (cur?.mode) emitModeChanged(String(cur.mode));
+        return;
+      }
+
+      if (data.type !== 'CMD') return;
+
+      const cmd: string = data.cmd;
+      const payload: any = data.payload || {};
+
+      try {
+        const planner: any = store.getState()['react-planner'];
+
+        switch (cmd) {
+          // ----- toolbar equivalents -----
+          case 'NEW_PROJECT':
+            store.dispatch(projectActions.newProject());
+            break;
+
+          case 'OPEN_CATALOG':
+            store.dispatch(projectActions.openCatalog());
+            break;
+
+          case 'VIEW_2D':
+            store.dispatch(projectActions.setMode(constants.MODE_IDLE));
+            break;
+
+          case 'VIEW_3D':
+            store.dispatch(viewer3DActions.selectTool3DView());
+            break;
+
+          case 'VIEW_3D_FIRST_PERSON':
+            store.dispatch(viewer3DActions.selectTool3DFirstPerson());
+            break;
+
+          case 'UNDO':
+            store.dispatch(projectActions.undo());
+            break;
+
+          case 'OPEN_PROJECT_CONFIGURATOR':
+            store.dispatch(projectActions.openProjectConfigurator());
+            break;
+
+          // ----- 2D tools -----
+          case 'TOOL_PAN':
+            store.dispatch(viewer2DActions.selectToolPan());
+            break;
+
+          case 'TOOL_ZOOM_IN':
+            store.dispatch(viewer2DActions.selectToolZoomIn());
+            break;
+
+          case 'TOOL_ZOOM_OUT':
+            store.dispatch(viewer2DActions.selectToolZoomOut());
+            break;
+
+          case 'SELECT_TOOL_EDIT':
+            store.dispatch(projectActions.selectToolEdit());
+            break;
+
+          case 'UNSELECT_ALL':
+            store.dispatch(projectActions.unselectAll());
+            break;
+
+          // ----- loading -----
+          case 'LOAD_PROJECT_JSON': {
+            const scene = payload?.scene;
+            if (!scene) throw new Error('LOAD_PROJECT_JSON: missing payload.scene');
+            store.dispatch(projectActions.loadProject(scene));
+            break;
+          }
+
+          case 'LOAD_RASTER_JSON': {
+            const raw = payload?.raw;
+            if (!raw) throw new Error('LOAD_RASTER_JSON: missing payload.raw');
+            const scene = normalizeSceneFromRaster(raw);
+            store.dispatch(projectActions.loadProject(scene));
+            break;
+          }
+
+          // ----- export -----
+          case 'REQUEST_SCENE_JSON': {
+            const st2: any = store.getState()['react-planner'];
+            const scene = st2?.scene;
+            if (!scene) throw new Error('REQUEST_SCENE_JSON: scene not available');
+            emitSceneJson(scene);
+            break;
+          }
+
+          default:
+            // Unknown command: ignore but report to parent
+            emitError(`Unknown CMD: ${cmd}`);
+            break;
+        }
+
+        // After any command, inform parent of current mode (helps keep UI in sync)
+        const after: any = store.getState()['react-planner'];
+        if (after?.mode) emitModeChanged(String(after.mode));
+      } catch (e: any) {
+        emitError(e?.message || String(e));
+      }
+    };
+
+    window.addEventListener('message', onMessage);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      unsubscribe();
+    };
+  }, []);
+
+  return (
+    <div ref={ref} style={{ width: '100%', height: '100%' }}>
+      {bounds.width > 0 && bounds.height > 0 && (
+        <ReactPlanner
+          catalog={catalog}
+          width={bounds.width}
+          height={bounds.height}
+          plugins={plugins}
+          // Keep toolbarButtons empty; PlanO is the toolbar.
+          toolbarButtons={[]}
+          stateExtractor={(state) => state['react-planner']}
+        />
+      )}
+    </div>
+  );
+}
+
+//render
+const container = document.getElementById('app');
+if (!container) {
+  throw new Error('Container element not found');
+}
+
+// Reuse a single React root across HMR updates
+const globalAny = globalThis as any;
+const ROOT_KEY = '__REACT_PLANNER_DEMO_ROOT__';
+const root =
+  globalAny[ROOT_KEY] || (globalAny[ROOT_KEY] = createRoot(container));
+
+root.render(
+  <Provider store={store}>
+    <ResponsiveReactPlanner />
+  </Provider>
+);
+
+if ((module as any)?.hot) {
+  try {
+    (module as any).hot.dispose(() => {
+      root.unmount();
+      delete globalAny[ROOT_KEY];
+    });
+  } catch {}
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/mycatalog.ts
+================================================================
+declare let require: {
+  context(directory: string, useSubdirectories?: boolean, regExp?: RegExp): any;
+};
+
+import { CatalogFactory, CatalogFn } from '@archef2000/react-planner';
+
+import Area from './areas/area/planner-element';
+import Wall from './lines/wall/planner-element';
+
+type CatalogElementAny = any;
+
+function hasAnyTag(el: CatalogElementAny, tags: readonly string[]) {
+  const t: string[] = el?.info?.tag || [];
+  return tags.some((x) => t.includes(x));
+}
+
+function uniqByName(list: CatalogElementAny[]) {
+  const seen = new Set<string>();
+  const out: CatalogElementAny[] = [];
+  for (const el of list) {
+    const name = String(el?.name || '');
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    out.push(el);
+  }
+  return out;
+}
+
+function safeSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+// PlanO services (NO "Other" as requested)
+const PLAN_O = [
+  { key: 'plumbing', label: 'Plumbing' },
+  { key: 'electricity', label: 'Electricity' },
+  { key: 'painting', label: 'Painting' },
+  { key: 'flooring', label: 'Flooring' },
+  { key: 'plastering', label: 'Plastering' },
+  { key: 'boards', label: 'Boards' }
+] as const;
+
+// PlanO sub-services (structure first; matching-by-tags is best-effort)
+const PLAN_O_SUBS: Record<string, string[]> = {
+  electricity: [
+    'Switches & plugs',
+    'Overlaps with plumbing',
+    'Oven',
+    'Hob',
+    'Fridge freezer',
+    'Microwave',
+    'AC'
+  ],
+  plumbing: [
+    'Floor drain',
+    'Shower cubical',
+    'Bathroom sink',
+    'Mixers',
+    'Kitchen sink',
+    'Water heater',
+    'Washing machine',
+    'Dishwasher',
+    'Tap for water'
+  ],
+  painting: ['Internal paint', 'External paint'],
+  flooring: [
+    'Ceramic tiles 60×60',
+    'Ceramic tiles 120×60',
+    'Ceramic tiles custom',
+    'Laminate',
+    'Microcement',
+    'Polished concrete',
+    'Parquet'
+  ],
+  plastering: [
+    'Internal (monacote+finittura)',
+    'Internal (microcement)',
+    'External (GR1000)',
+    'External (silicato)',
+    'Stone restoration'
+  ],
+  boards: ['Flat ceiling', 'L-shape bulkhead', 'U-shape bulkhead', 'Custom shapes']
+};
+
+// Very light tag mapping so items appear inside the right subcategory when possible.
+// (You can refine later.)
+const SUBSERVICE_TAGS: Record<string, readonly string[]> = {
+  // electricity
+  'ac': ['air-conditioner'],
+  'switches_plugs': ['electric', 'electronics', 'panel', 'telecomunication'],
+  // plumbing
+  'bathroom_sink': ['sink', 'sanitary', 'bathroom'],
+  'kitchen_sink': ['sink', 'sanitary', 'bathroom'],
+  'mixers': ['water', 'plumbing'],
+  'tap_for_water': ['water', 'plumbing'],
+  // flooring
+  'ceramic_tiles_60_60': ['tile', 'tiles'],
+  'ceramic_tiles_120_60': ['tile', 'tiles'],
+  'ceramic_tiles_custom': ['tile', 'tiles'],
+  'parquet': ['parquet'],
+  'laminate': ['laminate'],
+  // painting/plastering/boards (usually no tagged demo items yet)
+  'internal_paint': ['paint', 'painting', 'painted'],
+  'external_paint': ['paint', 'painting', 'painted'],
+  'internal_monacote_finittura': ['plaster', 'plastering'],
+  'internal_microcement': ['microcement'],
+  'external_gr1000': ['plaster', 'plastering'],
+  'external_silicato': ['plaster', 'plastering'],
+  'stone_restoration': ['stone'],
+  'flat_ceiling': ['ceiling', 'gypsum', 'drywall', 'board', 'boards'],
+  'l_shape_bulkhead': ['ceiling', 'gypsum', 'drywall', 'board', 'boards'],
+  'u_shape_bulkhead': ['ceiling', 'gypsum', 'drywall', 'board', 'boards'],
+  'custom_shapes': ['ceiling', 'gypsum', 'drywall', 'board', 'boards']
+};
+
+export function createCatalog() {
+  const catalog: any = CatalogFactory();
+
+  // register base elements
+  CatalogFn.registerElement(catalog, Area);
+  CatalogFn.registerElement(catalog, Wall);
+
+  // load/register holes
+  const Holes: CatalogElementAny[] = [];
+  const holesContext = require.context('./holes/', true, /planner-element\.[tj]sx$/);
+  holesContext.keys().forEach((key: string) => {
+    const el = holesContext(key).default;
+    Holes.push(el);
+    CatalogFn.registerElement(catalog, el);
+  });
+
+  // load/register items
+  const Items: CatalogElementAny[] = [];
+  const itemsContext = require.context('./items/', true, /planner-element\.[tj]sx$/);
+  itemsContext.keys().forEach((key: string) => {
+    const el = itemsContext(key).default;
+    Items.push(el);
+    CatalogFn.registerElement(catalog, el);
+  });
+
+  // existing categories (keep exactly as before)
+  CatalogFn.registerCategory(
+    catalog,
+    'windows',
+    'Windows',
+    Holes.filter((h) => h.info.tag.includes('window'))
+  );
+  CatalogFn.registerCategory(
+    catalog,
+    'doors',
+    'Doors',
+    Holes.filter((h) => h.info.tag.includes('door'))
+  );
+
+  // -----------------------------
+  // Append PlanO services at END
+  // -----------------------------
+  const allCatalogItems = uniqByName([...Items, ...Holes]);
+
+  // Helper: create a subcategory WITHOUT adding it to root.categories
+  const createSubCategory = (name: string, label: string) => {
+    if (!catalog.categories[name]) {
+      catalog.categories[name] = { name, label, categories: [], elements: [] };
+    }
+    return catalog.categories[name];
+  };
+
+  // For each PlanO service, create a top-level category tile (added to root at the end)
+  for (const svc of PLAN_O) {
+    const mainName = `plano_${svc.key}`;
+
+    // This pushes the service tile to root.categories at the end → exactly what you want.
+    if (!catalog.categories[mainName]) {
+      CatalogFn.registerCategory(catalog, mainName, svc.label, []);
+    }
+
+    const mainCat = catalog.categories[mainName];
+
+    // Create subcategories (NOT shown on root page)
+    const subs = PLAN_O_SUBS[svc.key] || [];
+    for (const subLabel of subs) {
+      const subSlug = safeSlug(subLabel);
+      const subName = `plano_${svc.key}__${subSlug}`;
+
+      const subCat = createSubCategory(subName, subLabel);
+
+      // attach as child if not already
+      if (!mainCat.categories.some((c: any) => c.name === subCat.name)) {
+        mainCat.categories.push(subCat);
+      }
+    }
+
+    // Best-effort: duplicate items into subcategories (does NOT remove from existing catalog)
+    for (const subLabel of subs) {
+      const subSlug = safeSlug(subLabel);
+      const subName = `plano_${svc.key}__${subSlug}`;
+      const subCat = catalog.categories[subName];
+      if (!subCat) continue;
+
+      const tagKey = subSlug; // aligned to SUBSERVICE_TAGS keys
+      const tags = SUBSERVICE_TAGS[tagKey];
+      if (!tags || !tags.length) continue;
+
+      const matches = allCatalogItems.filter((el) => hasAnyTag(el, tags));
+      for (const el of matches) {
+        if (!subCat.elements.some((e: any) => e.name === el.name)) {
+          subCat.elements.push(el); // IMPORTANT: do NOT use addToCategory (keeps original catalog intact)
+        }
+      }
+    }
+  }
+
+  return catalog;
+}
+
+export default createCatalog();
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog/mycatalog.ts
+================================================================
+declare let require: {
+  context(directory: string, useSubdirectories?: boolean, regExp?: RegExp): any;
+};
+
+import { CatalogFactory, CatalogFn } from '@archef2000/react-planner';
+
+import Area from './areas/area/planner-element';
+import Wall from './lines/wall/planner-element';
+
+type CatalogElementAny = any;
+
+function hasAnyTag(el: CatalogElementAny, tags: readonly string[]) {
+  const t: string[] = el?.info?.tag || [];
+  return tags.some((x) => t.includes(x));
+}
+
+function uniqByName(list: CatalogElementAny[]) {
+  const seen = new Set<string>();
+  const out: CatalogElementAny[] = [];
+  for (const el of list) {
+    const name = String(el?.name || '');
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    out.push(el);
+  }
+  return out;
+}
+
+// ---- PlanO -> tag mapping (adjust anytime) ----
+const PLAN_O = {
+  electricity: {
+    label: 'Electricity',
+    tagsAny: [
+      'electronics',
+      'telecomunication', // note: this is the tag used in your router-wifi element
+      'electric',
+      'panel'
+    ]
+  },
+  plumbing: {
+    label: 'Plumbing',
+    tagsAny: ['sanitary', 'bathroom', 'plumbing', 'water']
+  },
+  painting: {
+    label: 'Painting',
+    tagsAny: ['paint', 'painting', 'painted']
+  },
+  flooring: {
+    label: 'Flooring',
+    tagsAny: ['floor', 'flooring', 'tile', 'tiles', 'parquet', 'laminate']
+  },
+  plastering: {
+    label: 'Plastering',
+    tagsAny: ['plaster', 'plastering']
+  },
+  boards: {
+    label: 'Boards',
+    tagsAny: ['board', 'boards', 'gypsum', 'drywall', 'ceiling']
+  },
+  other: {
+    label: 'Other',
+    tagsAny: []
+  }
+} as const;
+
+// Optional sub-service grouping (coarse)
+const SUBSERVICE_TAGS: Record<string, readonly string[]> = {
+  // Electricity
+  'Electrical panels': ['panel', 'electric'],
+  'WiFi / Telecom': ['telecomunication'],
+  'Smoke detector': ['smoke', 'detector'],
+  AC: ['air-conditioner'],
+
+  // Plumbing
+  Toilet: ['toilet', 'sanitary', 'bathroom'],
+  Sink: ['sink', 'sanitary', 'bathroom'],
+
+  // Flooring
+  Tiles: ['tile', 'tiles'],
+  Parquet: ['parquet'],
+  Laminate: ['laminate']
+};
+
+export function createCatalog() {
+  const catalog = CatalogFactory();
+
+  // Base geometry elements
+  CatalogFn.registerElement(catalog, Area);
+  CatalogFn.registerElement(catalog, Wall);
+
+  // Load + register all holes
+  const Holes: CatalogElementAny[] = [];
+  const holesContext = require.context('./holes/', true, /planner-element\.[tj]sx$/);
+  holesContext.keys().forEach((key: string) => {
+    const element = holesContext(key).default;
+    Holes.push(element);
+    CatalogFn.registerElement(catalog, element);
+  });
+
+  // Load + register all items
+  const Items: CatalogElementAny[] = [];
+  const itemsContext = require.context('./items/', true, /planner-element\.[tj]sx$/);
+  itemsContext.keys().forEach((key: string) => {
+    const element = itemsContext(key).default;
+    Items.push(element);
+    CatalogFn.registerElement(catalog, element);
+  });
+
+  // Keep your existing categories
+  CatalogFn.registerCategory(
+    catalog,
+    'windows',
+    'Windows',
+    Holes.filter((h) => h?.info?.tag?.includes('window'))
+  );
+  CatalogFn.registerCategory(
+    catalog,
+    'doors',
+    'Doors',
+    Holes.filter((h) => h?.info?.tag?.includes('door'))
+  );
+
+  // ---- PlanO categories ----
+  const allCatalogItems = uniqByName([...Items, ...Holes]);
+
+  const serviceBuckets: Record<string, CatalogElementAny[]> = {};
+  for (const key of Object.keys(PLAN_O)) serviceBuckets[key] = [];
+
+  for (const el of allCatalogItems) {
+    let placed = false;
+
+    for (const [serviceKey, def] of Object.entries(PLAN_O)) {
+      if (serviceKey === 'other') continue;
+      if (def.tagsAny.length && hasAnyTag(el, def.tagsAny)) {
+        serviceBuckets[serviceKey].push(el);
+        placed = true;
+      }
+    }
+
+    if (!placed) serviceBuckets.other.push(el);
+  }
+
+  for (const [serviceKey, def] of Object.entries(PLAN_O)) {
+    const label = def.label;
+    const bucket = uniqByName(serviceBuckets[serviceKey]);
+
+    // Create main category (top-level visible)
+    CatalogFn.registerCategory(catalog, `plano_${serviceKey}`, `PlanO • ${label}`, []);
+
+    // Create sub-categories if they match
+    const used = new Set<string>();
+
+    for (const [subLabel, tags] of Object.entries(SUBSERVICE_TAGS)) {
+      const matches = bucket.filter((el) => hasAnyTag(el, tags));
+      if (!matches.length) continue;
+
+      const subName = `plano_${serviceKey}_${subLabel
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')}`;
+
+      CatalogFn.registerCategory(catalog, subName, subLabel, uniqByName(matches));
+
+      // Nest subcategory under the main PlanO category
+      CatalogFn.addToCategory(
+        catalog,
+        `plano_${serviceKey}`,
+        (catalog as any).categories[subName]
+      );
+
+      matches.forEach((m) => used.add(String(m.name)));
+    }
+
+    // Add remaining elements directly under the main category
+    const rest = bucket.filter((el) => !used.has(String(el.name)));
+    rest.forEach((el) => CatalogFn.addToCategory(catalog, `plano_${serviceKey}`, el));
+  }
+
+  return catalog;
+}
+
+export default createCatalog();
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/content.tsx
+================================================================
+import React from 'react';
+
+import * as constants from '../constants';
+import { StateProps } from '../models';
+
+import CatalogList from './catalog-view/catalog-list';
+import ProjectConfigurator from './configurator/project-configurator';
+import Viewer2D from './viewer2d/viewer2d';
+import Viewer3D from './viewer3d/viewer3d';
+import Viewer3DFirstPerson from './viewer3d/viewer3d-first-person';
+
+interface ContentProps {
+  state: StateProps;
+  width: number;
+  height: number;
+  customContents: {
+    [key: string]: React.ComponentType<{
+      state: StateProps;
+      width: number;
+      height: number;
+    }>;
+  };
+}
+
+export default function Content({
+  width,
+  height,
+  state,
+  customContents
+}: ContentProps) {
+  const mode = state.mode;
+
+  switch (mode) {
+    case constants.MODE_3D_VIEW:
+      return <Viewer3D state={state} width={width} height={height} />;
+
+    case constants.MODE_3D_FIRST_PERSON:
+      return (
+        <Viewer3DFirstPerson state={state} width={width} height={height} />
+      );
+
+    case constants.MODE_VIEWING_CATALOG:
+      return <CatalogList state={state} width={width} height={height} />;
+
+    case constants.MODE_IDLE:
+    case constants.MODE_2D_ZOOM_IN:
+    case constants.MODE_2D_ZOOM_OUT:
+    case constants.MODE_2D_PAN:
+    case constants.MODE_WAITING_DRAWING_LINE:
+    case constants.MODE_DRAGGING_LINE:
+    case constants.MODE_DRAGGING_VERTEX:
+    case constants.MODE_DRAGGING_ITEM:
+    case constants.MODE_DRAWING_LINE:
+    case constants.MODE_DRAWING_HOLE:
+    case constants.MODE_DRAWING_ITEM:
+    case constants.MODE_DRAGGING_HOLE:
+    case constants.MODE_ROTATING_ITEM:
+      return <Viewer2D state={state} width={width} height={height} />;
+
+    case constants.MODE_CONFIGURING_PROJECT:
+      return (
+        <ProjectConfigurator width={width} height={height} state={state} />
+      );
+
+    default:
+      if (customContents.hasOwnProperty(mode)) {
+        const CustomContent = customContents[mode];
+        return <CustomContent width={width} height={height} state={state} />;
+      } else {
+        throw new Error(`Mode ${mode} doesn't have a mapped content`);
+      }
+  }
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-breadcrumb.tsx
+================================================================
+import React from 'react';
+
+import { MdArrowBack as Arrow } from 'react-icons/md';
+
+import * as SharedStyle from '../../shared-style';
+
+const breadcrumbStyle = {
+  margin: '1.5em',
+  display: 'flex'
+} as const;
+
+const breadcrumbTextStyle = {
+  fontSize: '20px',
+  cursor: 'pointer'
+} as const;
+
+const breadcrumbLastTextStyle = {
+  ...breadcrumbTextStyle,
+  fontWeight: 'bolder',
+  color: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const breadcrumbTabStyle = {
+  fill: SharedStyle.COLORS.black,
+  fontSize: '24px',
+  marginLeft: '10px',
+  marginRight: '10px'
+} as const;
+
+interface CatalogBreadcrumbProps {
+  names: Array<{
+    name: string;
+    action?: React.MouseEventHandler<HTMLDivElement>;
+  }>;
+}
+
+export default function CatalogBreadcrumb({ names }: CatalogBreadcrumbProps) {
+  const labelNames = names.map((name, ind) => {
+    const lastElement = ind === names.length - 1;
+
+    return (
+      <div key={ind} style={{ display: 'flex' }}>
+        <div
+          style={!lastElement ? breadcrumbTextStyle : breadcrumbLastTextStyle}
+          onClick={name.action}
+        >
+          {name.name}
+        </div>
+        {!lastElement ? <Arrow style={breadcrumbTabStyle} /> : null}
+      </div>
+    );
+  });
+
+  return <div style={breadcrumbStyle}>{labelNames}</div>;
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx
+================================================================
+import React, { Component } from 'react';
+
+import { FaPlusCircle as IconAdd } from 'react-icons/fa';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElement } from '../../types';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .15s ease-in-out',
+  WebkitTransition: 'all .15s ease-in-out',
+  alignSelf: 'center',
+  justifySelf: 'center'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_TITLE = {
+  width: '100%',
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '.5em',
+  textTransform: 'capitalize'
+} as const;
+
+const STYLE_TITLE_HOVER = {
+  ...STYLE_TITLE,
+  color: SharedStyle.COLORS.white
+} as const;
+
+const STYLE_IMAGE_CONTAINER = {
+  width: '100%',
+  height: '8em',
+  position: 'relative',
+  overflow: 'hidden',
+  border: 'solid 1px #e6e6e6',
+  padding: 0,
+  margin: 0,
+  marginBottom: '5px'
+} as const;
+
+const STYLE_IMAGE = {
+  position: 'absolute',
+  background: '#222',
+  width: '100%',
+  height: '100%',
+  backgroundSize: 'contain',
+  backgroundPosition: '50% 50%',
+  backgroundColor: SharedStyle.COLORS.white,
+  backgroundRepeat: 'no-repeat',
+  transition: 'all .2s ease-in-out'
+} as const;
+
+const STYLE_IMAGE_HOVER = {
+  ...STYLE_IMAGE,
+  transform: 'scale(1.2)'
+} as const;
+
+const STYLE_PLUS_HOVER = {
+  marginTop: '1.5em',
+  color: SharedStyle.SECONDARY_COLOR.main,
+  fontSize: '2em',
+  opacity: '0.7',
+  width: '100%'
+} as const;
+
+const STYLE_DESCRIPTION = {
+  display: 'block',
+  height: '2em',
+  margin: '0 auto',
+  fontSize: '0.75em',
+  fontStyle: 'italic',
+  lineHeight: '1em',
+  WebkitLineClamp: '2',
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
+} as const;
+
+const STYLE_TAGS = {
+  listStyle: 'none',
+  margin: '0px',
+  padding: '0px',
+  fontSize: '11px',
+  marginBottom: '3px'
+} as const;
+
+const STYLE_TAG = {
+  display: 'inline-block',
+  background: '#337ab7',
+  color: SharedStyle.COLORS.white,
+  padding: '1px 4px',
+  marginRight: '3px',
+  borderRadius: '3px'
+} as const;
+
+interface CatalogItemProps {
+  element: CatalogElement;
+}
+
+interface CatalogItemState {
+  hover: boolean;
+}
+
+export default class CatalogItem extends Component<
+  CatalogItemProps,
+  CatalogItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogItemProps,
+    context: React.ContextType<typeof ReactPlannerContext>
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  select() {
+    const element = this.props.element;
+
+    switch (element.prototype) {
+      case 'lines':
+        this.context.linesActions.selectToolDrawingLine(element.name);
+        break;
+      case 'items':
+        this.context.itemsActions.selectToolDrawingItem(element.name);
+        break;
+      case 'holes':
+        this.context.holesActions.selectToolDrawingHole(element.name);
+        break;
+    }
+
+    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+      element
+    );
+  }
+
+  render() {
+    const element = this.props.element;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.select()}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        <b style={!hover ? STYLE_TITLE : STYLE_TITLE_HOVER}>
+          {element.info.title}
+        </b>
+        <div style={STYLE_IMAGE_CONTAINER}>
+          <div
+            style={{
+              ...(!hover ? STYLE_IMAGE : STYLE_IMAGE_HOVER),
+              backgroundImage: 'url(' + element.info.image + ')'
+            }}
+          >
+            {hover ? <IconAdd style={STYLE_PLUS_HOVER} /> : null}
+          </div>
+        </div>
+        <ul style={STYLE_TAGS}>
+          {element.info.tag.map((tag, index) => (
+            <li style={STYLE_TAG} key={index}>
+              {tag}
+            </li>
+          ))}
+        </ul>
+        <div style={STYLE_DESCRIPTION}>{element.info.description}</div>
+      </div>
+    );
+  }
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx
+================================================================
+import React, { Component } from 'react';
+
+import { CatalogCategory, CatalogFn } from '../../catalog/catalog';
+import { State } from '../../models';
+import ReactPlannerContext, {
+  ReactPlannerContextProps
+} from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElement } from '../../types';
+import ContentContainer from '../style/content-container';
+import ContentTitle from '../style/content-title';
+
+import CatalogBreadcrumb from './catalog-breadcrumb';
+import CatalogItem from './catalog-item';
+import CatalogPageItem from './catalog-page-item';
+import CatalogTurnBackPageItem from './catalog-turn-back-page-item';
+
+const containerStyle = {
+  position: 'fixed',
+  width: 'calc( 100% - 51px)',
+  height: 'calc( 100% - 20px)',
+  backgroundColor: '#FFF',
+  padding: '1em',
+  left: 50,
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  zIndex: 10
+} as const;
+
+const itemsStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(14em, 1fr))',
+  gridGap: '10px',
+  marginTop: '1em'
+} as const;
+
+const searchContainer = {
+  width: '100%',
+  height: '3em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .2s ease-in-out',
+  WebkitTransition: 'all .2s ease-in-out',
+  marginBottom: '1em'
+} as const;
+
+const searchText = {
+  width: '8em',
+  display: 'inline-block'
+} as const;
+
+const searchInput = {
+  width: 'calc( 100% - 10em )',
+  height: '2em',
+  margin: '0',
+  padding: '0 1em',
+  border: '1px solid #EEE'
+} as const;
+
+const historyContainer = {
+  ...searchContainer,
+  padding: '0.2em 0.625em'
+} as const;
+
+const historyElementStyle = {
+  width: 'auto',
+  height: '2em',
+  lineHeight: '2em',
+  textAlign: 'center',
+  borderRadius: '1em',
+  display: 'inline-block',
+  cursor: 'pointer',
+  backgroundColor: SharedStyle.PRIMARY_COLOR.alt,
+  color: SharedStyle.PRIMARY_COLOR.text_main,
+  textTransform: 'capitalize',
+  margin: '0.25em',
+  padding: '0 1em'
+} as const;
+
+interface CatalogListProps {
+  state: State;
+  width: number;
+  height: number;
+  style?: React.CSSProperties;
+}
+
+interface CatalogListState {
+  categories: CatalogCategory[];
+  elements: CatalogElement[];
+  matchString: string;
+  matchedElements: CatalogElement[];
+}
+
+export default class CatalogList extends Component<
+  CatalogListProps,
+  CatalogListState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(props: CatalogListProps, context: ReactPlannerContextProps) {
+    super(props, context);
+
+    const page = props.state.catalog.page;
+    const currentCategory = CatalogFn.getCategory(context.catalog, page);
+    const elementsToDisplay = currentCategory.elements.filter((element) =>
+      element.info.visibility ? element.info.visibility.catalog : true
+    );
+
+    this.state = {
+      categories: currentCategory.categories,
+      elements: elementsToDisplay,
+      matchString: '',
+      matchedElements: []
+    };
+  }
+
+  flattenCategories(categories: CatalogCategory[]) {
+    let toRet: CatalogElement[] = [];
+
+    for (let x = 0; x < categories.length; x++) {
+      const curr = categories[x];
+      toRet = toRet.concat(curr.elements);
+      if (curr.categories.length)
+        toRet = toRet.concat(this.flattenCategories(curr.categories));
+    }
+
+    return toRet;
+  }
+
+  matcharray(text: string) {
+    const array = this.state.elements.concat(
+      this.flattenCategories(this.state.categories)
+    );
+
+    const filtered = [];
+
+    if (text != '') {
+      const regexp = new RegExp(text, 'i');
+      for (let i = 0; i < array.length; i++) {
+        if (regexp.test(array[i].info.title)) {
+          filtered.push(array[i]);
+        }
+      }
+    }
+
+    this.setState({
+      matchString: text,
+      matchedElements: filtered
+    });
+  }
+
+  select(element: CatalogElement) {
+    switch (element.prototype) {
+      case 'lines':
+        this.context.linesActions.selectToolDrawingLine(element.name);
+        break;
+      case 'items':
+        this.context.itemsActions.selectToolDrawingItem(element.name);
+        break;
+      case 'holes':
+        this.context.holesActions.selectToolDrawingHole(element.name);
+        break;
+    }
+
+    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+      element
+    );
+  }
+
+  render() {
+    const page = this.props.state.catalog.page;
+    const currentCategory = CatalogFn.getCategory(this.context.catalog, page);
+    const categoriesToDisplay = currentCategory.categories;
+    const elementsToDisplay = currentCategory.elements.filter((element) =>
+      element.info.visibility ? element.info.visibility.catalog : true
+    );
+
+    let breadcrumbComponent = null;
+
+    if (page !== 'root') {
+      const breadcrumbsNames = [];
+
+      this.props.state.catalog.path.forEach((pathName) => {
+        breadcrumbsNames.push({
+          name: CatalogFn.getCategory(this.context.catalog, pathName).label,
+          action: () =>
+            this.context.projectActions.goBackToCatalogPage(pathName)
+        });
+      });
+
+      breadcrumbsNames.push({ name: currentCategory.label });
+
+      breadcrumbComponent = <CatalogBreadcrumb names={breadcrumbsNames} />;
+    }
+
+    const pathSize = this.props.state.catalog.path.length;
+
+    const turnBackButton =
+      pathSize > 0 ? (
+        <CatalogTurnBackPageItem
+          key={pathSize}
+          page={
+            this.context.catalog.categories[
+            this.props.state.catalog.path[pathSize - 1]
+            ]
+          }
+        />
+      ) : null;
+
+    const selectedHistory = this.props.state.selectedElementsHistory;
+    const selectedHistoryElements = selectedHistory.map((el, ind) => (
+      <div
+        key={ind}
+        style={historyElementStyle}
+        title={el.name}
+        onClick={() => this.select(el)}
+      >
+        {el.name}
+      </div>
+    ));
+
+    return (
+      <ContentContainer
+        width={this.props.width}
+        height={this.props.height}
+        style={{ ...containerStyle, ...this.props.style }}
+      >
+        <ContentTitle>{this.context.translator.t('Catalog')}</ContentTitle>
+        {breadcrumbComponent}
+        <div style={searchContainer}>
+          <span style={searchText}>
+            {this.context.translator.t('Search Element')}
+          </span>
+          <input
+            type="text"
+            style={searchInput}
+            onChange={(e) => {
+              this.matcharray(e.target.value);
+            }}
+          />
+        </div>
+        {selectedHistory.length ? (
+          <div style={historyContainer}>
+            <span>{this.context.translator.t('Last Selected')}</span>
+            {selectedHistoryElements}
+          </div>
+        ) : null}
+        <div style={itemsStyle}>
+          {this.state.matchString === ''
+            ? [
+              turnBackButton,
+              categoriesToDisplay.map((cat) => (
+                <CatalogPageItem
+                  key={cat.name}
+                  page={cat}
+                  oldPage={currentCategory}
+                />
+              )),
+              elementsToDisplay.map((elem) => (
+                <CatalogItem key={elem.name} element={elem} />
+              ))
+            ]
+            : this.state.matchedElements.map((elem) => (
+              <CatalogItem key={elem.name} element={elem} />
+            ))}
+        </div>
+      </ContentContainer>
+    );
+  }
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-page-item.tsx
+================================================================
+import React, { Component } from 'react';
+
+import { MdNavigateNext } from 'react-icons/md';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .2s ease-in-out',
+  WebkitTransition: 'all .2s ease-in-out',
+  alignSelf: 'center',
+  justifySelf: 'center'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_TITLE = {
+  width: '100%',
+  position: 'absolute',
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '.5em',
+  padding: '1em',
+  textTransform: 'capitalize',
+  WebkitTransition: 'all .15s ease-in-out'
+} as const;
+
+const STYLE_TITLE_HOVERED = {
+  ...STYLE_TITLE,
+  fontSize: '1.4em',
+  transform: 'translateY(-60px)',
+  color: 'rgb(28, 166, 252)',
+  marginTop: '0.5em'
+} as const;
+
+const STYLE_NEXT_HOVER = {
+  position: 'absolute',
+  color: SharedStyle.SECONDARY_COLOR.main,
+  fontSize: '5em',
+  width: '100%'
+} as const;
+
+const CONTAINER_DIV = {
+  background: SharedStyle.COLORS.white,
+  marginBottom: '5px',
+  border: 'solid 1px #EEE',
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+} as const;
+
+interface CatalogPageItemProps {
+  page: {
+    name: string;
+    label: string;
+    [key: string]: any;
+  };
+  oldPage: {
+    name: string;
+    label: string;
+    [key: string]: any;
+  };
+}
+
+interface CatalogPageItemState {
+  hover: boolean;
+}
+
+export default class CatalogPageItem extends Component<
+  CatalogPageItemProps,
+  CatalogPageItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogPageItemProps,
+    context: React.ContextType<typeof ReactPlannerContext>
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  changePage(newPage: string) {
+    this.context.projectActions.changeCatalogPage(
+      newPage,
+      this.props.oldPage.name
+    );
+  }
+
+  render() {
+    const page = this.props.page;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.changePage(page.name)}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        {hover ? (
+          <div style={CONTAINER_DIV}>
+            <b style={STYLE_TITLE_HOVERED}>{page.label}</b>
+            <MdNavigateNext style={STYLE_NEXT_HOVER} />
+          </div>
+        ) : (
+          <div style={CONTAINER_DIV}>
+            <b style={STYLE_TITLE}>{page.label}</b>
+          </div>
+        )}
+      </div>
+    );
+  }
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-turn-back-page-item.tsx
+================================================================
+import React, { Component } from 'react';
+
+import { MdNavigateBefore } from 'react-icons/md';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  margin: '0.3em',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .2s ease-in-out',
+  WebkitTransition: 'all .2s ease-in-out'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_BACK = {
+  position: 'absolute',
+  color: SharedStyle.COLORS.black,
+  fontSize: '5em',
+  width: '100%'
+} as const;
+
+const STYLE_BACK_HOVER = {
+  ...STYLE_BACK,
+  color: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const CONTAINER_DIV = {
+  background: SharedStyle.COLORS.white,
+  marginBottom: '5px',
+  border: 'solid 1px #e6e6e6',
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+} as const;
+
+interface CatalogTurnBackPageItemProps {
+  page: {
+    name: string;
+    label: string;
+    [key: string]: any;
+  };
+}
+
+interface CatalogTurnBackPageItemState {
+  hover: boolean;
+}
+
+export default class CatalogTurnBackPageItem extends Component<
+  CatalogTurnBackPageItemProps,
+  CatalogTurnBackPageItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogTurnBackPageItemProps,
+    context: typeof ReactPlannerContext
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  changePage(newPage: string) {
+    this.context.projectActions.goBackToCatalogPage(newPage);
+  }
+
+  render() {
+    const page = this.props.page;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.changePage(page.name)}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        <div style={CONTAINER_DIV}>
+          <MdNavigateBefore style={!hover ? STYLE_BACK : STYLE_BACK_HOVER} />
+        </div>
+      </div>
+    );
+  }
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/sidebar.tsx
+================================================================
+import React from 'react';
+
+import { MODE_VIEWING_CATALOG } from '../../constants';
+import { State } from '../../models';
+import * as SharedStyle from '../../shared-style';
+import { ComponentType } from '../../types';
+
+import PanelElementEditor from './panel-element-editor/panel-element-editor';
+import PanelMultiElementsEditor from './panel-element-editor/panel-multi-elements-editor';
+import PanelGroupEditor from './panel-group-editor';
+
+const FLOAT_SIDEBAR_STYLE: React.CSSProperties = {
+  position: 'fixed',
+  top: 72,
+  right: 12,
+  width: 220,
+  maxHeight: 320,
+  overflow: 'auto',
+  zIndex: 9999,
+  background: '#1f1f1f',
+  borderRadius: 10,
+  boxShadow: '0 10px 30px rgba(0,0,0,0.35)'
+};
+
+const STYLE = {
+  backgroundColor: SharedStyle.PRIMARY_COLOR.main,
+  display: 'block',
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  paddingBottom: '12px'
+} as const;
+
+interface SidebarProps {
+  state: State;
+  width: number;
+  height: number;
+  sidebarComponents: ComponentType[]; // kept for API compatibility; not used in "properties-only" mode
+}
+
+export default function Sidebar({ state, width, height }: SidebarProps) {
+  // ✅ Hide the floating info/editor box during Catalog view
+  if (state.mode === MODE_VIEWING_CATALOG) return null;
+
+  const selectedLayer = state.scene.selectedLayer;
+  if (!selectedLayer) return null;
+
+  const selected = state.scene.layers[selectedLayer].selected;
+
+  const multiselected =
+    selected.lines.length > 1 ||
+    selected.items.length > 1 ||
+    selected.holes.length > 1 ||
+    selected.areas.length > 1 ||
+    selected.lines.length + selected.items.length + selected.holes.length + selected.areas.length > 1;
+
+  const selectedGroup = Object.values(state.scene.groups).find((g) => g.selected);
+
+  return (
+    <aside
+      style={{ width, height, ...STYLE, ...FLOAT_SIDEBAR_STYLE }}
+      onKeyDown={(event) => event.stopPropagation()}
+      onKeyUp={(event) => event.stopPropagation()}
+      className="sidebar sidebar--floating"
+    >
+      {!multiselected && <PanelElementEditor state={state} />}
+      {multiselected && <PanelMultiElementsEditor state={state} />}
+
+      {!!selectedGroup && <PanelGroupEditor state={state} groupID={selectedGroup.id} />}
+    </aside>
+  );
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/attributes-editor/area-attributes-editor.tsx
+================================================================
+import React from 'react';
+
+import PropertyString from '../../../../catalog/properties/property-string';
+import { Area, State } from '../../../../models';
+
+interface AreaAttributesEditorProps {
+  element: Area;
+  onUpdate: (name: string, data: string) => void;
+  attributeFormData: Area;
+  state: State;
+  [key: string]: any;
+}
+
+export default function AreaAttributesEditor({
+  element,
+  onUpdate,
+  attributeFormData,
+  state,
+  ...rest
+}: AreaAttributesEditorProps) {
+  const name = attributeFormData.name ?? element.name;
+
+  return (
+    <div>
+      <PropertyString
+        value={name}
+        onUpdate={(mapped) => onUpdate('name', mapped)}
+        configs={{ label: 'Nome' }}
+        state={state}
+        {...rest}
+      />
+    </div>
+  );
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/attributes-editor/attributes-editor.tsx
+================================================================
+import React from 'react';
+
+import { Area, Item, State } from '../../../../models';
+import { ElementType, HoleAttributes, LineAttributes } from '../../../../types';
+import { AttributesFormData } from '../element-editor';
+
+import AreaAttributesEditor from './area-attributes-editor';
+import HoleAttributesEditor from './hole-attributes-editor';
+import ItemAttributesEditor from './item-attributes-editor';
+import LineAttributesEditor from './line-attributes-editor';
+
+interface AttributesEditorProps {
+  element: ElementType;
+  onUpdate: (name: string, data: any) => void;
+  onValid?: (isValid: boolean) => void;
+  attributeFormData: AttributesFormData;
+  state: State;
+  [key: string]: any;
+}
+
+export default function AttributesEditor({
+  element,
+  onUpdate,
+  onValid,
+  attributeFormData,
+  state,
+  ...rest
+}: AttributesEditorProps) {
+  switch (element.prototype) {
+    case 'items':
+      return (
+        <ItemAttributesEditor
+          element={element}
+          onUpdate={onUpdate}
+          onValid={onValid}
+          attributeFormData={attributeFormData as Item}
+          state={state}
+          {...rest}
+        />
+      );
+    case 'lines':
+      return (
+        <LineAttributesEditor
+          element={element}
+          onUpdate={onUpdate}
+          onValid={onValid}
+          attributeFormData={attributeFormData as LineAttributes}
+          state={state}
+          {...rest}
+        />
+      );
+    case 'holes':
+      return (
+        <HoleAttributesEditor
+          element={element}
+          onUpdate={onUpdate}
+          onValid={onValid}
+          attributeFormData={attributeFormData as HoleAttributes}
+          state={state}
+          {...rest}
+        />
+      );
+    case 'areas':
+      return (
+        <AreaAttributesEditor
+          element={element}
+          onUpdate={onUpdate}
+          onValid={onValid}
+          attributeFormData={attributeFormData as Area}
+          state={state}
+          {...rest}
+        />
+      );
+  }
+
+  return null;
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/attributes-editor/hole-attributes-editor.tsx
+================================================================
+import React from 'react';
+
+import PropertyLengthMeasure from '../../../../catalog/properties/property-lenght-measure';
+import PropertyString from '../../../../catalog/properties/property-string';
+import { Hole, State } from '../../../../models';
+import { HoleAttributes } from '../../../../types';
+
+interface HoleAttributesEditorProps {
+  element: Hole;
+  onUpdate: (name: string, data: any) => void;
+  attributeFormData: HoleAttributes;
+  state: State;
+  [key: string]: any;
+}
+
+export default function HoleAttributesEditor({
+  element,
+  onUpdate,
+  attributeFormData,
+  state,
+  ...rest
+}: HoleAttributesEditorProps) {
+  const name = element.name;
+  const offsetA = attributeFormData.offsetA;
+  const offsetB = attributeFormData.offsetB;
+
+  return (
+    <div>
+      <PropertyString
+        value={name}
+        onUpdate={(mapped) => onUpdate('name', mapped)}
+        configs={{ label: 'Nome' }}
+        state={state}
+        {...rest}
+      />
+      <PropertyLengthMeasure
+        value={offsetA}
+        onUpdate={(mapped) => onUpdate('offsetA', mapped)}
+        configs={{ label: 'Offset 1', min: 0, max: Infinity, precision: 2 }}
+        state={state}
+        {...rest}
+      />
+      <PropertyLengthMeasure
+        value={offsetB}
+        onUpdate={(mapped) => onUpdate('offsetB', mapped)}
+        configs={{ label: 'Offset 2', min: 0, max: Infinity, precision: 2 }}
+        state={state}
+        {...rest}
+      />
+    </div>
+  );
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/attributes-editor/item-attributes-editor.tsx
+================================================================
+import React, { useContext } from 'react';
+
+import { Item, State } from '../../../../models';
+import ReactPlannerContext from '../../../../react-planner-context';
+import FormNumberInput from '../../../style/form-number-input';
+import FormTextInput from '../../../style/form-text-input';
+
+const tableStyle = { width: '100%' } as const;
+const firstTdStyle = { width: '6em' } as const;
+const inputStyle = { textAlign: 'left' } as const;
+
+interface ItemAttributesEditorProps {
+  element: Item;
+  onUpdate: (name: string, value: any) => void;
+  attributeFormData: Item;
+  state: State;
+  [key: string]: any;
+}
+
+export default function ItemAttributesEditor({
+  element,
+  onUpdate,
+  attributeFormData,
+  state,
+  ...rest
+}: ItemAttributesEditorProps) {
+  const { translator } = useContext(ReactPlannerContext);
+  const name = attributeFormData.name || element.name;
+  const renderedX = attributeFormData.x || element.x;
+  const renderedY = attributeFormData.y || element.y;
+  const renderedR = attributeFormData.rotation || element.rotation;
+
+  return (
+    <table style={tableStyle}>
+      <tbody>
+        <tr>
+          <td style={firstTdStyle}>{translator.t('Name')}</td>
+          <td>
+            <FormTextInput
+              value={name}
+              onChange={(event) => onUpdate('name', event.target.value)}
+              style={inputStyle}
+            />
+          </td>
+        </tr>
+        <tr>
+          <td style={firstTdStyle}>X</td>
+          <td>
+            <FormNumberInput
+              value={renderedX}
+              onChange={(event) => onUpdate('x', event.target.value)}
+              style={inputStyle}
+              precision={2}
+              {...rest}
+            />
+          </td>
+        </tr>
+        <tr>
+          <td style={firstTdStyle}>Y</td>
+          <td>
+            <FormNumberInput
+              value={renderedY}
+              onChange={(event) => onUpdate('y', event.target.value)}
+              style={inputStyle}
+              precision={2}
+              {...rest}
+            />
+          </td>
+        </tr>
+        <tr>
+          <td style={firstTdStyle}>{translator.t('Rotation')}</td>
+          <td>
+            <FormNumberInput
+              value={renderedR}
+              onChange={(event) => onUpdate('rotation', event.target.value)}
+              style={inputStyle}
+              precision={2}
+              {...rest}
+            />
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/attributes-editor/line-attributes-editor.tsx
+================================================================
+import React, { useContext, useMemo } from 'react';
+
+import convert from 'convert-units';
+
+import { PropertyLengthMeasure } from '../../../../catalog/properties/export';
+import { Line, State } from '../../../../models';
+import ReactPlannerContext from '../../../../react-planner-context';
+import { LineAttributes } from '../../../../types';
+import { FormTextInput } from '../../../style/export';
+
+const tableStyle = { width: '100%' } as const;
+const firstTdStyle = { width: '6em' } as const;
+const inputStyle = { textAlign: 'left' } as const;
+
+const measureRowWrapStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'stretch',
+  width: '100%'
+};
+
+const unitBoxStyle: React.CSSProperties = {
+  width: '4.2em',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: '1px solid #cfcfcf',
+  borderLeft: 'none',
+  background: '#f5f5f5',
+  color: '#333',
+  fontSize: '0.95em'
+};
+
+const readOnlyInputStyle: React.CSSProperties = {
+  ...inputStyle,
+  borderRight: 'none'
+};
+
+interface LineAttributesEditorProps {
+  element: Line;
+  onUpdate: (key: string, value: any) => void;
+  attributeFormData: LineAttributes;
+  state: State;
+  [key: string]: any;
+}
+
+export default function LineAttributesEditor({
+  element,
+  onUpdate,
+  attributeFormData,
+  state
+}: LineAttributesEditorProps) {
+  const { translator, catalog } = useContext(ReactPlannerContext);
+
+  const name = attributeFormData.name || element.name;
+  const lineLength = attributeFormData.lineLength || null;
+
+  const wallSurfaceM2 = useMemo(() => {
+    try {
+      const lenU = Number(lineLength?.length ?? 0);
+      const hU = Number(element.properties?.height?.length ?? 0);
+      if (!isFinite(lenU) || !isFinite(hU) || lenU <= 0 || hU <= 0) return null;
+
+      const lenM = convert(lenU).from(catalog.unit).to('m');
+      const hM = convert(hU).from(catalog.unit).to('m');
+
+      const m2 = lenM * hM;
+      if (!isFinite(m2) || m2 <= 0) return null;
+
+      return Math.round(m2 * 100) / 100;
+    } catch {
+      return null;
+    }
+  }, [lineLength, element.properties, catalog.unit]);
+
+  const wallSurfaceDisplay = wallSurfaceM2 === null ? '' : String(wallSurfaceM2);
+
+  return (
+    <div>
+      <table style={tableStyle}>
+        <tbody>
+          <tr>
+            <td style={firstTdStyle}>{translator.t('Name')}</td>
+            <td>
+              <FormTextInput
+                value={wallSurfaceDisplay ? `${wallSurfaceDisplay} m²` : ''}
+                onChange={() => {}}
+                style={inputStyle}
+                readOnly
+              />
+            </td>
+          </tr>
+
+          <tr>
+            <td style={firstTdStyle}>{translator.t('Surface')}</td>
+            <td>
+              <div style={measureRowWrapStyle}>
+                <FormTextInput
+                  value={wallSurfaceDisplay}
+                  onChange={() => {}}
+                  style={readOnlyInputStyle}
+                  readOnly
+                />
+                <div style={unitBoxStyle}>m²</div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <PropertyLengthMeasure
+        value={lineLength}
+        onUpdate={(mapped) => onUpdate('lineLength', mapped)}
+        configs={{
+          label: translator.t('Length'),
+          min: 0,
+          max: Infinity,
+          precision: 2
+        }}
+        state={state}
+      />
+    </div>
+  );
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/element-editor.tsx
+================================================================
+import React, { Component } from 'react';
+
+import convert from 'convert-units';
+import { produce } from 'immer';
+
+import { CatalogFn } from '../../../catalog/catalog';
+import { Area, Item, Layer, StateProps } from '../../../models';
+import ReactPlannerContext, {
+  ReactPlannerContextProps
+} from '../../../react-planner-context';
+import * as SharedStyle from '../../../shared-style';
+import {
+  CatalogElementProperty,
+  ElementType,
+  HoleAttributes,
+  LineAttributes
+} from '../../../types';
+import { GeometryUtils, MathUtils } from '../../../utils/export';
+
+import AttributesEditor from './attributes-editor/attributes-editor';
+
+const PRECISION = 2;
+
+const attrPorpSeparatorStyle = {
+  margin: '0.5em 0.25em 0.5em 0',
+  border: '2px solid ' + SharedStyle.SECONDARY_COLOR.alt,
+  position: 'relative',
+  height: '2.5em',
+  borderRadius: '2px'
+} as const;
+
+const headActionStyle = {
+  position: 'absolute',
+  right: '0.5em',
+  top: '0.5em'
+} as const;
+
+const iconHeadStyle = {
+  float: 'right',
+  margin: '-3px 4px 0px 0px',
+  padding: 0,
+  cursor: 'pointer',
+  fontSize: '1.4em'
+} as const;
+
+const infoRowStyle = {
+  margin: '0.4em 0.25em 0.6em 0.25em',
+  padding: '0.5em 0.6em',
+  borderRadius: '6px',
+  background: 'rgba(255,255,255,0.06)',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center'
+} as const;
+
+const infoLabelStyle = { opacity: 0.85 } as const;
+const infoValueStyle = { fontWeight: 700 } as const;
+
+const estimatorBoxStyle = {
+  margin: '0.4em 0.25em 0.6em 0.25em',
+  padding: '0.6em 0.6em',
+  borderRadius: '6px',
+  background: 'rgba(255,255,255,0.06)'
+} as const;
+
+const estimatorHeaderStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '0.4em'
+} as const;
+
+const estimatorTitleStyle = {
+  fontWeight: 700,
+  opacity: 0.9
+} as const;
+
+const estimatorActionsStyle = {
+  display: 'flex',
+  gap: '0.4em'
+} as const;
+
+const miniBtnStyle = {
+  border: '1px solid ' + SharedStyle.SECONDARY_COLOR.alt,
+  background: 'transparent',
+  color: 'inherit',
+  borderRadius: '6px',
+  padding: '0.25em 0.5em',
+  cursor: 'pointer',
+  fontWeight: 700,
+  opacity: 0.9
+} as const;
+
+const miniBtnDisabledStyle = {
+  ...miniBtnStyle,
+  opacity: 0.35,
+  cursor: 'not-allowed'
+} as const;
+
+const estimatorRowStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: '0.25em 0'
+} as const;
+
+const estimatorItemStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '0.6em',
+  padding: '0.25em 0',
+  borderTop: '1px solid rgba(255,255,255,0.08)'
+} as const;
+
+const removeBtnStyle = {
+  ...miniBtnStyle,
+  padding: '0.15em 0.45em'
+} as const;
+
+interface ElementEditorProps {
+  state: StateProps;
+  element: ElementType;
+  layer: Layer;
+}
+
+type PropertyForm = {
+  currentValue: Record<string, any>;
+  configs: Record<string, any>;
+};
+
+export type AttributesFormData = Item | LineAttributes | HoleAttributes | Area;
+
+type ElementEditorState = {
+  attributesFormData: AttributesFormData;
+  propertiesFormData: Record<string, PropertyForm>;
+};
+
+type SurfaceBasketItem = {
+  id: string;
+  label: string;
+  m2: number;
+  ts: number;
+};
+
+export default class ElementEditor extends Component<
+  ElementEditorProps,
+  ElementEditorState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(props: ElementEditorProps, context: ReactPlannerContextProps) {
+    super(props, context);
+
+    this.state = {
+      attributesFormData: this.initAttrData(
+        this.props.element,
+        this.props.layer,
+        context
+      ),
+      propertiesFormData: this.initPropData(this.props.element, context)
+    };
+
+    this.updateAttribute = this.updateAttribute.bind(this);
+    this.addCurrentSurfaceToBasket = this.addCurrentSurfaceToBasket.bind(this);
+    this.clearSurfaceBasket = this.clearSurfaceBasket.bind(this);
+  }
+
+  shouldComponentUpdate(
+    nextProps: ElementEditorProps,
+    nextState: ElementEditorState
+  ) {
+    if (
+      this.state.attributesFormData !== nextState.attributesFormData ||
+      this.state.propertiesFormData !== nextState.propertiesFormData ||
+      this.props.state.clipboardProperties !==
+        nextProps.state.clipboardProperties
+    )
+      return true;
+
+    return false;
+  }
+
+  componentDidUpdate(prevProps: ElementEditorProps) {
+    const { element, layer } = this.props;
+
+    if (prevProps.layer.id !== layer.id) {
+      this.setState({
+        attributesFormData: this.initAttrData(element, layer, this.context),
+        propertiesFormData: this.initPropData(element, this.context)
+      });
+    }
+  }
+
+  initAttrData(
+    element: ElementType,
+    layer: Layer,
+    context: ReactPlannerContextProps
+  ) {
+    switch (element.prototype) {
+      case 'items': {
+        return element;
+      }
+      case 'lines': {
+        const v_a = layer.vertices[element.vertices[0]];
+        const v_b = layer.vertices[element.vertices[1]];
+
+        const distance = GeometryUtils.pointsDistance(
+          v_a.x,
+          v_a.y,
+          v_b.x,
+          v_b.y
+        );
+        const _unit = (element as any).misc?._unitLength || context.catalog.unit;
+        const _length = convert(distance).from(context.catalog.unit).to(_unit);
+
+        return {
+          vertexOne: v_a,
+          vertexTwo: v_b,
+          lineLength: { length: distance, _length, _unit }
+        } as LineAttributes;
+      }
+      case 'holes': {
+        const line = layer.lines[(element as any).line];
+        const { x: x0, y: y0 } = layer.vertices[line.vertices[0]];
+        const { x: x1, y: y1 } = layer.vertices[line.vertices[1]];
+        const lineLength = GeometryUtils.pointsDistance(x0, y0, x1, y1);
+        const startAt =
+          lineLength * (element as any).offset -
+          (element as any).properties.width.length / 2;
+
+        const _unitA = (element as any).misc?._unitA || context.catalog.unit;
+        const _lengthA = convert(startAt).from(context.catalog.unit).to(_unitA);
+
+        const endAt =
+          lineLength -
+          lineLength * (element as any).offset -
+          (element as any).properties.width.length / 2;
+        const _unitB = (element as any).misc?._unitB || context.catalog.unit;
+        const _lengthB = convert(endAt).from(context.catalog.unit).to(_unitB);
+
+        return {
+          offset: (element as any).offset,
+          offsetA: {
+            length: MathUtils.toFixedFloat(startAt, PRECISION),
+            _length: MathUtils.toFixedFloat(_lengthA, PRECISION),
+            _unit: _unitA
+          },
+          offsetB: {
+            length: MathUtils.toFixedFloat(endAt, PRECISION),
+            _length: MathUtils.toFixedFloat(_lengthB, PRECISION),
+            _unit: _unitB
+          }
+        } as HoleAttributes;
+      }
+      case 'areas': {
+        return element;
+      }
+    }
+  }
+
+  initPropData(element: ElementType, context: ReactPlannerContextProps) {
+    const { catalog } = context;
+    const catalogElement = CatalogFn.getElement(catalog, (element as any).type);
+
+    type Result = Record<
+      string,
+      { currentValue: any; configs: CatalogElementProperty }
+    >;
+    const mapped: Result = {};
+
+    for (const name in catalogElement.properties) {
+      const propDef = catalogElement.properties[name];
+      const defVal =
+        propDef && typeof propDef === 'object' && 'defaultValue' in propDef
+          ? (propDef as { defaultValue: any }).defaultValue
+          : undefined;
+      mapped[name] = {
+        currentValue: (element as any).properties?.[name] ?? defVal,
+        configs: propDef
+      };
+    }
+    return mapped;
+  }
+
+  updateAttribute(attributeName: string, value: any) {
+    const { attributesFormData: oldAttributesFormData } = this.state;
+    let newAttributesFormData: ElementEditorState['attributesFormData'];
+
+    switch ((this.props.element as any).prototype) {
+      case 'items': {
+        newAttributesFormData = {
+          ...oldAttributesFormData,
+          [attributeName]: value
+        };
+        break;
+      }
+      case 'lines': {
+        let attributesFormData = oldAttributesFormData as LineAttributes;
+        switch (attributeName) {
+          case 'lineLength': {
+            const v_0 = (attributesFormData as any).vertexOne;
+            const v_1 = (attributesFormData as any).vertexTwo;
+
+            const [v_a, v_b] = GeometryUtils.orderVertices([v_0, v_1]);
+
+            const v_b_new = GeometryUtils.extendLine(
+              v_a.x,
+              v_a.y,
+              v_b.x,
+              v_b.y,
+              value.length,
+              PRECISION
+            );
+
+            attributesFormData = produce(attributesFormData, (attr: any) => {
+              if (v_0 === v_a) {
+                attr.vertexTwo = { ...v_b, ...v_b_new };
+              } else {
+                attr.vertexOne = { ...v_b, ...v_b_new };
+              }
+              attr.lineLength = value;
+            });
+            break;
+          }
+          case 'vertexOne':
+          case 'vertexTwo': {
+            attributesFormData = produce(attributesFormData, (attr: any) => {
+              attr[attributeName] = {
+                ...attr[attributeName],
+                ...value
+              };
+
+              const newDistance = GeometryUtils.verticesDistance(
+                attr.vertexOne,
+                attr.vertexTwo
+              );
+              attr.lineLength = {
+                ...attr.lineLength,
+                length: newDistance,
+                _length: convert(newDistance)
+                  .from(this.context.catalog.unit)
+                  .to(attr.lineLength._unit)
+              };
+            });
+            break;
+          }
+          default: {
+            attributesFormData = {
+              ...attributesFormData,
+              [attributeName]: value
+            };
+            break;
+          }
+        }
+        newAttributesFormData = attributesFormData;
+        break;
+      }
+      case 'holes': {
+        let attributesFormData = oldAttributesFormData as HoleAttributes;
+        switch (attributeName) {
+          case 'offsetA': {
+            const line = this.props.layer.lines[(this.props.element as any).line];
+
+            const orderedVertices = GeometryUtils.orderVertices([
+              this.props.layer.vertices[line.vertices[0]],
+              this.props.layer.vertices[line.vertices[1]]
+            ]);
+
+            const [{ x: x0, y: y0 }, { x: x1, y: y1 }] = orderedVertices;
+
+            const alpha = GeometryUtils.angleBetweenTwoPoints(x0, y0, x1, y1);
+            const lineLength = GeometryUtils.pointsDistance(x0, y0, x1, y1);
+            const widthLength = (this.props.element as any).properties.width.length;
+            const halfWidthLength = widthLength / 2;
+
+            let lengthValue = value.length;
+            lengthValue = Math.max(lengthValue, 0);
+            lengthValue = Math.min(lengthValue, lineLength - widthLength);
+
+            const xp = (lengthValue + halfWidthLength) * Math.cos(alpha) + x0;
+            const yp = (lengthValue + halfWidthLength) * Math.sin(alpha) + y0;
+
+            const offset = GeometryUtils.pointPositionOnLineSegment(
+              x0, y0, x1, y1, xp, yp
+            );
+
+            const endAt = MathUtils.toFixedFloat(
+              lineLength - lineLength * offset - halfWidthLength,
+              PRECISION
+            );
+            const offsetUnit = (attributesFormData as any).offsetB._unit;
+
+            const offsetB = {
+              length: endAt,
+              _length: convert(endAt)
+                .from(this.context.catalog.unit)
+                .to(offsetUnit),
+              _unit: offsetUnit
+            };
+
+            const offsetA = {
+              length: MathUtils.toFixedFloat(lengthValue, PRECISION),
+              _unit: value._unit,
+              _length: MathUtils.toFixedFloat(
+                convert(lengthValue)
+                  .from(this.context.catalog.unit)
+                  .to(value._unit),
+                PRECISION
+              )
+            };
+
+            attributesFormData = {
+              ...(attributesFormData as any),
+              offsetB,
+              offset,
+              offsetA
+            } as any;
+            break;
+          }
+          case 'offsetB': {
+            const line = this.props.layer.lines[(this.props.element as any).line];
+
+            const orderedVertices = GeometryUtils.orderVertices([
+              this.props.layer.vertices[line.vertices[0]],
+              this.props.layer.vertices[line.vertices[1]]
+            ]);
+
+            const [{ x: x0, y: y0 }, { x: x1, y: y1 }] = orderedVertices;
+
+            const alpha = GeometryUtils.angleBetweenTwoPoints(x0, y0, x1, y1);
+            const lineLength = GeometryUtils.pointsDistance(x0, y0, x1, y1);
+            const widthLength = (this.props.element as any).properties.width.length;
+            const halfWidthLength = widthLength / 2;
+
+            let lengthValue = value.length;
+            lengthValue = Math.max(lengthValue, 0);
+            lengthValue = Math.min(lengthValue, lineLength - widthLength);
+
+            const xp = x1 - (lengthValue + halfWidthLength) * Math.cos(alpha);
+            const yp = y1 - (lengthValue + halfWidthLength) * Math.sin(alpha);
+
+            const offset = GeometryUtils.pointPositionOnLineSegment(
+              x0, y0, x1, y1, xp, yp
+            );
+
+            const startAt = MathUtils.toFixedFloat(
+              lineLength * offset - halfWidthLength,
+              PRECISION
+            );
+            const offsetUnit = (attributesFormData as any).offsetA._unit;
+
+            const offsetA = {
+              length: startAt,
+              _length: convert(startAt)
+                .from(this.context.catalog.unit)
+                .to(offsetUnit),
+              _unit: offsetUnit
+            };
+
+            const offsetB = {
+              length: MathUtils.toFixedFloat(lengthValue, PRECISION),
+              _unit: value._unit,
+              _length: MathUtils.toFixedFloat(
+                convert(lengthValue)
+                  .from(this.context.catalog.unit)
+                  .to(value._unit),
+                PRECISION
+              )
+            };
+
+            attributesFormData = {
+              ...(attributesFormData as any),
+              offsetA,
+              offset,
+              offsetB
+            } as any;
+
+            break;
+          }
+          default: {
+            attributesFormData = {
+              ...(attributesFormData as any),
+              [attributeName]: value
+            } as any;
+            break;
+          }
+        }
+        newAttributesFormData = attributesFormData;
+        break;
+      }
+      case 'areas': {
+        newAttributesFormData = {
+          ...oldAttributesFormData,
+          [attributeName]: value
+        };
+        break;
+      }
+      default:
+        newAttributesFormData = oldAttributesFormData;
+        break;
+    }
+
+    this.setState({ attributesFormData: newAttributesFormData });
+    this.save({ attributesFormData: newAttributesFormData });
+  }
+
+  updateProperty(propertyName: string, value: any) {
+    let {
+      state: { propertiesFormData }
+    } = this;
+    propertiesFormData = produce(propertiesFormData, (draft: any) => {
+      draft[propertyName].currentValue = value;
+    });
+    this.setState({ propertiesFormData });
+    this.save({ propertiesFormData });
+  }
+
+  reset() {
+    this.setState({
+      propertiesFormData: this.initPropData(this.props.element, this.context)
+    });
+  }
+
+  save({ propertiesFormData, attributesFormData }: Partial<ElementEditorState>) {
+    if (propertiesFormData) {
+      const properties = Object.keys(propertiesFormData).reduce((acc, key) => {
+        const data = (propertiesFormData as any)[key];
+        acc[key] =
+          data && data.currentValue !== undefined ? data.currentValue : undefined;
+        return acc;
+      }, {} as Record<string, any>);
+
+      this.context.projectActions.setProperties(properties);
+    }
+
+    if (attributesFormData) {
+      switch ((this.props.element as any).prototype) {
+        case 'items': {
+          this.context.projectActions.setItemsAttributes(attributesFormData as Item);
+          break;
+        }
+        case 'lines': {
+          this.context.projectActions.setLinesAttributes(attributesFormData as LineAttributes);
+          break;
+        }
+        case 'holes': {
+          this.context.projectActions.setHolesAttributes(attributesFormData as HoleAttributes);
+          break;
+        }
+        case 'areas': {
+          this.context.projectActions.setAreasAttributes(attributesFormData as Area);
+          break;
+        }
+      }
+    }
+  }
+
+ 
+
+  private computeSelectedAreaM2(): number | null {
+    const { element, layer } = this.props;
+
+    if ((element as any).prototype !== 'areas') return null;
+
+    const vertices = (element as any).vertices;
+    if (!Array.isArray(vertices) || vertices.length < 3) return null;
+
+    const pts = vertices
+      .map((vid: string) => (layer as any).vertices[vid])
+      .filter(Boolean)
+      .map((v: any) => ({ x: v.x, y: v.y }));
+
+    if (pts.length < 3) return null;
+
+    // Shoelace area in "catalog.unit^2"
+    let sum = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i + 1) % pts.length;
+      sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+    }
+    const areaUnit2 = Math.abs(sum) / 2;
+
+    // Convert to m² based on catalog unit (cm -> m)
+    const unit = this.context.catalog.unit; // usually "cm"
+    const metersPerUnit = convert(1).from(unit).to('m');
+    const areaM2 = areaUnit2 * metersPerUnit * metersPerUnit;
+
+    return MathUtils.toFixedFloat(areaM2, 2);
+  }
+
+  private computeSelectedWallSurfaceM2(): number | null {
+    const { element, layer } = this.props;
+
+    if ((element as any).prototype !== 'lines') return null;
+
+    const v0 = (layer as any).vertices[(element as any).vertices?.[0]];
+    const v1 = (layer as any).vertices[(element as any).vertices?.[1]];
+    if (!v0 || !v1) return null;
+
+    const lengthUnit = GeometryUtils.pointsDistance(v0.x, v0.y, v1.x, v1.y);
+
+    // Typical wall has properties.height.length
+    const heightUnit = (element as any).properties?.height?.length;
+    if (typeof heightUnit !== 'number' || !isFinite(heightUnit) || heightUnit <= 0) {
+      return null;
+    }
+
+    const surfaceUnit2 = lengthUnit * heightUnit;
+
+    const unit = this.context.catalog.unit; // usually "cm"
+    const metersPerUnit = convert(1).from(unit).to('m');
+    const surfaceM2 = surfaceUnit2 * metersPerUnit * metersPerUnit;
+
+    return MathUtils.toFixedFloat(surfaceM2, 2);
+  }
+
+  private getSurfaceBasket(): SurfaceBasketItem[] {
+    const sceneProps = ((this.props.state as any)?.scene?.properties ?? {}) as any;
+    const raw = sceneProps.surfaceBasket;
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((x) => x && typeof x.m2 === 'number' && isFinite(x.m2))
+      .slice(0, 200); // safety cap
+  }
+
+  private setSurfaceBasket(next: SurfaceBasketItem[]) {
+    const scene = (this.props.state as any)?.scene;
+    const sceneProps = (scene?.properties ?? {}) as any;
+
+    this.context.projectActions.setProjectProperties({
+      properties: {
+        ...sceneProps,
+        surfaceBasket: next
+      }
+    } as any);
+  }
+
+  private getCurrentSurface(): { label: string; m2: number } | null {
+    const wallM2 = this.computeSelectedWallSurfaceM2();
+    if (wallM2 !== null) return { label: 'Wall surface', m2: wallM2 };
+
+    const areaM2 = this.computeSelectedAreaM2();
+    if (areaM2 !== null) return { label: 'Area', m2: areaM2 };
+
+    return null;
+  }
+
+  private addCurrentSurfaceToBasket() {
+    const cur = this.getCurrentSurface();
+    if (!cur) return;
+
+    const basket = this.getSurfaceBasket();
+    const idBase = (this.props.element as any)?.id || 'elem';
+    const item: SurfaceBasketItem = {
+      id: `${idBase}_${Date.now()}`,
+      label: cur.label,
+      m2: MathUtils.toFixedFloat(cur.m2, 2),
+      ts: Date.now()
+    };
+
+    this.setSurfaceBasket([item, ...basket]);
+  }
+
+  private removeBasketItem(id: string) {
+    const basket = this.getSurfaceBasket();
+    const next = basket.filter((x) => x.id !== id);
+    this.setSurfaceBasket(next);
+  }
+
+  private clearSurfaceBasket() {
+    this.setSurfaceBasket([]);
+  }
+
+  render() {
+    const {
+      state: { propertiesFormData, attributesFormData },
+      context: { catalog, translator },
+      props: { state: appState, element }
+    } = this;
+
+    const selectedAreaM2 = this.computeSelectedAreaM2();
+    const selectedWallM2 = this.computeSelectedWallSurfaceM2();
+
+    const basket = this.getSurfaceBasket();
+    const totalM2 = MathUtils.toFixedFloat(
+      basket.reduce((acc, x) => acc + (x.m2 || 0), 0),
+      2
+    );
+
+    const currentSurface = this.getCurrentSurface();
+
+    return (
+      <div>
+        <AttributesEditor
+          element={element}
+          onUpdate={this.updateAttribute}
+          attributeFormData={attributesFormData}
+          state={appState}
+        />
+
+        {selectedWallM2 !== null && (
+          <div style={infoRowStyle}>
+            <div style={infoLabelStyle}>{translator.t('Surface')}</div>
+            <div style={infoValueStyle}>{selectedWallM2} m²</div>
+          </div>
+        )}
+
+        {selectedAreaM2 !== null && (
+          <div style={infoRowStyle}>
+            <div style={infoLabelStyle}>{translator.t('Area')}</div>
+            <div style={infoValueStyle}>{selectedAreaM2} m²</div>
+          </div>
+        )}
+
+        
+
+        
+
+        {Object.entries(propertiesFormData).map(([propertyName, data]) => {
+          const currentValue = (data as any).currentValue,
+            configs = (data as any).configs;
+
+          const { Editor } = CatalogFn.getPropertyType(catalog, configs.type);
+
+          return (
+            <Editor
+              key={propertyName}
+              propertyName={propertyName}
+              value={currentValue}
+              configs={configs}
+              onUpdate={(value: any) => this.updateProperty(propertyName, value)}
+              state={appState}
+              sourceElement={element}
+              internalState={this.state}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/multi-elements-editor.tsx
+================================================================
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/panel-element-editor.tsx
+================================================================
+import React, { useContext } from 'react';
+
+import {
+  MODE_2D_PAN,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_3D_FIRST_PERSON,
+  MODE_3D_VIEW,
+  MODE_DRAGGING_HOLE,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_DRAWING_LINE,
+  MODE_FITTING_IMAGE,
+  MODE_IDLE,
+  MODE_ROTATING_ITEM,
+  MODE_UPLOADING_IMAGE,
+  MODE_WAITING_DRAWING_LINE
+} from '../../../constants';
+import { Layer, StateProps } from '../../../models';
+import ReactPlannerContext from '../../../react-planner-context';
+import { ElementType } from '../../../types';
+import Panel from '../panel';
+
+import ElementEditor from './element-editor';
+
+interface PanelElementEditorProps {
+  state: StateProps;
+}
+
+export default function PanelElementEditor({ state }: PanelElementEditorProps) {
+  const { translator } = useContext(ReactPlannerContext);
+
+  const { scene, mode } = state;
+
+  if (
+    ![
+      MODE_IDLE,
+      MODE_2D_ZOOM_IN,
+      MODE_2D_ZOOM_OUT,
+      MODE_2D_PAN,
+      MODE_3D_VIEW,
+      MODE_3D_FIRST_PERSON,
+      MODE_WAITING_DRAWING_LINE,
+      MODE_DRAWING_LINE,
+      MODE_DRAWING_HOLE,
+      MODE_DRAWING_ITEM,
+      MODE_DRAGGING_LINE,
+      MODE_DRAGGING_VERTEX,
+      MODE_DRAGGING_ITEM,
+      MODE_DRAGGING_HOLE,
+      MODE_ROTATING_ITEM,
+      MODE_UPLOADING_IMAGE,
+      MODE_FITTING_IMAGE
+    ].includes(mode)
+  )
+    return null;
+
+  const componentRenderer = (element: ElementType, layer: Layer) => (
+    <Panel
+      key={element.id}
+      name={translator.t('Properties: [{0}] {1}', element.type, element.id)}
+      opened={true}
+    >
+      <div style={{ padding: '5px 15px' }}>
+        <ElementEditor element={element} layer={layer} state={state} />
+      </div>
+    </Panel>
+  );
+
+  const layerRenderer = (layer: Layer) => {
+    const elements = [
+      ...Object.values(layer.lines),
+      ...Object.values(layer.holes),
+      ...Object.values(layer.areas),
+      ...Object.values(layer.items)
+    ];
+    return elements
+      .filter((element) => element.selected)
+      .map((element) => componentRenderer(element, layer));
+  };
+
+  return <div>{Object.values(scene.layers).map(layerRenderer)}</div>;
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/panel-multi-elements-editor.tsx
+================================================================
+import React, { Component } from 'react';
+
+import { FormSelect } from '../../../components/style/export';
+import {
+  MODE_2D_PAN,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_3D_FIRST_PERSON,
+  MODE_3D_VIEW,
+  MODE_DRAGGING_HOLE,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_DRAWING_LINE,
+  MODE_FITTING_IMAGE,
+  MODE_IDLE,
+  MODE_ROTATING_ITEM,
+  MODE_UPLOADING_IMAGE,
+  MODE_WAITING_DRAWING_LINE
+} from '../../../constants';
+import { State } from '../../../models';
+import ReactPlannerContext from '../../../react-planner-context';
+import Panel from '../panel';
+
+const tableStyle = { width: '100%' } as const;
+const firstTdStyle = { width: '6em' } as const;
+
+interface PanelMultiElementsEditorProps {
+  state: State;
+}
+
+interface PanelMultiElementsEditorState {
+  selectedGroupID: string;
+}
+
+export default class PanelMultiElementsEditor extends Component<
+  PanelMultiElementsEditorProps,
+  PanelMultiElementsEditorState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: PanelMultiElementsEditorProps,
+    context: typeof ReactPlannerContext
+  ) {
+    super(props, context);
+
+    this.state = {
+      selectedGroupID: ''
+    };
+  }
+
+  addSelectToGroup(
+    state: State,
+    groupID: string,
+    layerID: string,
+    selecteds: Set<string>
+  ) {
+    if (!groupID || groupID === '' || !selecteds || !selecteds.size) return;
+
+    console.log('need to be added to group', groupID, 'elements', selecteds);
+
+    /*let selectedJs = selecteds.toJS();
+
+    for( let lineID in selectedJs.lines ) Group.addElement( state, groupID, layerID, 'lines', lineID );*/
+  }
+
+  render() {
+    const { mode } = this.props.state;
+
+    if (
+      ![
+        MODE_IDLE,
+        MODE_2D_ZOOM_IN,
+        MODE_2D_ZOOM_OUT,
+        MODE_2D_PAN,
+        MODE_3D_VIEW,
+        MODE_3D_FIRST_PERSON,
+        MODE_WAITING_DRAWING_LINE,
+        MODE_DRAWING_LINE,
+        MODE_DRAWING_HOLE,
+        MODE_DRAWING_ITEM,
+        MODE_DRAGGING_LINE,
+        MODE_DRAGGING_VERTEX,
+        MODE_DRAGGING_ITEM,
+        MODE_DRAGGING_HOLE,
+        MODE_ROTATING_ITEM,
+        MODE_UPLOADING_IMAGE,
+        MODE_FITTING_IMAGE
+      ].includes(mode)
+    )
+      return null;
+
+    const groups = this.props.state.scene.groups;
+
+    //TODO change in multi-layer check
+    const selectedLayer = this.props.state.scene.selectedLayer;
+    if (!selectedLayer) return null;
+    const selecteds = this.props.state.scene.layers[selectedLayer].selected;
+
+    return (
+      <Panel name={'Multiselected'} opened={true}>
+        <div style={{ padding: '5px 15px' }}>
+          <p>Multiselection tab</p>
+          <table style={tableStyle}>
+            <tbody>
+              <tr>
+                <td style={firstTdStyle}>Add to Group</td>
+                <td>
+                  <FormSelect
+                    value={this.state.selectedGroupID}
+                    onChange={(e) =>
+                      this.setState({ selectedGroupID: e.target.value })
+                    }
+                  >
+                    <option key={0} value={''}></option>
+                    {Object.entries(groups).map(([groupID, group]) => (
+                      <option key={groupID} value={groupID}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </FormSelect>
+                </td>
+                <td
+                  style={{
+                    cursor: 'pointer',
+                    padding: '0.5em 0',
+                    textAlign: 'center'
+                  }}
+                  onClick={(e) => {
+                    if (
+                      !this.state.selectedGroupID ||
+                      this.state.selectedGroupID === '' ||
+                      !selecteds
+                    )
+                      return;
+
+                    for (let x = 0; x < selecteds.lines.length; x++)
+                      this.context.groupsActions.addToGroup(
+                        this.state.selectedGroupID,
+                        selectedLayer,
+                        'lines',
+                        selecteds.lines[x]
+                      );
+                  }}
+                >
+                  +
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    );
+  }
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-group-editor.tsx
+================================================================
+import React, { useContext } from 'react';
+
+import { FaUnlink } from 'react-icons/fa';
+
+import {
+  MODE_2D_PAN,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_3D_FIRST_PERSON,
+  MODE_3D_VIEW,
+  MODE_DRAGGING_HOLE,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_DRAWING_LINE,
+  MODE_FITTING_IMAGE,
+  MODE_IDLE,
+  MODE_ROTATING_ITEM,
+  MODE_UPLOADING_IMAGE,
+  MODE_WAITING_DRAWING_LINE,
+  ModeType
+} from '../../constants';
+import { GroupElementPrototypes, State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { ElementPrototypes } from '../../types';
+import { FormNumberInput, FormTextInput } from '../style/export';
+
+import Panel from './panel';
+
+const VISIBILITY_MODE = {
+  MODE_IDLE,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_2D_PAN,
+  MODE_3D_VIEW,
+  MODE_3D_FIRST_PERSON,
+  MODE_WAITING_DRAWING_LINE,
+  MODE_DRAWING_LINE,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_HOLE,
+  MODE_FITTING_IMAGE,
+  MODE_UPLOADING_IMAGE,
+  MODE_ROTATING_ITEM
+} as Record<ModeType, ModeType>;
+
+const tableStyle = { width: '100%' } as const;
+const firstTdStyle = { width: '6em' } as const;
+const inputStyle = { textAlign: 'left' } as const;
+const styleEditButton = {
+  marginLeft: '5px',
+  border: '0px',
+  background: 'none',
+  color: SharedStyle.COLORS.white,
+  fontSize: '14px',
+  outline: '0px'
+} as const;
+
+const tablegroupStyle = {
+  width: '100%',
+  cursor: 'pointer',
+  maxHeight: '20em',
+  marginLeft: '1px',
+  marginTop: '1em'
+} as const;
+
+const iconColStyle = { width: '2em' };
+
+interface PanelGroupEditorProps {
+  state: State;
+  groupID?: string;
+}
+
+export default function PanelGroupEditor(props: PanelGroupEditorProps) {
+  const { groupID, state } = props;
+  const { translator, groupsActions } = useContext(ReactPlannerContext);
+
+  if (!groupID || !VISIBILITY_MODE[state.mode]) return null;
+
+  const group = state.scene.groups[groupID];
+  const elements = group.elements;
+
+  return (
+    <Panel name={translator.t('Group [{0}]', group.name)} opened={true}>
+      <div style={{ padding: '5px 15px' }}>
+        <table style={tableStyle}>
+          <tbody>
+            <tr>
+              <td style={firstTdStyle}>{translator.t('Name')}</td>
+              <td>
+                <FormTextInput
+                  value={group.name}
+                  onChange={(e) =>
+                    groupsActions.setGroupAttributes(groupID, {
+                      name: e.target.value
+                    })
+                  }
+                  style={inputStyle}
+                />
+              </td>
+            </tr>
+            <tr>
+              <td style={firstTdStyle}>X</td>
+              <td>
+                <FormNumberInput
+                  value={group.x}
+                  onChange={(e) =>
+                    groupsActions.groupTranslate(
+                      groupID,
+                      e.target.value,
+                      group.y
+                    )
+                  }
+                  style={inputStyle}
+                  precision={2}
+                />
+              </td>
+            </tr>
+            <tr>
+              <td style={firstTdStyle}>Y</td>
+              <td>
+                <FormNumberInput
+                  value={group.y}
+                  onChange={(e) =>
+                    groupsActions.groupTranslate(
+                      groupID,
+                      group.x,
+                      e.target.value
+                    )
+                  }
+                  style={inputStyle}
+                  precision={2}
+                />
+              </td>
+            </tr>
+            <tr>
+              <td style={firstTdStyle}>{translator.t('Rotation')}</td>
+              <td>
+                <FormNumberInput
+                  value={group.rotation}
+                  onChange={(e) =>
+                    groupsActions.groupRotate(groupID, e.target.value)
+                  }
+                  style={inputStyle}
+                  precision={2}
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        {Object.keys(elements).length ? (
+          <div>
+            <p
+              style={{
+                textAlign: 'center',
+                borderBottom: SharedStyle.PRIMARY_COLOR.border,
+                paddingBottom: '1em'
+              }}
+            >
+              {translator.t("Group's Elements")}
+            </p>
+            <table style={tablegroupStyle}>
+              <thead>
+                <tr>
+                  <th style={iconColStyle}></th>
+                  <th>{translator.t('Layer')}</th>
+                  <th>{translator.t('Prototype')}</th>
+                  <th>{translator.t('Name')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(elements).map(([layerID, layerElements]) => {
+                  return Object.entries(layerElements).map(
+                    ([elementPrototype, ElementList]) => {
+                      return ElementList.map((elementID) => {
+                        const element =
+                          state.scene.layers[layerID][
+                          elementPrototype as GroupElementPrototypes
+                          ][elementID];
+
+                        return (
+                          <tr key={elementID}>
+                            <td
+                              style={iconColStyle}
+                              title={translator.t(
+                                'Un-chain Element from Group'
+                              )}
+                            >
+                              <FaUnlink
+                                onClick={(e) =>
+                                  groupsActions.removeFromGroup(
+                                    groupID,
+                                    layerID,
+                                    elementPrototype as ElementPrototypes,
+                                    elementID
+                                  )
+                                }
+                                style={styleEditButton}
+                              />
+                            </td>
+                            <td style={{ textAlign: 'center' }}>{layerID}</td>
+                            <td
+                              style={{
+                                textAlign: 'center',
+                                textTransform: 'capitalize'
+                              }}
+                            >
+                              {elementPrototype}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {element.name}
+                            </td>
+                          </tr>
+                        );
+                      });
+                    }
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </div>
+    </Panel>
+  );
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-groups.tsx
+================================================================
+import React, { memo, useContext, useState } from 'react';
+
+import { FaEye, FaLink, FaTrash, FaUnlink } from 'react-icons/fa';
+import { TiPlus } from 'react-icons/ti';
+
+import {
+  MODE_2D_PAN,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_3D_FIRST_PERSON,
+  MODE_3D_VIEW,
+  MODE_DRAGGING_HOLE,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_DRAWING_LINE,
+  MODE_FITTING_IMAGE,
+  MODE_IDLE,
+  MODE_ROTATING_ITEM,
+  MODE_UPLOADING_IMAGE,
+  MODE_WAITING_DRAWING_LINE,
+  ModeType
+} from '../../constants';
+import { Scene, State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { ElementPrototypes } from '../../types';
+
+import Panel from './panel';
+
+const VISIBILITY_MODE: Record<ModeType, ModeType> = {
+  MODE_IDLE,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_2D_PAN,
+  MODE_3D_VIEW,
+  MODE_3D_FIRST_PERSON,
+  MODE_WAITING_DRAWING_LINE,
+  MODE_DRAWING_LINE,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_HOLE,
+  MODE_FITTING_IMAGE,
+  MODE_UPLOADING_IMAGE,
+  MODE_ROTATING_ITEM
+};
+
+const styleEditButton = {
+  marginLeft: '5px',
+  border: '0px',
+  background: 'none',
+  color: SharedStyle.COLORS.white,
+  fontSize: '14px',
+  outline: '0px'
+} as const;
+
+const tablegroupStyle = {
+  width: '100%',
+  cursor: 'pointer',
+  maxHeight: '20em',
+  padding: '0 1em',
+  marginLeft: '1px'
+} as const;
+
+const iconColStyle = { width: '2em', textAlign: 'center' } as const;
+const styleHoverColor = { color: SharedStyle.SECONDARY_COLOR.main } as const;
+const styleEditButtonHover = {
+  ...styleEditButton,
+  ...styleHoverColor
+} as const;
+const styleAddLabel = { fontSize: '10px', marginLeft: '5px' } as const;
+const styleEyeVisible = { fontSize: '1.25em' } as const;
+const styleEyeHidden = { ...styleEyeVisible, color: '#a5a1a1' } as const;
+const newLayerLableStyle = {
+  fontSize: '1.3em',
+  cursor: 'pointer',
+  textAlign: 'center'
+} as const;
+const newLayerLableHoverStyle = {
+  ...newLayerLableStyle,
+  ...styleHoverColor
+} as const;
+
+interface PanelGroupsProps {
+  mode: State['mode'];
+  groups: Scene['groups'];
+  layers: Scene['layers'];
+}
+
+function PanelGroups(props: PanelGroupsProps) {
+  const { translator, groupsActions } = useContext(ReactPlannerContext);
+  const [newEmptyHover, setNewEmptyHover] = useState(false);
+  const [newSelectedHover, setNewSelectedHover] = useState(false);
+
+  const { mode, groups, layers } = props;
+
+  if (!VISIBILITY_MODE[mode]) return null;
+
+  return (
+    <Panel
+      name={translator.t('Groups')}
+      opened={Object.keys(groups).length > 0}
+    >
+      {Object.keys(groups).length ? (
+        <table style={tablegroupStyle}>
+          <thead>
+            <tr>
+              <th colSpan={4}></th>
+              <th>{translator.t('Elements')}</th>
+              <th>{translator.t('Name')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(groups).map(([groupID, group]) => {
+              const selectClick = (e: React.MouseEvent) =>
+                groupsActions.selectGroup(groupID);
+
+              const swapVisibility = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                groupsActions.setGroupAttributes(groupID, {
+                  visible: !group.visible
+                });
+              };
+
+              const chainToGroup = (e: React.MouseEvent<SVGElement>) => {
+                Object.values(layers).forEach((layer) => {
+                  const layerID = layer.id;
+                  const layerElements = {
+                    lines: layer.lines,
+                    items: layer.items,
+                    holes: layer.holes,
+                    areas: layer.areas
+                  } as const;
+
+                  Object.entries(layerElements).forEach(
+                    ([elementPrototype, ElementList]) => {
+                      Object.values(ElementList)
+                        .filter((el) => el.selected)
+                        .forEach((element) => {
+                          groupsActions.addToGroup(
+                            groupID,
+                            layerID,
+                            elementPrototype as ElementPrototypes,
+                            element.id
+                          );
+                        });
+                    }
+                  );
+                });
+
+                selectClick(e);
+              };
+
+              const isCurrentgroup = group.selected;
+              const shouldHighlight = isCurrentgroup;
+              const rowStyle = !shouldHighlight ? undefined : styleHoverColor;
+
+              const dimension = Object.values(group.elements).reduce(
+                (sum, layer) => {
+                  return (
+                    sum +
+                    Object.values(layer).reduce(
+                      (lSum, elProt) => lSum + elProt.length,
+                      0
+                    )
+                  );
+                },
+                0
+              );
+
+              return (
+                <tr key={groupID} style={rowStyle}>
+                  <td
+                    style={iconColStyle}
+                    title={translator.t('Toggle Group Visibility')}
+                  >
+                    <FaEye
+                      onClick={swapVisibility}
+                      style={!group.visible ? styleEyeHidden : styleEyeVisible}
+                    />
+                  </td>
+                  <td
+                    style={iconColStyle}
+                    title={translator.t('Chain selected Elements to Group')}
+                  >
+                    <FaLink
+                      onClick={chainToGroup}
+                      style={
+                        !shouldHighlight
+                          ? styleEditButton
+                          : styleEditButtonHover
+                      }
+                    />
+                  </td>
+                  <td
+                    style={iconColStyle}
+                    title={translator.t(
+                      "Un-chain all Group's Elements and remove Group"
+                    )}
+                  >
+                    <FaUnlink
+                      onClick={(e) => groupsActions.removeGroup(groupID)}
+                      style={
+                        !shouldHighlight
+                          ? styleEditButton
+                          : styleEditButtonHover
+                      }
+                    />
+                  </td>
+                  <td
+                    style={iconColStyle}
+                    title={translator.t('Delete group and all Elements')}
+                  >
+                    <FaTrash
+                      onClick={(e) =>
+                        groupsActions.removeGroupAndDeleteElements(groupID)
+                      }
+                      style={
+                        !shouldHighlight
+                          ? styleEditButton
+                          : styleEditButtonHover
+                      }
+                    />
+                  </td>
+                  <td
+                    onClick={selectClick}
+                    style={{ width: '0em', textAlign: 'center' }}
+                  >
+                    {dimension}
+                  </td>
+                  <td onClick={selectClick}>{group.name}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      ) : null}
+
+      <table style={{ width: '100%', marginTop: '0.1em' }}>
+        <tbody>
+          <tr>
+            <td
+              style={
+                !newEmptyHover ? newLayerLableStyle : newLayerLableHoverStyle
+              }
+              onMouseOver={() => setNewEmptyHover(true)}
+              onMouseOut={() => setNewEmptyHover(false)}
+              onClick={(e) => groupsActions.addGroup()}
+            >
+              <TiPlus />
+              <b style={styleAddLabel}>{translator.t('New Empty Group')}</b>
+            </td>
+            <td
+              style={
+                !newSelectedHover ? newLayerLableStyle : newLayerLableHoverStyle
+              }
+              onMouseOver={() => setNewSelectedHover(true)}
+              onMouseOut={() => setNewSelectedHover(false)}
+              onClick={(e) => groupsActions.addGroupFromSelected()}
+            >
+              <TiPlus />
+              <b style={styleAddLabel}>
+                {translator.t('New Group from selected')}
+              </b>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </Panel>
+  );
+}
+
+function areEqual(prevProps: PanelGroupsProps, nextProps: PanelGroupsProps) {
+  return (
+    prevProps.groups === nextProps.groups &&
+    prevProps.layers === nextProps.layers &&
+    prevProps.mode === nextProps.mode
+  );
+}
+
+export default memo(PanelGroups, areEqual);
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-guides.tsx
+================================================================
+import React, { memo, useContext, useState } from 'react';
+
+import { FaTimes, FaTrash } from 'react-icons/fa';
+import { Tab, TabList, TabPanel, Tabs } from 'react-tabs';
+
+import { State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { FormNumberInput } from '../style/export';
+
+import Panel from './panel';
+
+const tabStyle = { margin: '1em' } as const;
+
+const iconStyle = {
+  fontSize: '14px',
+  margin: '2px',
+  cursor: 'pointer'
+} as const;
+
+const addGuideStyle = {
+  cursor: 'pointer',
+  height: '2em'
+} as const;
+
+const tableTabStyle = {
+  width: '100%',
+  textAlign: 'center'
+} as const;
+
+const listTabStyle = {
+  display: 'inline-block',
+  border: '1px solid transparent',
+  borderBottom: 'none',
+  bottom: '-1px',
+  position: 'relative',
+  listStyle: 'none',
+  padding: '6px 12px',
+  cursor: 'pointer',
+  outline: 'none'
+} as const;
+
+const activeTabStyle = {
+  border: '1px solid rgb(170, 170, 170)',
+  borderBottom: 'none',
+  color: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+export interface PanelGuidesProps {
+  state: State;
+}
+
+function PanelGuides(props: PanelGuidesProps) {
+  const { state } = props;
+  const { projectActions, translator } = useContext(ReactPlannerContext);
+  const [addHGVisible, setAddHGVisible] = useState(true);
+  const [addVGVisible, setAddVGVisible] = useState(true);
+
+  const { guides } = state.scene;
+
+  const [selectedTab, setSelectedTab] = useState(0);
+  return (
+    <Panel name={translator.t('Guides')}>
+      <Tabs
+        id="guidesTabs"
+        style={tabStyle}
+        selectedIndex={selectedTab}
+        onSelect={(i) => setSelectedTab(i)}
+      >
+        <TabList style={{ borderBottom: '1px solid #aaa', padding: '0px' }}>
+          <Tab
+            style={
+              selectedTab === 0
+                ? { ...listTabStyle, ...activeTabStyle }
+                : listTabStyle
+            }
+          >
+            {translator.t('Horizontal')}
+          </Tab>
+          <Tab
+            style={
+              selectedTab === 1
+                ? { ...listTabStyle, ...activeTabStyle }
+                : listTabStyle
+            }
+          >
+            {translator.t('Vertical')}
+          </Tab>
+          {/*<Tab>{translator.t('Circular')}</Tab>*/}
+        </TabList>
+
+        <TabPanel>
+          <table style={tableTabStyle}>
+            <tbody>
+              {Object.entries(guides.horizontal).map(([hgKey, hgVal], ind) => {
+                return (
+                  <tr key={hgKey}>
+                    <td style={{ width: '2em' }}>{ind + 1}</td>
+                    <td>{hgVal}</td>
+                    <td style={{ width: '5em' }}>
+                      {/*<FaPencil style={iconStyle} />*/}
+                      <FaTrash
+                        style={iconStyle}
+                        onClick={(e) =>
+                          projectActions.removeHorizontalGuide(hgKey)
+                        }
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+              {addHGVisible ? (
+                <tr>
+                  <td
+                    colSpan={3}
+                    style={addGuideStyle}
+                    onClick={(e) => setAddHGVisible(false)}
+                  >
+                    {translator.t('+ Add Horizontal Giude')}
+                  </td>
+                </tr>
+              ) : (
+                <tr>
+                  <td colSpan={2}>
+                    <FormNumberInput
+                      value={0}
+                      onChange={(e) => {
+                        projectActions.addHorizontalGuide(e.target.value);
+                        return setAddHGVisible(true);
+                      }}
+                      min={0}
+                      max={state.scene.height}
+                    />
+                  </td>
+                  <td>
+                    <FaTimes
+                      style={iconStyle}
+                      onClick={(e) => setAddHGVisible(true)}
+                    />
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </TabPanel>
+        <TabPanel>
+          <table style={tableTabStyle}>
+            <tbody>
+              {Object.entries(guides.vertical).map(([hgKey, hgVal], ind) => {
+                return (
+                  <tr key={hgKey}>
+                    <td style={{ width: '2em' }}>{ind + 1}</td>
+                    <td>{hgVal}</td>
+                    <td style={{ width: '5em' }}>
+                      {/*<FaPencil style={iconStyle} />*/}
+                      <FaTrash
+                        style={iconStyle}
+                        onClick={(e) =>
+                          projectActions.removeVerticalGuide(hgKey)
+                        }
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+              {addVGVisible ? (
+                <tr>
+                  <td
+                    colSpan={3}
+                    style={addGuideStyle}
+                    onClick={(e) => setAddVGVisible(false)}
+                  >
+                    {translator.t('+ Add Vertical Giude')}
+                  </td>
+                </tr>
+              ) : (
+                <tr>
+                  <td colSpan={2}>
+                    <FormNumberInput
+                      value={0}
+                      onChange={(e) => {
+                        projectActions.addVerticalGuide(e.target.value);
+                        return setAddVGVisible(true);
+                      }}
+                      min={0}
+                      max={state.scene.height}
+                    />
+                  </td>
+                  <td>
+                    <FaTimes
+                      style={iconStyle}
+                      onClick={(e) => setAddVGVisible(true)}
+                    />
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </TabPanel>
+        {/*<TabPanel>
+            <b>TODO Circular Giudes</b>
+          </TabPanel>*/}
+      </Tabs>
+    </Panel>
+  );
+}
+
+function propsAreEqual(
+  prevProps: PanelGuidesProps,
+  nextProps: PanelGuidesProps
+) {
+  return prevProps.state.scene.guides === nextProps.state.scene.guides;
+}
+
+export default memo(PanelGuides, propsAreEqual);
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-layer-elements.tsx
+================================================================
+import React, { Component } from 'react';
+
+import { MdSearch } from 'react-icons/md';
+
+import {
+  MODE_2D_PAN,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_3D_FIRST_PERSON,
+  MODE_3D_VIEW,
+  MODE_DRAGGING_HOLE,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_DRAWING_LINE,
+  MODE_FITTING_IMAGE,
+  MODE_IDLE,
+  MODE_ROTATING_ITEM,
+  MODE_UPLOADING_IMAGE,
+  MODE_WAITING_DRAWING_LINE,
+  ModeType
+} from '../../constants';
+import { Layer, Scene, SharedAttributes } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+
+import Panel from './panel';
+
+const VISIBILITY_MODE = {
+  MODE_IDLE,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_2D_PAN,
+  MODE_3D_VIEW,
+  MODE_3D_FIRST_PERSON,
+  MODE_WAITING_DRAWING_LINE,
+  MODE_DRAWING_LINE,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_HOLE,
+  MODE_FITTING_IMAGE,
+  MODE_UPLOADING_IMAGE,
+  MODE_ROTATING_ITEM
+} as Record<ModeType, ModeType>;
+
+const contentArea = {
+  height: 'auto',
+  maxHeight: '15em',
+  overflowY: 'auto',
+  padding: '0.25em 1.15em',
+  cursor: 'pointer',
+  marginBottom: '1em',
+  userSelect: 'none'
+} as const;
+
+const elementStyle = {
+  width: 'auto',
+  height: '2.5em',
+  margin: '0.25em 0.25em 0 0',
+  padding: '0.5em',
+  textAlign: 'center',
+  display: 'inline-block',
+  border: '1px solid #CCC',
+  borderRadius: '0.2em'
+} as const;
+
+const elementSelectedStyle = {
+  ...elementStyle,
+  border: elementStyle.border.replace('#CCC', SharedStyle.SECONDARY_COLOR.main),
+  color: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const categoryDividerStyle = {
+  paddingBottom: '0.5em',
+  borderBottom: '1px solid #888'
+} as const;
+
+const tableSearchStyle = { width: '100%', marginTop: '0.8em' } as const;
+const searchIconStyle = { fontSize: '1.5em' } as const;
+const searchInputStyle = {
+  fontSize: '1em',
+  width: '100%',
+  height: '1em',
+  padding: '1em 0.5em'
+} as const;
+
+interface PanelLayerElementProps {
+  mode: string;
+  layers: Scene['layers'];
+  selectedLayer: string;
+}
+
+interface ElementsType {
+  lines: Layer['lines'][string][];
+  holes: Layer['holes'][string][];
+  items: Layer['items'][string][];
+}
+
+interface PanelLayerElementState {
+  elements: ElementsType;
+  matchString: string;
+  matchedElements: ElementsType;
+}
+
+export default class PanelLayerElement extends Component<
+  PanelLayerElementProps,
+  PanelLayerElementState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: PanelLayerElementProps,
+    context: typeof ReactPlannerContext
+  ) {
+    super(props, context);
+
+    const layer = props.layers[props.selectedLayer];
+    const elements = {
+      lines: Object.values(layer.lines),
+      holes: Object.values(layer.holes),
+      items: Object.values(layer.items)
+    } as const;
+
+    this.state = {
+      elements,
+      matchString: '',
+      matchedElements: elements
+    };
+  }
+
+  shouldComponentUpdate(
+    nextProps: PanelLayerElementProps,
+    nextState: PanelLayerElementState
+  ) {
+    if (this.state.matchString !== nextState.matchString) return true;
+
+    const oldElements = this.state.elements;
+    const newElements = nextState.elements;
+
+    if (
+      oldElements.lines !== newElements.lines ||
+      oldElements.holes !== newElements.holes ||
+      oldElements.items !== newElements.items
+    )
+      return true;
+
+    return false;
+  }
+
+  componentDidUpdate(prevProps: PanelLayerElementProps) {
+    const layer = this.props.layers[this.props.selectedLayer];
+
+    if (prevProps.layers === this.props.layers) return;
+
+    const elements = {
+      lines: Object.values(layer.lines),
+      holes: Object.values(layer.holes),
+      items: Object.values(layer.items)
+    };
+
+    if (this.state.matchString !== '') {
+      const regexp = new RegExp(this.state.matchString, 'i');
+      const filterCb = (el: SharedAttributes) => regexp.test(el.name);
+
+      this.setState({
+        matchedElements: {
+          lines: elements.lines.filter(filterCb),
+          holes: elements.holes.filter(filterCb),
+          items: elements.items.filter(filterCb)
+        }
+      });
+    } else {
+      this.setState({ elements, matchedElements: elements });
+    }
+  }
+
+  matcharray(text: string) {
+    if (text === '') {
+      this.setState({
+        matchString: '',
+        matchedElements: this.state.elements
+      });
+      return;
+    }
+
+    const regexp = new RegExp(text, 'i');
+    const filterCb = (el: SharedAttributes) => regexp.test(el.name);
+
+    this.setState({
+      matchString: text,
+      matchedElements: {
+        lines: Object.values(this.state.elements.lines).filter(filterCb),
+        holes: Object.values(this.state.elements.holes).filter(filterCb),
+        items: Object.values(this.state.elements.items).filter(filterCb)
+      }
+    });
+  }
+
+  render() {
+    if (!VISIBILITY_MODE[this.props.mode]) return null;
+
+    const layer = this.props.layers[this.props.selectedLayer];
+
+    return (
+      <Panel
+        name={this.context.translator.t('Elements on layer {0}', layer.name)}
+      >
+        <div style={contentArea} onWheel={(e) => e.stopPropagation()}>
+          <table style={tableSearchStyle}>
+            <tbody>
+              <tr>
+                <td>
+                  <MdSearch style={searchIconStyle} />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    style={searchInputStyle}
+                    onChange={(e) => {
+                      this.matcharray(e.target.value);
+                    }}
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          {this.state.matchedElements.lines.length ? (
+            <div>
+              <p style={categoryDividerStyle}>
+                {this.context.translator.t('Lines')}
+              </p>
+              {this.state.matchedElements.lines.map((line) => {
+                return (
+                  <div
+                    key={line.id}
+                    onClick={(e) =>
+                      this.context.linesActions.selectLine(layer.id, line.id)
+                    }
+                    style={line.selected ? elementSelectedStyle : elementStyle}
+                  >
+                    {line.name}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {this.state.matchedElements.holes.length ? (
+            <div>
+              <p style={categoryDividerStyle}>
+                {this.context.translator.t('Holes')}
+              </p>
+              {this.state.matchedElements.holes.map((hole) => {
+                return (
+                  <div
+                    key={hole.id}
+                    onClick={(e) =>
+                      this.context.holesActions.selectHole(layer.id, hole.id)
+                    }
+                    style={hole.selected ? elementSelectedStyle : elementStyle}
+                  >
+                    {hole.name}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {this.state.matchedElements.items.length ? (
+            <div>
+              <p style={categoryDividerStyle}>
+                {this.context.translator.t('Items')}
+              </p>
+              {this.state.matchedElements.items.map((item) => {
+                return (
+                  <div
+                    key={item.id}
+                    onClick={(e) =>
+                      this.context.itemsActions.selectItem(layer.id, item.id)
+                    }
+                    style={item.selected ? elementSelectedStyle : elementStyle}
+                  >
+                    {item.name}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      </Panel>
+    );
+  }
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-layers.tsx
+================================================================
+import React, { Component } from 'react';
+
+import { FaEye, FaPencilAlt, FaTrash } from 'react-icons/fa';
+import { TiDelete, TiPlus } from 'react-icons/ti';
+
+import {
+  MODE_2D_PAN,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_3D_FIRST_PERSON,
+  MODE_3D_VIEW,
+  MODE_DRAGGING_HOLE,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_DRAWING_LINE,
+  MODE_FITTING_IMAGE,
+  MODE_IDLE,
+  MODE_ROTATING_ITEM,
+  MODE_UPLOADING_IMAGE,
+  MODE_WAITING_DRAWING_LINE,
+  ModeType
+} from '../../constants';
+import { Layer, State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import {
+  CancelButton,
+  FormNumberInput,
+  FormSlider,
+  FormSubmitButton,
+  FormTextInput
+} from '../style/export';
+
+import Panel from './panel';
+
+const VISIBILITY_MODE = {
+  MODE_IDLE,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_2D_PAN,
+  MODE_3D_VIEW,
+  MODE_3D_FIRST_PERSON,
+  MODE_WAITING_DRAWING_LINE,
+  MODE_DRAWING_LINE,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_HOLE,
+  MODE_ROTATING_ITEM,
+  MODE_UPLOADING_IMAGE,
+  MODE_FITTING_IMAGE
+} as Record<ModeType, string>;
+
+const styleEditButton = {
+  cursor: 'pointer',
+  marginLeft: '5px',
+  border: '0px',
+  background: 'none',
+  color: SharedStyle.COLORS.white,
+  fontSize: '14px',
+  outline: '0px'
+} as const;
+
+const tableLayerStyle = {
+  width: '100%',
+  //cursor: 'pointer',
+  overflowY: 'auto',
+  maxHeight: '20em',
+  display: 'block',
+  padding: '0 1em',
+  marginLeft: '1px'
+} as const;
+
+const iconColStyle = { width: '2em' } as const;
+const styleHoverColor = { color: SharedStyle.SECONDARY_COLOR.main } as const;
+const styleEditButtonHover = {
+  ...styleEditButton,
+  ...styleHoverColor
+} as const;
+const styleAddLabel = { fontSize: '10px', marginLeft: '5px' } as const;
+const styleEyeVisible = { fontSize: '1.25em' } as const;
+const styleEyeHidden = { ...styleEyeVisible, color: '#a5a1a1' } as const;
+const firstTdStyle = { width: '6em' } as const;
+const newLayerLableStyle = {
+  margin: '0.5em 0',
+  fontSize: '1.3em',
+  cursor: 'pointer',
+  textAlign: 'center'
+} as const;
+const newLayerLableHoverStyle = {
+  ...newLayerLableStyle,
+  ...styleHoverColor
+} as const;
+const layerInputTableStyle = {
+  width: '100%',
+  borderSpacing: '2px 0',
+  padding: '5px 15px'
+} as const;
+const inputTableButtonStyle = {
+  float: 'right',
+  marginTop: '0.5em',
+  borderSpacing: '0'
+} as const;
+
+type PanelLayersProps = {
+  state: State;
+};
+
+type PanelLayersState = {
+  headHovered: boolean;
+  layerAddUIVisible: boolean;
+  editingLayer: Layer | undefined;
+};
+
+export default class PanelLayers extends Component<
+  PanelLayersProps,
+  PanelLayersState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(props: PanelLayersProps, context: typeof ReactPlannerContext) {
+    super(props, context);
+
+    this.state = {
+      headHovered: false,
+      layerAddUIVisible: false,
+      editingLayer: undefined
+    };
+  }
+
+  shouldComponentUpdate(
+    nextProps: PanelLayersProps,
+    nextState: PanelLayersState
+  ) {
+    if (
+      this.props.state.scene.layers.size !==
+      nextProps.state.scene.layers.size ||
+      nextState.layerAddUIVisible != this.state.layerAddUIVisible ||
+      this.state.editingLayer !== nextState.editingLayer ||
+      this.props.state.sceneHistory !== nextProps.state.sceneHistory
+    )
+      return true;
+
+    return false;
+  }
+
+  addLayer(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!this.state.layerAddUIVisible) {
+      this.context.sceneActions.addLayer('', 0);
+      this.setState({ layerAddUIVisible: false });
+    } else this.setState({ layerAddUIVisible: !this.state.layerAddUIVisible });
+  }
+
+  resetLayerMod(e: React.MouseEvent) {
+    e.stopPropagation();
+    this.setState({ layerAddUIVisible: false, editingLayer: undefined });
+  }
+
+  updateLayer(e: React.MouseEvent, layerData: Layer) {
+    e.stopPropagation();
+    this.context.sceneActions.setLayerProperties(layerData.id, layerData);
+    this.setState({ layerAddUIVisible: false, editingLayer: undefined });
+  }
+
+  delLayer(e: React.MouseEvent, layerID: string) {
+    e.stopPropagation();
+    this.context.sceneActions.removeLayer(layerID);
+    this.setState({ layerAddUIVisible: false, editingLayer: undefined });
+  }
+
+  render() {
+    if (!VISIBILITY_MODE[this.props.state.mode]) return null;
+
+    const scene = this.props.state.scene;
+    const isLastLayer = Object.keys(scene.layers).length === 1;
+
+    const editingLayer = this.state.editingLayer;
+    return (
+      <Panel name={this.context.translator.t('Layers')}>
+        <table style={tableLayerStyle}>
+          <thead>
+            <tr>
+              <th colSpan={3}></th>
+              <th>{this.context.translator.t('Altitude')}</th>
+              <th>{this.context.translator.t('Name')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(scene.layers).map(([layerID, layer]) => {
+              const selectClick = (e: React.MouseEvent) => {
+                this.context.sceneActions.selectLayer(layerID);
+              };
+              const configureClick = (e: React.MouseEvent) =>
+                this.setState({ editingLayer: layer, layerAddUIVisible: true });
+
+              const swapVisibility = (
+                e: React.MouseEvent<SVGElement, MouseEvent>
+              ) => {
+                e.stopPropagation();
+                this.context.sceneActions.setLayerProperties(layerID, {
+                  visible: !layer.visible
+                });
+              };
+
+              const isCurrentLayer = layerID === scene.selectedLayer;
+
+              return (
+                <tr
+                  key={layerID}
+                  onClick={selectClick}
+                  onDoubleClick={configureClick}
+                  style={!isCurrentLayer ? undefined : styleHoverColor}
+                >
+                  <td style={iconColStyle}>
+                    {!isCurrentLayer ? (
+                      <FaEye
+                        onClick={swapVisibility}
+                        style={
+                          !layer.visible ? styleEyeHidden : styleEyeVisible
+                        }
+                      />
+                    ) : null}
+                  </td>
+                  <td style={iconColStyle}>
+                    <FaPencilAlt
+                      onClick={configureClick}
+                      style={
+                        !isCurrentLayer ? styleEditButton : styleEditButtonHover
+                      }
+                      title={this.context.translator.t('Configure layer')}
+                    />
+                  </td>
+                  <td style={iconColStyle}>
+                    {!isLastLayer ? (
+                      <FaTrash
+                        onClick={(e) => this.delLayer(e, layerID)}
+                        style={
+                          !isCurrentLayer
+                            ? styleEditButton
+                            : styleEditButtonHover
+                        }
+                        title={this.context.translator.t('Delete layer')}
+                      />
+                    ) : null}
+                  </td>
+                  <td style={{ width: '6em', textAlign: 'center' }}>
+                    [ h : {layer.altitude} ]
+                  </td>
+                  <td>{layer.name}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <p
+          style={
+            !this.state.headHovered
+              ? newLayerLableStyle
+              : newLayerLableHoverStyle
+          }
+          onMouseOver={() => this.setState({ headHovered: true })}
+          onMouseOut={() => this.setState({ headHovered: false })}
+          onClick={(e) => this.addLayer(e)}
+        >
+          {!this.state.layerAddUIVisible ? <TiPlus /> : <TiDelete />}
+          <b style={styleAddLabel}>{this.context.translator.t('New layer')}</b>
+        </p>
+
+        {this.state.layerAddUIVisible && editingLayer ? (
+          <table style={layerInputTableStyle}>
+            <tbody>
+              <tr style={{ marginTop: '1em' }}>
+                <td style={firstTdStyle}>
+                  {this.context.translator.t('Name')}:
+                </td>
+                <td>
+                  <FormTextInput
+                    value={editingLayer.name}
+                    onChange={(e) =>
+                      this.setState({
+                        editingLayer: { ...editingLayer, name: e.target.value }
+                      })
+                    }
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td style={firstTdStyle}>
+                  {this.context.translator.t('opacity')}:
+                </td>
+                <td>
+                  <FormSlider
+                    min={0}
+                    max={100}
+                    value={Math.round(editingLayer.opacity * 100)}
+                    onChange={(value) =>
+                      this.setState({
+                        editingLayer: {
+                          ...editingLayer,
+                          opacity: value[0] / 100
+                        }
+                      })
+                    }
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td style={firstTdStyle}>
+                  {this.context.translator.t('altitude')}:
+                </td>
+                <td>
+                  <FormNumberInput
+                    value={editingLayer.altitude}
+                    onChange={(e) =>
+                      this.setState({
+                        editingLayer: {
+                          ...editingLayer,
+                          altitude: e.target.value
+                        }
+                      })
+                    }
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td style={firstTdStyle}>
+                  {this.context.translator.t('order')}:
+                </td>
+                <td>
+                  <FormNumberInput
+                    value={editingLayer.order}
+                    onChange={(e) =>
+                      this.setState({
+                        editingLayer: { ...editingLayer, order: e.target.value }
+                      })
+                    }
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td colSpan={2}>
+                  <table style={inputTableButtonStyle}>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <CancelButton
+                            size="small"
+                            onClick={(e) => {
+                              this.resetLayerMod(e);
+                            }}
+                          >
+                            {this.context.translator.t('Reset')}
+                          </CancelButton>
+                        </td>
+                        <td>
+                          <FormSubmitButton
+                            size="small"
+                            onClick={(e) => {
+                              this.updateLayer(e, editingLayer);
+                            }}
+                          >
+                            {this.context.translator.t('Save')}
+                          </FormSubmitButton>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        ) : null}
+      </Panel>
+    );
+  }
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel.tsx
+================================================================
+import React, { Component } from 'react';
+
+import { ReactPlannerContext } from '@archef2000/react-planner';
+import { FaAngleDown, FaAngleUp } from 'react-icons/fa';
+
+import * as SharedStyle from '../../shared-style';
+
+const STYLE = {
+  borderTop: '1px solid #222',
+  borderBottom: '1px solid #48494E',
+  userSelect: 'none'
+} as const;
+
+const STYLE_TITLE = {
+  fontSize: '11px',
+  color: SharedStyle.PRIMARY_COLOR.text_alt,
+  padding: '6px 10px',
+  backgroundColor: SharedStyle.PRIMARY_COLOR.alt,
+  textShadow: '-1px -1px 2px rgba(0, 0, 0, 1)',
+  boxShadow: 'inset 0px -3px 19px 0px rgba(0,0,0,0.5)',
+  margin: '0px',
+  cursor: 'pointer'
+} as const;
+
+const STYLE_CONTENT = {
+  fontSize: '11px',
+  color: SharedStyle.PRIMARY_COLOR.text_alt,
+  border: '1px solid #222',
+  padding: '8px 10px', // ✅ uniform padding for all panel content
+  backgroundColor: SharedStyle.PRIMARY_COLOR.alt,
+  textShadow: '-1px -1px 2px rgba(0, 0, 0, 1)'
+} as const;
+
+const STYLE_ARROW = {
+  float: 'right'
+} as const;
+
+interface PanelProps {
+  name: string;
+  headComponents?: React.ReactNode;
+  opened?: boolean;
+  children?: React.ReactNode;
+}
+
+interface PanelState {
+  opened: boolean;
+  hover: boolean;
+}
+
+export default class Panel extends Component<PanelProps, PanelState> {
+  constructor(props: PanelProps, context: typeof ReactPlannerContext) {
+    super(props, context);
+
+    this.state = {
+      opened: !!props.opened,
+      hover: false
+    };
+  }
+
+  toggleOpen() {
+    this.setState({ opened: !this.state.opened });
+  }
+
+  toggleHover() {
+    this.setState({ hover: !this.state.hover });
+  }
+
+  render() {
+    const { name, headComponents, children } = this.props;
+    const { opened, hover } = this.state;
+
+    return (
+      <div style={STYLE}>
+        <h3
+          style={{
+            ...STYLE_TITLE,
+            color: hover
+              ? SharedStyle.SECONDARY_COLOR.main
+              : SharedStyle.PRIMARY_COLOR.text_alt
+          }}
+          onMouseEnter={() => this.toggleHover()}
+          onMouseLeave={() => this.toggleHover()}
+          onClick={() => this.toggleOpen()}
+        >
+          {name}
+          {headComponents}
+          {opened ? (
+            <FaAngleUp style={STYLE_ARROW} />
+          ) : (
+            <FaAngleDown style={STYLE_ARROW} />
+          )}
+        </h3>
+
+        <div style={{ ...STYLE_CONTENT, display: opened ? 'block' : 'none' }}>
+          {children}
+        </div>
+      </div>
+    );
+  }
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/sidebar.tsx
+================================================================
+import React from 'react';
+
+import { MODE_VIEWING_CATALOG } from '../../constants';
+import { State } from '../../models';
+import * as SharedStyle from '../../shared-style';
+import { ComponentType } from '../../types';
+
+import PanelElementEditor from './panel-element-editor/panel-element-editor';
+import PanelMultiElementsEditor from './panel-element-editor/panel-multi-elements-editor';
+import PanelGroupEditor from './panel-group-editor';
+
+const FLOAT_SIDEBAR_STYLE: React.CSSProperties = {
+  position: 'fixed',
+  top: 72,
+  right: 12,
+  width: 220,
+  maxHeight: 320,
+  overflow: 'auto',
+  zIndex: 9999,
+  background: '#1f1f1f',
+  borderRadius: 10,
+  boxShadow: '0 10px 30px rgba(0,0,0,0.35)'
+};
+
+const STYLE = {
+  backgroundColor: SharedStyle.PRIMARY_COLOR.main,
+  display: 'block',
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  paddingBottom: '12px'
+} as const;
+
+interface SidebarProps {
+  state: State;
+  width: number;
+  height: number;
+  sidebarComponents: ComponentType[]; // kept for API compatibility; not used in "properties-only" mode
+}
+
+export default function Sidebar({ state, width, height }: SidebarProps) {
+  // ✅ Hide the floating info/editor box during Catalog view
+  if (state.mode === MODE_VIEWING_CATALOG) return null;
+
+  const selectedLayer = state.scene.selectedLayer;
+  if (!selectedLayer) return null;
+
+  const selected = state.scene.layers[selectedLayer].selected;
+
+  const multiselected =
+    selected.lines.length > 1 ||
+    selected.items.length > 1 ||
+    selected.holes.length > 1 ||
+    selected.areas.length > 1 ||
+    selected.lines.length + selected.items.length + selected.holes.length + selected.areas.length > 1;
+
+  const selectedGroup = Object.values(state.scene.groups).find((g) => g.selected);
+
+  return (
+    <aside
+      style={{ width, height, ...STYLE, ...FLOAT_SIDEBAR_STYLE }}
+      onKeyDown={(event) => event.stopPropagation()}
+      onKeyUp={(event) => event.stopPropagation()}
+      className="sidebar sidebar--floating"
+    >
+      {!multiselected && <PanelElementEditor state={state} />}
+      {multiselected && <PanelMultiElementsEditor state={state} />}
+
+      {!!selectedGroup && <PanelGroupEditor state={state} groupID={selectedGroup.id} />}
+    </aside>
+  );
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/catalog.ts
+================================================================
+import { UNIT_CENTIMETER, UnitLengthType } from '../constants';
+import {
+  CatalogElement,
+  CatalogElementBase,
+  PrototypeToElement
+} from '../types';
+
+import {
+  PropertyCheckbox,
+  PropertyColor,
+  PropertyEnum,
+  PropertyHidden,
+  PropertyLengthMeasure,
+  PropertyNumber,
+  PropertyReadOnly,
+  PropertyString,
+  PropertyToggle
+} from './properties/export';
+
+export type CatalogCategory = {
+  name: string;
+  label: string;
+  categories: CatalogCategory[];
+  elements: CatalogElement[];
+};
+
+export type CatalogJson = {
+  elements: Record<string, CatalogElement>;
+  categories: {
+    root: CatalogCategory;
+    [key: string]: CatalogCategory;
+  };
+  propertyTypes: Record<string, any>;
+  unit: UnitLengthType;
+};
+
+export const CatalogFn = {
+  /** @description Get catalog's element
+   *  @param catalog Catalog object
+   *  @param type Element's type
+   *  @return Element
+   */
+  getElement: <Name extends keyof CatalogJson['elements']>(
+    catalog: CatalogJson,
+    type: Name
+  ): CatalogElementBase<keyof PrototypeToElement> => {
+    const elements = catalog.elements;
+    if (Object.prototype.hasOwnProperty.call(elements, type)) {
+      return elements[type];
+    }
+    throw new Error(`Element ${String(type)} does not exist in catalog`);
+  },
+
+  /** @description Get catalog category
+   *  @param catalog Catalog object
+   *  @param categoryName Name of category
+   *  @return Category
+   */
+  getCategory: (catalog: CatalogJson, categoryName: string) => {
+    if (CatalogFn.hasCategory(catalog, categoryName)) {
+      return catalog.categories[categoryName];
+    }
+    throw new Error(`Category ${categoryName} does not exist in catalog`);
+  },
+
+  /** @description Return type of a specfied property
+   *  @param catalog Catalog object
+   *  @param type Property type
+   *  @return Property
+   */
+  getPropertyType: (catalog: CatalogJson, type: string) => {
+    if (catalog.propertyTypes.hasOwnProperty(type)) {
+      return catalog.propertyTypes[type];
+    }
+    throw new Error(`Element ${type} does not exist in catalog`);
+  },
+
+  /** @description Register a new element
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {object} json Element structure
+   *  @return {void}
+   */
+  registerElement: (catalog: CatalogJson, json: CatalogElement): void => {
+    //json.properties = json.properties || {};
+    if (CatalogFn.validateElement(catalog, json)) {
+      catalog.elements[json.name] = json;
+      catalog.categories.root.elements.push(catalog.elements[json.name]);
+    }
+  },
+
+  /** @description Register multiple elements
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {array} [elementArray] Array of elements
+   *  @return {void}
+   */
+  registerMultipleElements: (
+    catalog: CatalogJson,
+    elementArray: Array<CatalogElement>
+  ): void => {
+    elementArray.forEach((el) => CatalogFn.registerElement(catalog, el));
+  },
+
+  /** @description Register a new property
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} type Type of property
+   *  @param {object} Viewer Property viewer component
+   *  @param {object} Editor Property editor component
+   *  @return {void}
+   */
+  registerPropertyType: (
+    catalog: CatalogJson,
+    type: string,
+    Viewer: object,
+    Editor: object
+  ): void => {
+    catalog.propertyTypes[type] = { type, Viewer, Editor };
+  },
+
+  /** @description Register multiple property
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {array} propertyTypeArray Array of properties
+   *  @return {void}
+   */
+  registerMultiplePropertyType: (
+    catalog: CatalogJson,
+    propertyTypeArray: Array<[string, any, any]>
+  ): void => {
+    propertyTypeArray.forEach((el) =>
+      CatalogFn.registerPropertyType(catalog, ...el)
+    );
+  },
+
+  /** @description Validate an element
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {object} json Element's structure
+   *  @return {?boolean}
+   */
+  validateElement: (
+    catalog: CatalogJson,
+    json: CatalogElement
+  ): boolean | null => {
+    if (!json.hasOwnProperty('name')) throw new Error('Element not valid');
+
+    const name = json.name;
+    if (!json.hasOwnProperty('prototype'))
+      throw new Error(`Element ${name} doesn't have prototype`);
+
+    if (!json.hasOwnProperty('info'))
+      throw new Error(`Element ${name} doesn't have info`);
+    if (!json.info.hasOwnProperty('tag'))
+      throw new Error(`Element ${name} doesn't have tag`);
+    if (!json.info.hasOwnProperty('description'))
+      throw new Error(`Element ${name} doesn't have description`);
+    if (!json.info.hasOwnProperty('image'))
+      throw new Error(`Element ${name} doesn't have image`);
+
+    if (!json.hasOwnProperty('render2D'))
+      throw new Error(`Element ${name} doesn't have render2D handler`);
+    if (!json.hasOwnProperty('render3D'))
+      throw new Error(`Element ${name} doesn't have render3D handler`);
+    if (!json.hasOwnProperty('properties'))
+      throw new Error(`Element ${name} doesn't have properties`);
+
+    for (const propertyName in json.properties) {
+      const propertyConfigs = json.properties[propertyName];
+      if (!propertyConfigs.hasOwnProperty('type'))
+        throw new Error(
+          `Element ${name}, Property ${propertyName} doesn't have type`
+        );
+      if (!propertyConfigs.hasOwnProperty('defaultValue'))
+        throw new Error(
+          `Element ${name}, Property ${propertyName} doesn't have defaultValue`
+        );
+    }
+
+    return true;
+  },
+
+  /** @description Check if catalog has element
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} type Element's type
+   *  @return {boolean}
+   */
+  hasElement: (catalog: CatalogJson, type: string): boolean => {
+    return catalog.elements.hasOwnProperty(type);
+  },
+
+  /** @description Register a new category
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} name Name of category
+   *  @param {string} label Label of category
+   *  @param {array} [childs] Category's childs
+   *  @return {?object} Registered category
+   */
+  registerCategory: (
+    catalog: CatalogJson,
+    name: string,
+    label: string,
+    childs: any[]
+  ): object | null => {
+    if (CatalogFn.validateCategory(catalog, name, label)) {
+      catalog.categories[name] = { name, label, categories: [], elements: [] };
+      catalog.categories.root.categories.push(catalog.categories[name]);
+
+      if (childs) {
+        childs.forEach((el) => CatalogFn.addToCategory(catalog, name, el));
+      }
+
+      return catalog.categories[name];
+    }
+    return null;
+  },
+
+  /** @description Add an element to the specified category
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} name Name of category
+   *  @param {object} child Element's structure
+   *  @return {?void}
+   */
+  addToCategory: (
+    catalog: CatalogJson,
+    name: string,
+    child: any
+  ): void | null => {
+    if (CatalogFn.hasElement(catalog, child.name)) {
+      catalog.categories[name].elements.push(child);
+      catalog.categories.root.elements.splice(
+        catalog.categories.root.elements.indexOf(child),
+        1
+      );
+    } else if (CatalogFn.hasCategory(catalog, child.name)) {
+      catalog.categories[name].categories.push(child);
+      catalog.categories.root.categories.splice(
+        catalog.categories.root.categories.indexOf(child),
+        1
+      );
+    } else {
+      throw new Error(`child ${child} is either category nor element`);
+    }
+  },
+
+  /** @description Check if category contain element
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} categoryName Name of category
+   *  @param {string} elementName Name of element
+   *  @return {boolean}
+   */
+  categoryHasElement: (
+    catalog: CatalogJson,
+    categoryName: string,
+    elementName: string
+  ): boolean => {
+    return (
+      CatalogFn.hasCategory(catalog, categoryName) &&
+      catalog.categories[categoryName].elements.some(
+        (el) => el.name === elementName
+      )
+    );
+  },
+
+  /** @description Validate a category
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} name Name of category
+   *  @param {string} label Label of category
+   *  @return {?boolean}
+   */
+  validateCategory: (
+    catalog: CatalogJson,
+    name: string,
+    label: string
+  ): boolean | null => {
+    if (!name) {
+      throw new Error('Category has undefined name');
+    }
+    if (name === '') {
+      throw new Error('Category has empty name');
+    }
+    if (CatalogFn.hasCategory(catalog, name)) {
+      throw new Error('Category has already been registered');
+    }
+
+    return true;
+  },
+
+  /** @description Verify if catalog already contain a category with specified name
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} categoryName Name of category
+   *  @return {boolean}
+   */
+  hasCategory: (catalog: CatalogJson, categoryName: string): boolean => {
+    return catalog.categories.hasOwnProperty(categoryName);
+  }
+};
+
+export function CatalogFactory(
+  unit: UnitLengthType = UNIT_CENTIMETER
+): CatalogJson {
+  const catalog = {
+    unit,
+    elements: {},
+    categories: {
+      root: { name: 'root', label: '/', elements: [], categories: [] }
+    },
+    propertyTypes: {}
+  };
+  CatalogFn.registerMultiplePropertyType(catalog, [
+    ['color', PropertyColor, PropertyColor],
+    ['enum', PropertyEnum, PropertyEnum],
+    ['string', PropertyString, PropertyString],
+    ['number', PropertyNumber, PropertyNumber],
+    ['length-measure', PropertyLengthMeasure, PropertyLengthMeasure],
+    ['toggle', PropertyToggle, PropertyToggle],
+    ['checkbox', PropertyCheckbox, PropertyCheckbox],
+    ['hidden', PropertyHidden, PropertyHidden],
+    ['read-only', PropertyReadOnly, PropertyReadOnly]
+  ]);
+  return catalog;
+}
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/constants.ts
+================================================================
+import { Unit } from 'convert-units';
+
+// ACTIONS project
+export const NEW_PROJECT = 'NEW_PROJECT';
+export const LOAD_PROJECT = 'LOAD_PROJECT';
+export const SAVE_PROJECT = 'SAVE_PROJECT';
+export const OPEN_CATALOG = 'OPEN_CATALOG';
+export const SELECT_TOOL_EDIT = 'SELECT_TOOL_EDIT';
+export const UNSELECT_ALL = 'UNSELECT_ALL';
+export const SET_PROPERTIES = 'SET_PROPERTIES';
+export const SET_ITEMS_ATTRIBUTES = 'SET_ITEMS_ATTRIBUTES';
+export const SET_LINES_ATTRIBUTES = 'SET_LINES_ATTRIBUTES';
+export const SET_HOLES_ATTRIBUTES = 'SET_HOLES_ATTRIBUTES';
+export const SET_AREAS_ATTRIBUTES = 'SET_AREAS_ATTRIBUTES';
+export const REMOVE = 'REMOVE';
+export const UNDO = 'UNDO';
+export const ROLLBACK = 'ROLLBACK';
+export const SET_PROJECT_PROPERTIES = 'SET_PROJECT_PROPERTIES';
+export const OPEN_PROJECT_CONFIGURATOR = 'OPEN_PROJECT_CONFIGURATOR';
+export const INIT_CATALOG = 'INIT_CATALOG';
+export const UPDATE_MOUSE_COORDS = 'UPDATE_MOUSE_COORDS';
+export const UPDATE_ZOOM_SCALE = 'UPDATE_ZOOM_SCALE';
+export const TOGGLE_SNAP = 'TOGGLE_SNAP';
+export const CHANGE_CATALOG_PAGE = 'CHANGE_CATALOG_PAGE';
+export const GO_BACK_TO_CATALOG_PAGE = 'GO_BACK_TO_CATALOG_PAGE';
+export const THROW_ERROR = 'THROW_ERROR';
+export const THROW_WARNING = 'THROW_WARNING';
+export const COPY_PROPERTIES = 'COPY_PROPERTIES';
+export const PASTE_PROPERTIES = 'PASTE_PROPERTIES';
+export const PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY =
+  'PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY';
+export const ALTERATE_STATE = 'ALTERATE_STATE';
+export const SET_MODE = 'SET_MODE';
+export const ADD_HORIZONTAL_GUIDE = 'ADD_HORIZONTAL_GUIDE';
+export const ADD_VERTICAL_GUIDE = 'ADD_VERTICAL_GUIDE';
+export const ADD_CIRCULAR_GUIDE = 'ADD_CIRCULAR_GUIDE';
+export const REMOVE_HORIZONTAL_GUIDE = 'REMOVE_HORIZONTAL_GUIDE';
+export const REMOVE_VERTICAL_GUIDE = 'REMOVE_VERTICAL_GUIDE';
+export const REMOVE_CIRCULAR_GUIDE = 'REMOVE_CIRCULAR_GUIDE';
+
+// ACTIONS viewer2D
+export const SELECT_TOOL_ZOOM_IN = 'SELECT_TOOL_ZOOM_IN';
+export const SELECT_TOOL_ZOOM_OUT = 'SELECT_TOOL_ZOOM_OUT';
+export const SELECT_TOOL_PAN = 'SELECT_TOOL_PAN';
+export const UPDATE_2D_CAMERA = 'UPDATE_2D_CAMERA';
+
+//ACTIONS viewer3D
+export const SELECT_TOOL_3D_VIEW = 'SELECT_TOOL_3D_VIEW';
+export const SELECT_TOOL_3D_FIRST_PERSON = 'SELECT_TOOL_3D_FIRST_PERSON';
+
+//ACTIONS items
+export const SELECT_TOOL_DRAWING_ITEM = 'SELECT_TOOL_DRAWING_ITEM';
+export const UPDATE_DRAWING_ITEM = 'UPDATE_DRAWING_ITEM';
+export const END_DRAWING_ITEM = 'END_DRAWING_ITEM';
+export const BEGIN_DRAGGING_ITEM = 'BEGIN_DRAGGING_ITEM';
+export const UPDATE_DRAGGING_ITEM = 'UPDATE_DRAGGING_ITEM';
+export const END_DRAGGING_ITEM = 'END_DRAGGING_ITEM';
+export const BEGIN_ROTATING_ITEM = 'BEGIN_ROTATING_ITEM';
+export const UPDATE_ROTATING_ITEM = 'UPDATE_ROTATING_ITEM';
+export const END_ROTATING_ITEM = 'END_ROTATING_ITEM';
+
+//ACTIONS groups
+export const ADD_GROUP = 'ADD_GROUP';
+export const ADD_GROUP_FROM_SELECTED = 'ADD_GROUP_FROM_SELECTED';
+export const SELECT_GROUP = 'SELECT_GROUP';
+export const UNSELECT_GROUP = 'UNSELECT_GROUP';
+export const ADD_TO_GROUP = 'ADD_TO_GROUP';
+export const REMOVE_FROM_GROUP = 'REMOVE_FROM_GROUP';
+export const SET_GROUP_PROPERTIES = 'SET_GROUP_PROPERTIES';
+export const SET_GROUP_ATTRIBUTES = 'SET_GROUP_ATTRIBUTES';
+export const SET_GROUP_BARYCENTER = 'SET_GROUP_BARYCENTER';
+export const REMOVE_GROUP = 'REMOVE_GROUP';
+export const REMOVE_GROUP_AND_DELETE_ELEMENTS =
+  'REMOVE_GROUP_AND_DELETE_ELEMENTS';
+export const GROUP_TRANSLATE = 'GROUP_TRANSLATE';
+export const GROUP_ROTATE = 'GROUP_ROTATE';
+
+//ACTION drawings
+export const SELECT_HOLE = 'SELECT_HOLE';
+export const SELECT_AREA = 'SELECT_AREA';
+export const SELECT_ITEM = 'SELECT_ITEM';
+export const SELECT_LINE = 'SELECT_LINE';
+export const SELECT_TOOL_DRAWING_LINE = 'SELECT_TOOL_DRAWING_LINE';
+export const BEGIN_DRAWING_LINE = 'BEGIN_DRAWING_LINE';
+export const UPDATE_DRAWING_LINE = 'UPDATE_DRAWING_LINE';
+export const END_DRAWING_LINE = 'END_DRAWING_LINE';
+export const SELECT_TOOL_DRAWING_HOLE = 'SELECT_TOOL_DRAWING_HOLE';
+export const UPDATE_DRAWING_HOLE = 'UPDATE_DRAWING_HOLE'; //SHOULD BE SLPITTED IN BEGIN_DRAWING_HOLE AND UPDATE_DRAWING_HOLE
+export const END_DRAWING_HOLE = 'END_DRAWING_HOLE';
+export const BEGIN_DRAGGING_LINE = 'BEGIN_DRAGGING_LINE';
+export const UPDATE_DRAGGING_LINE = 'UPDATE_DRAGGING_LINE';
+export const END_DRAGGING_LINE = 'END_DRAGGING_LINE';
+export const SELECT_TOOL_UPLOAD_IMAGE = 'SELECT_TOOL_UPLOAD_IMAGE';
+export const BEGIN_UPLOADING_IMAGE = 'BEGIN_UPLOADING_IMAGE';
+export const END_UPLOADING_IMAGE = 'END_UPLOADING_IMAGE';
+export const BEGIN_FITTING_IMAGE = 'BEGIN_FITTING_IMAGE';
+export const END_FITTING_IMAGE = 'END_FITTING_IMAGE';
+export const BEGIN_DRAGGING_HOLE = 'BEGIN_DRAGGING_HOLE';
+export const UPDATE_DRAGGING_HOLE = 'UPDATE_DRAGGING_HOLE';
+export const END_DRAGGING_HOLE = 'END_DRAGGING_HOLE';
+
+//ACTIONS vertices
+export const BEGIN_DRAGGING_VERTEX = 'BEGIN_DRAGGING_VERTEX';
+export const UPDATE_DRAGGING_VERTEX = 'UPDATE_DRAGGING_VERTEX';
+export const END_DRAGGING_VERTEX = 'END_DRAGGING_VERTEX';
+
+//ACTIONS scene
+export const SET_LAYER_PROPERTIES = 'SET_LAYER_PROPERTIES';
+export const ADD_LAYER = 'ADD_LAYER';
+export const SELECT_LAYER = 'SELECT_LAYER';
+export const REMOVE_LAYER = 'REMOVE_LAYER';
+
+//GROUPING ACTIONS
+export const PROJECT_ACTIONS = {
+  NEW_PROJECT,
+  LOAD_PROJECT,
+  SAVE_PROJECT,
+  OPEN_CATALOG,
+  SELECT_TOOL_EDIT,
+  UNSELECT_ALL,
+  SET_PROPERTIES,
+  SET_ITEMS_ATTRIBUTES,
+  SET_LINES_ATTRIBUTES,
+  SET_HOLES_ATTRIBUTES,
+  SET_AREAS_ATTRIBUTES,
+  REMOVE,
+  UNDO,
+  ROLLBACK,
+  SET_PROJECT_PROPERTIES,
+  OPEN_PROJECT_CONFIGURATOR,
+  INIT_CATALOG,
+  UPDATE_MOUSE_COORDS,
+  UPDATE_ZOOM_SCALE,
+  TOGGLE_SNAP,
+  CHANGE_CATALOG_PAGE,
+  GO_BACK_TO_CATALOG_PAGE,
+  THROW_ERROR,
+  THROW_WARNING,
+  COPY_PROPERTIES,
+  PASTE_PROPERTIES,
+  PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY,
+  ALTERATE_STATE,
+  SET_MODE,
+  ADD_HORIZONTAL_GUIDE,
+  ADD_VERTICAL_GUIDE,
+  ADD_CIRCULAR_GUIDE,
+  REMOVE_HORIZONTAL_GUIDE,
+  REMOVE_VERTICAL_GUIDE,
+  REMOVE_CIRCULAR_GUIDE
+} as const;
+
+export const VIEWER2D_ACTIONS = {
+  SELECT_TOOL_ZOOM_IN,
+  SELECT_TOOL_ZOOM_OUT,
+  SELECT_TOOL_PAN,
+  UPDATE_2D_CAMERA
+} as const;
+
+export const VIEWER3D_ACTIONS = {
+  SELECT_TOOL_3D_VIEW,
+  SELECT_TOOL_3D_FIRST_PERSON
+} as const;
+
+export const ITEMS_ACTIONS = {
+  SELECT_ITEM,
+  SELECT_TOOL_DRAWING_ITEM,
+  UPDATE_DRAWING_ITEM,
+  END_DRAWING_ITEM,
+  BEGIN_DRAGGING_ITEM,
+  UPDATE_DRAGGING_ITEM,
+  END_DRAGGING_ITEM,
+  BEGIN_ROTATING_ITEM,
+  UPDATE_ROTATING_ITEM,
+  END_ROTATING_ITEM
+} as const;
+
+export const HOLE_ACTIONS = {
+  SELECT_HOLE,
+  SELECT_TOOL_DRAWING_HOLE,
+  UPDATE_DRAWING_HOLE,
+  END_DRAWING_HOLE,
+  BEGIN_DRAGGING_HOLE,
+  UPDATE_DRAGGING_HOLE,
+  END_DRAGGING_HOLE
+} as const;
+
+export const LINE_ACTIONS = {
+  SELECT_LINE,
+  SELECT_TOOL_DRAWING_LINE,
+  BEGIN_DRAWING_LINE,
+  UPDATE_DRAWING_LINE,
+  END_DRAWING_LINE,
+  BEGIN_DRAGGING_LINE,
+  UPDATE_DRAGGING_LINE,
+  END_DRAGGING_LINE
+} as const;
+
+export const AREA_ACTIONS = {
+  SELECT_AREA
+} as const;
+
+export const GROUP_ACTIONS = {
+  ADD_GROUP,
+  ADD_GROUP_FROM_SELECTED,
+  SELECT_GROUP,
+  UNSELECT_GROUP,
+  ADD_TO_GROUP,
+  REMOVE_FROM_GROUP,
+  SET_GROUP_PROPERTIES,
+  SET_GROUP_ATTRIBUTES,
+  SET_GROUP_BARYCENTER,
+  REMOVE_GROUP,
+  REMOVE_GROUP_AND_DELETE_ELEMENTS,
+  GROUP_TRANSLATE,
+  GROUP_ROTATE
+} as const;
+
+export const SCENE_ACTIONS = {
+  ADD_LAYER,
+  SET_LAYER_PROPERTIES,
+  SELECT_LAYER,
+  REMOVE_LAYER
+} as const;
+
+export const VERTEX_ACTIONS = {
+  BEGIN_DRAGGING_VERTEX,
+  UPDATE_DRAGGING_VERTEX,
+  END_DRAGGING_VERTEX
+};
+
+//MODES
+export const MODE_IDLE = 'MODE_IDLE';
+export const MODE_2D_ZOOM_IN = 'MODE_2D_ZOOM_IN';
+export const MODE_2D_ZOOM_OUT = 'MODE_2D_ZOOM_OUT';
+export const MODE_2D_PAN = 'MODE_2D_PAN';
+export const MODE_3D_VIEW = 'MODE_3D_VIEW';
+export const MODE_3D_FIRST_PERSON = 'MODE_3D_FIRST_PERSON';
+export const MODE_WAITING_DRAWING_LINE = 'MODE_WAITING_DRAWING_LINE';
+export const MODE_DRAGGING_LINE = 'MODE_DRAGGING_LINE';
+export const MODE_DRAGGING_VERTEX = 'MODE_DRAGGING_VERTEX';
+export const MODE_DRAGGING_ITEM = 'MODE_DRAGGING_ITEM';
+export const MODE_DRAGGING_HOLE = 'MODE_DRAGGING_HOLE';
+export const MODE_DRAWING_LINE = 'MODE_DRAWING_LINE';
+export const MODE_DRAWING_HOLE = 'MODE_DRAWING_HOLE';
+export const MODE_DRAWING_ITEM = 'MODE_DRAWING_ITEM';
+export const MODE_ROTATING_ITEM = 'MODE_ROTATING_ITEM';
+export const MODE_UPLOADING_IMAGE = 'MODE_UPLOADING_IMAGE';
+export const MODE_FITTING_IMAGE = 'MODE_FITTING_IMAGE';
+export const MODE_VIEWING_CATALOG = 'MODE_VIEWING_CATALOG';
+export const MODE_CONFIGURING_PROJECT = 'MODE_CONFIGURING_PROJECT';
+
+export const MODES = [
+  MODE_IDLE,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_2D_PAN,
+  MODE_3D_VIEW,
+  MODE_3D_FIRST_PERSON,
+  MODE_WAITING_DRAWING_LINE,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_HOLE,
+  MODE_DRAWING_LINE,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_ROTATING_ITEM,
+  MODE_UPLOADING_IMAGE,
+  MODE_FITTING_IMAGE,
+  MODE_VIEWING_CATALOG,
+  MODE_CONFIGURING_PROJECT
+];
+
+export type ModeType = (typeof MODES)[number];
+
+//Thinking about it...
+//https://developer.mozilla.org/it/docs/Web/JavaScript/Reference/Global_Objects/Proxy
+/*
+let MODE_DEF = [
+  'IDLE',
+  '2D_ZOOM_IN',
+  '2D_ZOOM_OUT',
+  '2D_PAN',
+  '3D_VIEW',
+  '3D_FIRST_PERSON',
+  'WAITING_DRAWING_LINE',
+  'DRAGGING_LINE',
+  'DRAGGING_VERTEX',
+  'DRAGGING_ITEM',
+  'DRAGGING_HOLE',
+  'DRAWING_LINE',
+  'DRAWING_HOLE',
+  'DRAWING_ITEM',
+  'ROTATING_ITEM',
+  'UPLOADING_IMAGE',
+  'FITTING_IMAGE',
+  'VIEWING_CATALOG',
+  'CONFIGURING_PROJECT',
+];
+
+export const MODE = new Proxy( MODE_DEF, { get: (target, name) => { return target.indexOf(name) !== -1 ? name : null } } );
+*/
+
+export const MODE_SNAPPING = [
+  MODE_IDLE,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_2D_PAN,
+  MODE_WAITING_DRAWING_LINE,
+  MODE_DRAWING_LINE,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_HOLE,
+  MODE_FITTING_IMAGE,
+  MODE_UPLOADING_IMAGE,
+  MODE_ROTATING_ITEM
+];
+
+//UNITS
+export const UNIT_MILLIMETER = 'mm';
+export const UNIT_CENTIMETER = 'cm';
+export const UNIT_METER = 'm';
+export const UNIT_INCH = 'in';
+export const UNIT_FOOT = 'ft';
+export const UNIT_MILE = 'mi';
+
+export const UNITS_LENGTH: Unit[] = [
+  UNIT_MILLIMETER,
+  UNIT_CENTIMETER,
+  UNIT_METER,
+  UNIT_INCH,
+  UNIT_FOOT,
+  UNIT_MILE
+];
+
+export type UnitLengthType = (typeof UNITS_LENGTH)[number];
+
+export const EPSILON = 1e-6;
+
+export const KEYBOARD_BUTTON_CODE = {
+  DELETE: 46,
+  BACKSPACE: 8,
+  ESC: 27,
+  Z: 90,
+  ALT: 18,
+  C: 67,
+  V: 86,
+  CTRL: 17,
+  ENTER: 13,
+  TAB: 9
+};
+
+================================================================
+FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/react-planner.tsx
+================================================================
+import React, { useContext, useEffect } from 'react';
+
+import { enableMapSet } from 'immer';
+import { connect, ReactReduxContext } from 'react-redux';
+import { bindActionCreators, Dispatch, Store } from 'redux';
+
+import actions, {
+  AreaActionsType,
+  GroupsActionsType,
+  HolesActionsType,
+  ItemsActionsType,
+  LinesActionsType,
+  ProjectActionsType,
+  SceneActionsType,
+  VerticesActionsType,
+  Viewer2DActionsType,
+  Viewer3DActionsType
+} from './actions/export';
+import { CatalogFactory, CatalogJson } from './catalog/catalog';
+import Content from './components/content';
+import FooterBar from './components/footerbar/footerbar';
+import Sidebar from './components/sidebar/sidebar';
+import Toolbar from './components/toolbar/toolbar';
+import ReactPlannerContext from './react-planner-context';
+import Translator from './translator/translator';
+import {
+  FooterBarComponentProps,
+  ReactPlannerPlugin,
+  ReactPlannerStateExtractor
+} from './types';
+import { objectsMap } from './utils/objects-utils';
+import { VERSION } from './version';
+
+enableMapSet();
+
+/**
+ * IMPORTANT:
+ * - React-Planner toolbar remains mounted (functionality intact)
+ * - but is hidden, so only PlanO buttons/icons are visible (no duplicates)
+ * - Sidebar (information box) stays visible
+ */
+const toolbarW = 0; // canvas takes full width
+const sidebarW = 0; // floating sidebar (overlay)
+const footerBarH = 0;
+
+const wrapperStyle: React.CSSProperties = {
+  display: 'flex',
+  flexFlow: 'row nowrap',
+  position: 'relative'
+};
+
+interface ReactPlannerOptionalProps {
+  translator: Translator;
+  catalog: CatalogJson;
+  allowProjectFileSupport: boolean;
+  toolbarButtons: any[];
+  sidebarComponents: [];
+  customContents: {};
+  softwareSignature: string; // `React Planner ${VERSION}`
+  footerbarComponents: React.ComponentType<FooterBarComponentProps>[];
+  customOverlays: { [key: string]: React.ComponentType<any> }[];
+  customActions: { [key: string]: any };
+}
+
+interface ReactPlannerExternalProps {
+  plugins: ReactPlannerPlugin[];
+  autosaveKey?: string;
+  autosaveDelay?: number;
+  width: number;
+  height: number;
+  stateExtractor: ReactPlannerStateExtractor;
+}
+
+interface ReactPlannerInternalProps {
+  projectActions: ProjectActionsType;
+  viewer2DActions: Viewer2DActionsType;
+  viewer3DActions: Viewer3DActionsType;
+  linesActions: LinesActionsType;
+  holesActions: HolesActionsType;
+  sceneActions: SceneActionsType;
+  verticesActions: VerticesActionsType;
+  itemsActions: ItemsActionsType;
+  areaActions: AreaActionsType;
+  groupsActions: GroupsActionsType;
+}
+
+type ExternalReactPlannerProps = ReactPlannerExternalProps &
+  Partial<ReactPlannerOptionalProps>;
+type ReactPlannerProps = ReactPlannerInternalProps &
+  ReactPlannerExternalProps &
+  Partial<ReactPlannerOptionalProps>;
+type InternalReactPlannerProps = ReactPlannerInternalProps &
+  ReactPlannerExternalProps &
+  ReactPlannerOptionalProps;
+
+function ReactPlanner(props: InternalReactPlannerProps) {
+  const { width, height, stateExtractor, ...restProps } = props;
+
+  const context = useContext(ReactReduxContext);
+  if (!context)
+    throw new Error(
+      'ReactPlanner must be used inside a <Provider> component from react-redux library'
+    );
+
+  useEffect(() => {
+    const store = context.store;
+    const { projectActions, catalog, stateExtractor, plugins } = props;
+    plugins.forEach((plugin) => plugin(store, stateExtractor));
+    projectActions.initCatalog(catalog);
+  }, []);
+
+  useEffect(() => {
+    const { stateExtractor, projectActions, catalog } = props;
+    const state = context.store.getState();
+    const plannerState = stateExtractor(state);
+    const catalogReady = plannerState.catalog.ready;
+    if (!catalogReady) {
+      projectActions.initCatalog(catalog);
+    }
+  }, [props]);
+
+  const state = context.store.getState();
+
+  const contentW = width - toolbarW; // toolbarW=0 so full width
+  const toolbarH = height - footerBarH;
+  const contentH = height - footerBarH;
+  const sidebarH = height - footerBarH;
+
+  const extractedState = stateExtractor(state);
+
+  return (
+    <div style={{ ...wrapperStyle, height }}>
+      {/* Toolbar kept for functionality, but hidden to avoid duplicate icons/buttons */}
+      <div style={{ display: 'none' }}>
+        <Toolbar
+          {...restProps}
+          width={50} // keep original internal width
+          height={toolbarH}
+          state={extractedState}
+        />
+      </div>
+
+      <Content
+        {...restProps}
+        width={contentW}
+        height={contentH}
+        state={extractedState}
+      />{' '}
+      <Sidebar
+        {...restProps}
+        width={sidebarW}
+        height={sidebarH}
+        state={extractedState}
+      />
+      <div style={{ display: 'none' }}>
+        <FooterBar
+          {...restProps}
+          width={width}
+          height={20} // keep original internal height
+          state={extractedState}
+        />
+      </div>
+
+    </div>
+  );
+}
+
+//redux connect
+function mapStateToProps(reduxState: Store) {
+  return {
+    state: reduxState
+  };
+}
+
+function mapDispatchToProps(dispatch: Dispatch) {
+  return objectsMap(actions, (actionNamespace) =>
+    bindActionCreators(actions[actionNamespace], dispatch)
+  );
+}
+
+function ReactPlannerWrapper(tempProps: ReactPlannerProps) {
+  const {
+    translator = new Translator(),
+    catalog = CatalogFactory(),
+    allowProjectFileSupport = true,
+    toolbarButtons = [],
+    sidebarComponents = [],
+    footerbarComponents = [],
+    customContents = {},
+    customOverlays = [],
+    customActions = {},
+    softwareSignature = `React-Planner ${VERSION}`,
+    ...otherProps
+  } = tempProps;
+  const props = {
+    ...otherProps,
+    translator,
+    catalog,
+    allowProjectFileSupport,
+    toolbarButtons,
+    sidebarComponents,
+    footerbarComponents,
+    customContents,
+    customOverlays,
+    customActions,
+    softwareSignature
+  } as InternalReactPlannerProps;
+  return (
+    <ReactPlannerContext.Provider value={{ ...props }}>
+      <ReactPlanner {...props} />
+    </ReactPlannerContext.Provider>
+  );
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(ReactPlannerWrapper as React.ComponentType<ExternalReactPlannerProps>);
