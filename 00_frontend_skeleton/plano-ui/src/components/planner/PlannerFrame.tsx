@@ -3,11 +3,12 @@ import { useEffect, useRef } from "react";
 const ENGINE_URL = "http://localhost:5173";
 const PROTOCOL_VERSION = 1;
 
-const RASTER_URL = "http://localhost:8010/upload-plan";
+const RASTER_URL = "http://localhost:8000/upload-plan";
 
 export type PlannerCmd =
   | "NEW_PROJECT"
   | "OPEN_CATALOG"
+  | "CHANGE_CATALOG_PAGE"
   | "VIEW_2D"
   | "VIEW_3D"
   | "VIEW_3D_FIRST_PERSON"
@@ -22,6 +23,12 @@ export type PlannerCmd =
   | "LOAD_RASTER_JSON"
   | "REQUEST_SCENE_JSON";
 
+export type SurfaceSelectedPayload = {
+  surfaceId: string;
+  wallId: string;
+  surfaceType: "front" | "back";
+};
+
 export type PlannerApi = {
   cmd: (c: PlannerCmd, payload?: any) => void;
   loadProjectPicker: () => void;
@@ -31,6 +38,7 @@ export type PlannerApi = {
 type Props = {
   onApi?: (api: PlannerApi) => void;
   onModeChange?: (mode: string) => void;
+  onSurfaceSelected?: (payload: SurfaceSelectedPayload) => void;
 };
 
 function downloadJson(filename: string, data: any) {
@@ -48,11 +56,13 @@ function downloadJson(filename: string, data: any) {
   URL.revokeObjectURL(url);
 }
 
-export default function PlannerFrame({ onApi, onModeChange }: Props) {
+export default function PlannerFrame({
+  onApi,
+  onModeChange,
+  onSurfaceSelected,
+}: Props) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
-  // IMPORTANT: Use '*' to avoid targetOrigin mismatch during dev.
-  // Engine validates event.origin.
   const postToEngine = (msg: any) => {
     const w = iframeRef.current?.contentWindow;
     if (!w) return;
@@ -60,7 +70,12 @@ export default function PlannerFrame({ onApi, onModeChange }: Props) {
   };
 
   const cmd = (c: PlannerCmd, payload?: any) => {
-    postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "CMD", cmd: c, payload });
+    postToEngine({
+      protocolVersion: PROTOCOL_VERSION,
+      type: "CMD",
+      cmd: c,
+      payload,
+    });
   };
 
   const loadProjectPicker = () => {
@@ -113,12 +128,27 @@ export default function PlannerFrame({ onApi, onModeChange }: Props) {
       const data: any = event.data;
       if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
 
-      if (data.type === "ERROR") console.error("[ENGINE ERROR]", data.message);
+      if (data.type === "ERROR") {
+        console.error("[ENGINE ERROR]", data.message);
+        return;
+      }
 
-      // ONLY CHANGE: allow PlanO to know when catalog mode is active
       if (data.type === "MODE_CHANGED") {
         const mode = data?.payload?.mode;
         if (typeof mode === "string") onModeChange?.(mode);
+        return;
+      }
+
+      if (data.type === "SURFACE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.surfaceId === "string" &&
+          typeof payload.wallId === "string" &&
+          (payload.surfaceType === "front" || payload.surfaceType === "back")
+        ) {
+          onSurfaceSelected?.(payload);
+        }
         return;
       }
 
@@ -130,7 +160,7 @@ export default function PlannerFrame({ onApi, onModeChange }: Props) {
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [onApi, onModeChange]);
+  }, [onApi, onModeChange, onSurfaceSelected]);
 
   return (
     <iframe
@@ -147,7 +177,9 @@ export default function PlannerFrame({ onApi, onModeChange }: Props) {
         zIndex: 1,
         background: "#fff",
       }}
-      onLoad={() => postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "PING" })}
+      onLoad={() =>
+        postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "PING" })
+      }
     />
   );
 }

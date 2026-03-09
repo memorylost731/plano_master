@@ -150,7 +150,16 @@ function ResponsiveReactPlanner() {
 
           case 'OPEN_CATALOG':
             store.dispatch(projectActions.openCatalog());
+          
             break;
+            
+            case 'CHANGE_CATALOG_PAGE': {
+            const newPage = payload?.newPage;
+            const oldPage = payload?.oldPage ?? 'root';
+            if (!newPage) throw new Error('CHANGE_CATALOG_PAGE: missing payload.newPage');
+            store.dispatch(projectActions.changeCatalogPage(newPage, oldPage));
+            break;
+          }
 
           case 'VIEW_2D':
             store.dispatch(projectActions.setMode(constants.MODE_IDLE));

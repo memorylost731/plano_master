@@ -71,6 +71,10 @@ export default function Planner() {
     }
   }, []);
 
+  const handleSurfaceSelected = useCallback((payload: any) => {
+    console.log("PlanO received surface:", payload.surfaceId);
+  }, []);
+
   const go2D = useCallback(() => {
     setViewMode("2D");
     apiRef.current?.cmd("VIEW_2D");
@@ -86,9 +90,12 @@ export default function Planner() {
 
   return (
     <div className={`${viewMode === "2D" ? "planner2d-bg" : "planner3d-bg"} fixed inset-0 text-zinc-900`}>
-      <PlannerFrame onApi={handleApi} onModeChange={setEngineMode} />
+      <PlannerFrame
+        onApi={handleApi}
+        onModeChange={setEngineMode}
+        onSurfaceSelected={handleSurfaceSelected}
+      />
 
-      {/* TOP BAR (FULL WIDTH – NO SLIDER, NO WRAP) */}
       <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex justify-center p-2">
         <div className="pointer-events-auto glass-panel w-[calc(100vw-24px)] px-4 py-1">
           <div className="flex items-center justify-between gap-3">
@@ -100,7 +107,6 @@ export default function Planner() {
               <span className="text-base">PlanO</span>
             </button>
 
-            {/* SERVICES (3D only) — hidden while catalog is open */}
             {viewMode === "3D" && !isCatalogOpen ? (
               <div className="flex-1 min-w-0 overflow-hidden">
                 <div className="flex items-center gap-2 justify-center px-1">
@@ -111,7 +117,16 @@ export default function Planner() {
                       <button
                         key={s.key}
                         type="button"
-                        onClick={() => setActiveMain(s.key)}
+                        onClick={() => {
+                          setActiveMain(s.key);
+                          apiRef.current?.cmd("OPEN_CATALOG");
+                          setTimeout(() => {
+                            apiRef.current?.cmd("CHANGE_CATALOG_PAGE", {
+                              newPage: `plano_${s.key}`,
+                              oldPage: "root",
+                            });
+                          }, 50);
+                        }}
                         className={`plano-dock-item flex items-center gap-2 px-2 py-1 text-xs ${
                           isActive ? "ring-2 ring-white/70" : ""
                         }`}
@@ -128,7 +143,6 @@ export default function Planner() {
               <div className="flex-1" />
             )}
 
-            {/* ACTIONS — hidden while catalog is open */}
             {!isCatalogOpen && (
               <div className="flex items-center gap-2">
                 <button
@@ -235,54 +249,6 @@ export default function Planner() {
           </div>
         </div>
       </div>
-
-      {/* LEFT SUBSERVICES only in 3D (HIDDEN while catalog is open) */}
-      {viewMode === "3D" && !isCatalogOpen && (
-        <div className="pointer-events-none absolute left-4 top-36 z-50">
-          <div className="pointer-events-auto w-[300px] glass-panel overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/20">
-              <div className="text-[11px] font-semibold text-zinc-900">
-                {MAIN_SERVICES.find((x) => x.key === activeMain)?.label.toUpperCase()} SUB-SERVICES
-              </div>
-              <div className="text-[11px] text-zinc-700">
-                Click to toggle. Selected are highlighted.
-              </div>
-            </div>
-
-            <div className="p-3 space-y-2 max-h-[62vh] overflow-auto">
-              {subs.map((sub) => {
-                const isActive = selected[activeMain].has(sub);
-                return (
-                  <button
-                    key={sub}
-                    type="button"
-                    onClick={() => toggleSub(activeMain, sub)}
-                    className={`plano-dock-item w-full px-3 py-2 text-sm text-left ${
-                      isActive ? "ring-2 ring-white/70" : ""
-                    }`}
-                    title={sub}
-                  >
-                    {sub}
-                  </button>
-                );
-              })}
-
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearAll();
-                    apiRef.current?.cmd("UNSELECT_ALL");
-                  }}
-                  className="plano-glass-btn w-full px-3 py-2 text-sm font-semibold"
-                >
-                  Reset selections
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* IMPORTANT: removed the PlanO right NAV overlay entirely */}
     </div>
