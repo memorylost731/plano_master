@@ -1,35 +1,37 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.pytest_cache/
-.mypy_cache/
-.venv/
-venv/
-.env
-.env.*
-
-# Node / frontend
+# Dependencies
 node_modules/
+.venv/
+__pycache__/
+
+# Build outputs
 dist/
-build/
-.vite/
-.next/
-out/
+lib/
+es/
 
-# Logs
-*.log
+# Environment & secrets
+.env
+.env.local
+.env.*.local
 
-# OS / editor
-.DS_Store
-Thumbs.db
+# IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# Secrets (keep out of git)
-*.pem
-*.key
+# OS
+.DS_Store
+Thumbs.db
 
-# Local DB / volumes (if any)
-db_data/
+# Logs & temp
+logs/
+*.log
+uploads/
+out/
+*.bak
+
+# Python
+*.pyc
+*.pyo
+*.egg-info/
