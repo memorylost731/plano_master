@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 
-const ENGINE_URL = "http://localhost:5173";
+const ENGINE_URL = import.meta.env.VITE_ENGINE_URL || "http://localhost:5173";
+const ENGINE_ORIGIN = new URL(ENGINE_URL).origin;
 const PROTOCOL_VERSION = 1;
 
-const RASTER_URL = "http://localhost:8000/upload-plan";
+const RASTER_URL =
+  import.meta.env.VITE_RASTER_URL || "http://localhost:8000/upload-plan";
 
 export type PlannerCmd =
   | "NEW_PROJECT"
@@ -133,7 +135,7 @@ export default function PlannerFrame({
     onApi?.({ cmd, loadProjectPicker, saveProjectDownload });
 
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== "http://localhost:5173") return;
+      if (event.origin !== ENGINE_ORIGIN) return;
 
       const data: any = event.data;
       if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
