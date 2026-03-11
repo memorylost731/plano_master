@@ -29,6 +29,14 @@ export type SurfaceSelectedPayload = {
   surfaceType: "front" | "back";
 };
 
+export type CatalogServiceSelectedPayload = {
+  mainService: string;
+  subService: string;
+  materialKey: string;
+  materialLabel: string;
+  color: string | null;
+};
+
 export type PlannerApi = {
   cmd: (c: PlannerCmd, payload?: any) => void;
   loadProjectPicker: () => void;
@@ -39,6 +47,7 @@ type Props = {
   onApi?: (api: PlannerApi) => void;
   onModeChange?: (mode: string) => void;
   onSurfaceSelected?: (payload: SurfaceSelectedPayload) => void;
+  onCatalogServiceSelected?: (payload: CatalogServiceSelectedPayload) => void;
 };
 
 function downloadJson(filename: string, data: any) {
@@ -60,6 +69,7 @@ export default function PlannerFrame({
   onApi,
   onModeChange,
   onSurfaceSelected,
+  onCatalogServiceSelected,
 }: Props) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -152,6 +162,20 @@ export default function PlannerFrame({
         return;
       }
 
+      if (data.type === "CATALOG_SERVICE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.mainService === "string" &&
+          typeof payload.subService === "string" &&
+          typeof payload.materialKey === "string" &&
+          typeof payload.materialLabel === "string"
+        ) {
+          onCatalogServiceSelected?.(payload);
+        }
+        return;
+      }
+
       if (data.type === "SCENE_JSON") {
         const scene = data?.payload?.scene;
         if (scene) downloadJson("plano_scene.json", scene);
@@ -160,7 +184,7 @@ export default function PlannerFrame({
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [onApi, onModeChange, onSurfaceSelected]);
+  }, [onApi, onModeChange, onSurfaceSelected, onCatalogServiceSelected]);
 
   return (
     <iframe

@@ -129,8 +129,45 @@ export default class CatalogItem extends Component<
     this.state = { hover: false };
   }
 
+  isPaintSelector(element: CatalogElement) {
+    return (
+      element.prototype === 'items' &&
+      Array.isArray(element.info?.tag) &&
+      element.info.tag.includes('painting') &&
+      (
+        element.name === 'paint-white' ||
+        element.name === 'paint-grey' ||
+        element.name === 'paint-beige'
+      )
+    );
+  }
+
   select() {
     const element = this.props.element;
+
+    if (this.isPaintSelector(element)) {
+      window.parent?.postMessage(
+        {
+          protocolVersion: 1,
+          type: 'CATALOG_SERVICE_SELECTED',
+          payload: {
+            mainService: 'painting',
+            subService: 'Internal paint',
+            materialKey: element.name,
+            materialLabel: element.info.title,
+            color: element.properties?.color?.defaultValue || null
+          }
+        },
+        '*'
+      );
+
+      this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+        element
+      );
+
+      this.context.projectActions.setMode('MODE_IDLE');
+      return;
+    }
 
     switch (element.prototype) {
       case 'lines':
@@ -156,9 +193,9 @@ export default class CatalogItem extends Component<
     return (
       <div
         style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
-        onClick={(e) => this.select()}
-        onMouseEnter={(e) => this.setState({ hover: true })}
-        onMouseLeave={(e) => this.setState({ hover: false })}
+        onClick={() => this.select()}
+        onMouseEnter={() => this.setState({ hover: true })}
+        onMouseLeave={() => this.setState({ hover: false })}
       >
         <b style={!hover ? STYLE_TITLE : STYLE_TITLE_HOVER}>
           {element.info.title}

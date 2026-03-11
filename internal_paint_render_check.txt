@@ -1,0 +1,13 @@
+===== TREE =====
+02_react_planner/react-planner/demo/src/catalog_custom/areas
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area/internal-paint
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area/internal-paint/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area/textures
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area/textures/ceramic-tile.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area/textures/grass.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area/textures/parquet.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area/textures/strand-porcelain.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area/textures/tile1.jpg
+
+===== INTERNAL PAINT FILE =====
