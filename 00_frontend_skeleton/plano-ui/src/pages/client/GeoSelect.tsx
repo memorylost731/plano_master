@@ -11,7 +11,8 @@ import MapControls, {
   type MapStyle,
 } from "../../components/map/MapControls.tsx";
 import CitySelector from "../../components/map/CitySelector.tsx";
-import { DEFAULT_CITY } from "../../config/cities.ts";
+import BuildingsLayer from "../../components/map/BuildingsLayer.tsx";
+import { DEFAULT_CITY, type PlanOCity } from "../../config/cities.ts";
 import { PlannerStateProvider, type SelectedBuilding } from "../../state/plannerState.tsx";
 
 /* ── Constants (from city config) ── */
@@ -185,6 +186,11 @@ export default function GeoSelect() {
   const [buildings3D, setBuildings3D] = useState(true);
   const [currentStyle, setCurrentStyle] = useState<MapStyle>("liberty");
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | number | null>(null);
+  const [currentCityId, setCurrentCityId] = useState(DEFAULT_CITY.id);
+
+  const handleCityChange = useCallback((city: PlanOCity) => {
+    setCurrentCityId(city.id);
+  }, []);
 
   /* ── Initialize map ── */
   useEffect(() => {
@@ -394,10 +400,18 @@ export default function GeoSelect() {
         onChangeStyle={handleStyleChange}
       />
 
+      {/* Enriched buildings layer (Rasta API) */}
+      <BuildingsLayer
+        map={mapReady ? mapRef.current : null}
+        visible={buildings3D}
+        cityId={currentCityId}
+      />
+
       {/* City selector */}
       <CitySelector
         map={mapReady ? mapRef.current : null}
         className="bottom-6 left-40"
+        onCityChange={handleCityChange}
       />
 
       {/* PlanO branding + TSCM link */}

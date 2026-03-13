@@ -25,6 +25,10 @@ export default defineConfig({
     port: 5174,
     https: httpsConfig,
     proxy: {
+      '/api/raster/buildings': {
+        target: 'http://127.0.0.1:8020',
+        changeOrigin: true,
+      },
       '/api/raster': {
         target: 'http://127.0.0.1:8020',
         changeOrigin: true,

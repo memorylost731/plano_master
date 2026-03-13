@@ -7,8 +7,11 @@
 	# SPA fallback
 	try_files {path} /index.html
 
-	# Proxy Rasta API to GPU server
-	reverse_proxy /api/raster http://127.0.0.1:8020 {
+	# Proxy enriched buildings API (passthrough, no rewrite)
+	reverse_proxy /api/raster/buildings* http://127.0.0.1:8020
+
+	# Proxy Rasta API to GPU server (upload-plan rewrite)
+	reverse_proxy /api/raster* http://127.0.0.1:8020 {
 		rewrite /api/upload-plan
 	}
 

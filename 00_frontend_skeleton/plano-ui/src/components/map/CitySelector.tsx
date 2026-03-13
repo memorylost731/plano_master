@@ -16,6 +16,8 @@ interface CitySelectorProps {
   dark?: boolean;
   /** Additional CSS classes for the outer wrapper (use for positioning) */
   className?: string;
+  /** Called when a city is selected (in addition to the flyTo) */
+  onCityChange?: (city: PlanOCity) => void;
 }
 
 export default function CitySelector({
@@ -23,6 +25,7 @@ export default function CitySelector({
   defaultCityId,
   dark = false,
   className = "",
+  onCityChange,
 }: CitySelectorProps) {
   const initialCity =
     (defaultCityId
@@ -52,8 +55,10 @@ export default function CitySelector({
           essential: true,
         });
       }
+
+      onCityChange?.(city);
     },
-    [map],
+    [map, onCityChange],
   );
 
   /* Close dropdown on outside click */
