@@ -55,7 +55,7 @@ export default function Planner() {
     selected,
     toggleSub,
     hasAnySelection,
-    selectedCount,
+    selectedCount: _selectedCount,
     clearAll,
   } = usePlannerState();
 

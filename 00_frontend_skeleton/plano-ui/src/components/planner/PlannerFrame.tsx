@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
 
-const ENGINE_URL = "http://localhost:5173";
+const ENGINE_URL = import.meta.env.VITE_ENGINE_URL || "http://localhost:5173";
 const PROTOCOL_VERSION = 1;
 
-const RASTER_URL = "http://localhost:8010/upload-plan";
+// Raster engine — proxied through Vite to GPU server (hadrien-skoed-mt)
+const RASTER_URL = import.meta.env.VITE_RASTER_URL || "/api/raster";
 
 export type PlannerCmd =
   | "NEW_PROJECT"
@@ -56,7 +57,7 @@ export default function PlannerFrame({ onApi, onModeChange }: Props) {
   const postToEngine = (msg: any) => {
     const w = iframeRef.current?.contentWindow;
     if (!w) return;
-    w.postMessage(msg, "*");
+    w.postMessage(msg, ENGINE_URL);
   };
 
   const cmd = (c: PlannerCmd, payload?: any) => {
@@ -108,7 +109,7 @@ export default function PlannerFrame({ onApi, onModeChange }: Props) {
     onApi?.({ cmd, loadProjectPicker, saveProjectDownload });
 
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== "http://localhost:5173") return;
+      if (event.origin !== new URL(ENGINE_URL, window.location.origin).origin) return;
 
       const data: any = event.data;
       if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
