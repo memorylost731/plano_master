@@ -1,0 +1,1528 @@
+===== CATALOG FILES =====
+02_react_planner/react-planner/src/catalog/catalog.ts
+02_react_planner/react-planner/src/components/catalog-view/catalog-breadcrumb.tsx
+02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx
+02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx
+02_react_planner/react-planner/src/components/catalog-view/catalog-page-item.tsx
+02_react_planner/react-planner/src/components/catalog-view/catalog-turn-back-page-item.tsx
+02_react_planner/react-planner/src/components/content.tsx
+02_react_planner/react-planner/src/components/footerbar/footer-content-button.tsx
+02_react_planner/react-planner/src/components/sidebar/sidebar.tsx
+02_react_planner/react-planner/src/components/style/content-container.tsx
+02_react_planner/react-planner/src/components/style/content-title.tsx
+
+===== FILE CONTENTS =====
+
+==================== FILE: 02_react_planner/react-planner/src/catalog/catalog.ts ====================
+import { UNIT_CENTIMETER, UnitLengthType } from '../constants';
+import {
+  CatalogElement,
+  CatalogElementBase,
+  PrototypeToElement
+} from '../types';
+
+import {
+  PropertyCheckbox,
+  PropertyColor,
+  PropertyEnum,
+  PropertyHidden,
+  PropertyLengthMeasure,
+  PropertyNumber,
+  PropertyReadOnly,
+  PropertyString,
+  PropertyToggle
+} from './properties/export';
+
+export type CatalogCategory = {
+  name: string;
+  label: string;
+  categories: CatalogCategory[];
+  elements: CatalogElement[];
+};
+
+export type CatalogJson = {
+  elements: Record<string, CatalogElement>;
+  categories: {
+    root: CatalogCategory;
+    [key: string]: CatalogCategory;
+  };
+  propertyTypes: Record<string, any>;
+  unit: UnitLengthType;
+};
+
+export const CatalogFn = {
+  /** @description Get catalog's element
+   *  @param catalog Catalog object
+   *  @param type Element's type
+   *  @return Element
+   */
+  getElement: <Name extends keyof CatalogJson['elements']>(
+    catalog: CatalogJson,
+    type: Name
+  ): CatalogElementBase<keyof PrototypeToElement> => {
+    const elements = catalog.elements;
+    if (Object.prototype.hasOwnProperty.call(elements, type)) {
+      return elements[type];
+    }
+    throw new Error(`Element ${String(type)} does not exist in catalog`);
+  },
+
+  /** @description Get catalog category
+   *  @param catalog Catalog object
+   *  @param categoryName Name of category
+   *  @return Category
+   */
+  getCategory: (catalog: CatalogJson, categoryName: string) => {
+    if (CatalogFn.hasCategory(catalog, categoryName)) {
+      return catalog.categories[categoryName];
+    }
+    throw new Error(`Category ${categoryName} does not exist in catalog`);
+  },
+
+  /** @description Return type of a specfied property
+   *  @param catalog Catalog object
+   *  @param type Property type
+   *  @return Property
+   */
+  getPropertyType: (catalog: CatalogJson, type: string) => {
+    if (catalog.propertyTypes.hasOwnProperty(type)) {
+      return catalog.propertyTypes[type];
+    }
+    throw new Error(`Element ${type} does not exist in catalog`);
+  },
+
+  /** @description Register a new element
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {object} json Element structure
+   *  @return {void}
+   */
+  registerElement: (catalog: CatalogJson, json: CatalogElement): void => {
+    //json.properties = json.properties || {};
+    if (CatalogFn.validateElement(catalog, json)) {
+      catalog.elements[json.name] = json;
+      catalog.categories.root.elements.push(catalog.elements[json.name]);
+    }
+  },
+
+  /** @description Register multiple elements
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {array} [elementArray] Array of elements
+   *  @return {void}
+   */
+  registerMultipleElements: (
+    catalog: CatalogJson,
+    elementArray: Array<CatalogElement>
+  ): void => {
+    elementArray.forEach((el) => CatalogFn.registerElement(catalog, el));
+  },
+
+  /** @description Register a new property
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} type Type of property
+   *  @param {object} Viewer Property viewer component
+   *  @param {object} Editor Property editor component
+   *  @return {void}
+   */
+  registerPropertyType: (
+    catalog: CatalogJson,
+    type: string,
+    Viewer: object,
+    Editor: object
+  ): void => {
+    catalog.propertyTypes[type] = { type, Viewer, Editor };
+  },
+
+  /** @description Register multiple property
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {array} propertyTypeArray Array of properties
+   *  @return {void}
+   */
+  registerMultiplePropertyType: (
+    catalog: CatalogJson,
+    propertyTypeArray: Array<[string, any, any]>
+  ): void => {
+    propertyTypeArray.forEach((el) =>
+      CatalogFn.registerPropertyType(catalog, ...el)
+    );
+  },
+
+  /** @description Validate an element
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {object} json Element's structure
+   *  @return {?boolean}
+   */
+  validateElement: (
+    catalog: CatalogJson,
+    json: CatalogElement
+  ): boolean | null => {
+    if (!json.hasOwnProperty('name')) throw new Error('Element not valid');
+
+    const name = json.name;
+    if (!json.hasOwnProperty('prototype'))
+      throw new Error(`Element ${name} doesn't have prototype`);
+
+    if (!json.hasOwnProperty('info'))
+      throw new Error(`Element ${name} doesn't have info`);
+    if (!json.info.hasOwnProperty('tag'))
+      throw new Error(`Element ${name} doesn't have tag`);
+    if (!json.info.hasOwnProperty('description'))
+      throw new Error(`Element ${name} doesn't have description`);
+    if (!json.info.hasOwnProperty('image'))
+      throw new Error(`Element ${name} doesn't have image`);
+
+    if (!json.hasOwnProperty('render2D'))
+      throw new Error(`Element ${name} doesn't have render2D handler`);
+    if (!json.hasOwnProperty('render3D'))
+      throw new Error(`Element ${name} doesn't have render3D handler`);
+    if (!json.hasOwnProperty('properties'))
+      throw new Error(`Element ${name} doesn't have properties`);
+
+    for (const propertyName in json.properties) {
+      const propertyConfigs = json.properties[propertyName];
+      if (!propertyConfigs.hasOwnProperty('type'))
+        throw new Error(
+          `Element ${name}, Property ${propertyName} doesn't have type`
+        );
+      if (!propertyConfigs.hasOwnProperty('defaultValue'))
+        throw new Error(
+          `Element ${name}, Property ${propertyName} doesn't have defaultValue`
+        );
+    }
+
+    return true;
+  },
+
+  /** @description Check if catalog has element
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} type Element's type
+   *  @return {boolean}
+   */
+  hasElement: (catalog: CatalogJson, type: string): boolean => {
+    return catalog.elements.hasOwnProperty(type);
+  },
+
+  /** @description Register a new category
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} name Name of category
+   *  @param {string} label Label of category
+   *  @param {array} [childs] Category's childs
+   *  @return {?object} Registered category
+   */
+  registerCategory: (
+    catalog: CatalogJson,
+    name: string,
+    label: string,
+    childs: any[]
+  ): object | null => {
+    if (CatalogFn.validateCategory(catalog, name, label)) {
+      catalog.categories[name] = { name, label, categories: [], elements: [] };
+      catalog.categories.root.categories.push(catalog.categories[name]);
+
+      if (childs) {
+        childs.forEach((el) => CatalogFn.addToCategory(catalog, name, el));
+      }
+
+      return catalog.categories[name];
+    }
+    return null;
+  },
+
+  /** @description Add an element to the specified category
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} name Name of category
+   *  @param {object} child Element's structure
+   *  @return {?void}
+   */
+  addToCategory: (
+    catalog: CatalogJson,
+    name: string,
+    child: any
+  ): void | null => {
+    if (CatalogFn.hasElement(catalog, child.name)) {
+      catalog.categories[name].elements.push(child);
+      catalog.categories.root.elements.splice(
+        catalog.categories.root.elements.indexOf(child),
+        1
+      );
+    } else if (CatalogFn.hasCategory(catalog, child.name)) {
+      catalog.categories[name].categories.push(child);
+      catalog.categories.root.categories.splice(
+        catalog.categories.root.categories.indexOf(child),
+        1
+      );
+    } else {
+      throw new Error(`child ${child} is either category nor element`);
+    }
+  },
+
+  /** @description Check if category contain element
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} categoryName Name of category
+   *  @param {string} elementName Name of element
+   *  @return {boolean}
+   */
+  categoryHasElement: (
+    catalog: CatalogJson,
+    categoryName: string,
+    elementName: string
+  ): boolean => {
+    return (
+      CatalogFn.hasCategory(catalog, categoryName) &&
+      catalog.categories[categoryName].elements.some(
+        (el) => el.name === elementName
+      )
+    );
+  },
+
+  /** @description Validate a category
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} name Name of category
+   *  @param {string} label Label of category
+   *  @return {?boolean}
+   */
+  validateCategory: (
+    catalog: CatalogJson,
+    name: string,
+    label: string
+  ): boolean | null => {
+    if (!name) {
+      throw new Error('Category has undefined name');
+    }
+    if (name === '') {
+      throw new Error('Category has empty name');
+    }
+    if (CatalogFn.hasCategory(catalog, name)) {
+      throw new Error('Category has already been registered');
+    }
+
+    return true;
+  },
+
+  /** @description Verify if catalog already contain a category with specified name
+   *  @param {CatalogJson} catalog Catalog object
+   *  @param {string} categoryName Name of category
+   *  @return {boolean}
+   */
+  hasCategory: (catalog: CatalogJson, categoryName: string): boolean => {
+    return catalog.categories.hasOwnProperty(categoryName);
+  }
+};
+
+export function CatalogFactory(
+  unit: UnitLengthType = UNIT_CENTIMETER
+): CatalogJson {
+  const catalog = {
+    unit,
+    elements: {},
+    categories: {
+      root: { name: 'root', label: '/', elements: [], categories: [] }
+    },
+    propertyTypes: {}
+  };
+  CatalogFn.registerMultiplePropertyType(catalog, [
+    ['color', PropertyColor, PropertyColor],
+    ['enum', PropertyEnum, PropertyEnum],
+    ['string', PropertyString, PropertyString],
+    ['number', PropertyNumber, PropertyNumber],
+    ['length-measure', PropertyLengthMeasure, PropertyLengthMeasure],
+    ['toggle', PropertyToggle, PropertyToggle],
+    ['checkbox', PropertyCheckbox, PropertyCheckbox],
+    ['hidden', PropertyHidden, PropertyHidden],
+    ['read-only', PropertyReadOnly, PropertyReadOnly]
+  ]);
+  return catalog;
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/catalog-view/catalog-breadcrumb.tsx ====================
+import React from 'react';
+
+import { MdArrowBack as Arrow } from 'react-icons/md';
+
+import * as SharedStyle from '../../shared-style';
+
+const breadcrumbStyle = {
+  margin: '1.5em',
+  display: 'flex'
+} as const;
+
+const breadcrumbTextStyle = {
+  fontSize: '20px',
+  cursor: 'pointer'
+} as const;
+
+const breadcrumbLastTextStyle = {
+  ...breadcrumbTextStyle,
+  fontWeight: 'bolder',
+  color: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const breadcrumbTabStyle = {
+  fill: SharedStyle.COLORS.black,
+  fontSize: '24px',
+  marginLeft: '10px',
+  marginRight: '10px'
+} as const;
+
+interface CatalogBreadcrumbProps {
+  names: Array<{
+    name: string;
+    action?: React.MouseEventHandler<HTMLDivElement>;
+  }>;
+}
+
+export default function CatalogBreadcrumb({ names }: CatalogBreadcrumbProps) {
+  const labelNames = names.map((name, ind) => {
+    const lastElement = ind === names.length - 1;
+
+    return (
+      <div key={ind} style={{ display: 'flex' }}>
+        <div
+          style={!lastElement ? breadcrumbTextStyle : breadcrumbLastTextStyle}
+          onClick={name.action}
+        >
+          {name.name}
+        </div>
+        {!lastElement ? <Arrow style={breadcrumbTabStyle} /> : null}
+      </div>
+    );
+  });
+
+  return <div style={breadcrumbStyle}>{labelNames}</div>;
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx ====================
+import React, { Component } from 'react';
+
+import { FaPlusCircle as IconAdd } from 'react-icons/fa';
+
+import { MODE_IDLE } from '../../constants';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElement } from '../../types';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .15s ease-in-out',
+  WebkitTransition: 'all .15s ease-in-out',
+  alignSelf: 'center',
+  justifySelf: 'center'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_TITLE = {
+  width: '100%',
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '.5em',
+  textTransform: 'capitalize'
+} as const;
+
+const STYLE_TITLE_HOVER = {
+  ...STYLE_TITLE,
+  color: SharedStyle.COLORS.white
+} as const;
+
+const STYLE_IMAGE_CONTAINER = {
+  width: '100%',
+  height: '8em',
+  position: 'relative',
+  overflow: 'hidden',
+  border: 'solid 1px #e6e6e6',
+  padding: 0,
+  margin: 0,
+  marginBottom: '5px'
+} as const;
+
+const STYLE_IMAGE = {
+  position: 'absolute',
+  background: '#222',
+  width: '100%',
+  height: '100%',
+  backgroundSize: 'contain',
+  backgroundPosition: '50% 50%',
+  backgroundColor: SharedStyle.COLORS.white,
+  backgroundRepeat: 'no-repeat',
+  transition: 'all .2s ease-in-out'
+} as const;
+
+const STYLE_IMAGE_HOVER = {
+  ...STYLE_IMAGE,
+  transform: 'scale(1.2)'
+} as const;
+
+const STYLE_PLUS_HOVER = {
+  marginTop: '1.5em',
+  color: SharedStyle.SECONDARY_COLOR.main,
+  fontSize: '2em',
+  opacity: '0.7',
+  width: '100%'
+} as const;
+
+const STYLE_DESCRIPTION = {
+  display: 'block',
+  height: '2em',
+  margin: '0 auto',
+  fontSize: '0.75em',
+  fontStyle: 'italic',
+  lineHeight: '1em',
+  WebkitLineClamp: '2',
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
+} as const;
+
+const STYLE_TAGS = {
+  listStyle: 'none',
+  margin: '0px',
+  padding: '0px',
+  fontSize: '11px',
+  marginBottom: '3px'
+} as const;
+
+const STYLE_TAG = {
+  display: 'inline-block',
+  background: '#337ab7',
+  color: SharedStyle.COLORS.white,
+  padding: '1px 4px',
+  marginRight: '3px',
+  borderRadius: '3px'
+} as const;
+
+const STYLE_BACK_TO_CANVAS = {
+  marginTop: '10px',
+  textAlign: 'center',
+  padding: '8px',
+  border: '1px solid #ddd',
+  cursor: 'pointer',
+  background: '#f0f0f0'
+} as const;
+
+interface CatalogItemProps {
+  element: CatalogElement;
+}
+
+interface CatalogItemState {
+  hover: boolean;
+}
+
+export default class CatalogItem extends Component<
+  CatalogItemProps,
+  CatalogItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogItemProps,
+    context: React.ContextType<typeof ReactPlannerContext>
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  select() {
+    const element = this.props.element;
+
+    switch (element.prototype) {
+      case 'lines':
+        this.context.linesActions.selectToolDrawingLine(element.name);
+        break;
+      case 'items':
+        this.context.itemsActions.selectToolDrawingItem(element.name);
+        break;
+      case 'holes':
+        this.context.holesActions.selectToolDrawingHole(element.name);
+        break;
+    }
+
+    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+      element
+    );
+  }
+
+  goBackToCanvas() {
+    this.context.projectActions.setMode(MODE_IDLE);
+  }
+
+  render() {
+    const element = this.props.element;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.select()}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        <b style={!hover ? STYLE_TITLE : STYLE_TITLE_HOVER}>
+          {element.info.title}
+        </b>
+        <div style={STYLE_IMAGE_CONTAINER}>
+          <div
+            style={{
+              ...(!hover ? STYLE_IMAGE : STYLE_IMAGE_HOVER),
+              backgroundImage: 'url(' + element.info.image + ')'
+            }}
+          >
+            {hover ? <IconAdd style={STYLE_PLUS_HOVER} /> : null}
+          </div>
+        </div>
+        <ul style={STYLE_TAGS}>
+          {element.info.tag.map((tag, index) => (
+            <li style={STYLE_TAG} key={index}>
+              {tag}
+            </li>
+          ))}
+        </ul>
+        <div style={STYLE_DESCRIPTION}>{element.info.description}</div>
+
+        <div
+          style={STYLE_BACK_TO_CANVAS}
+          onClick={(e) => {
+            e.stopPropagation();
+            this.goBackToCanvas();
+          }}
+        >
+          Back to canvas
+        </div>
+      </div>
+    );
+  }
+}
+==================== FILE: 02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx ====================
+import React, { Component } from 'react';
+
+import { CatalogCategory, CatalogFn } from '../../catalog/catalog';
+import { State } from '../../models';
+import ReactPlannerContext, {
+  ReactPlannerContextProps
+} from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElement } from '../../types';
+import ContentContainer from '../style/content-container';
+import ContentTitle from '../style/content-title';
+
+import CatalogBreadcrumb from './catalog-breadcrumb';
+import CatalogItem from './catalog-item';
+import CatalogPageItem from './catalog-page-item';
+import CatalogTurnBackPageItem from './catalog-turn-back-page-item';
+
+const containerStyle = {
+  position: 'fixed',
+  width: 'calc( 100% - 51px)',
+  height: 'calc( 100% - 20px)',
+  backgroundColor: '#FFF',
+  padding: '1em',
+  left: 50,
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  zIndex: 10
+} as const;
+
+const itemsStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(14em, 1fr))',
+  gridGap: '10px',
+  marginTop: '1em'
+} as const;
+
+const searchContainer = {
+  width: '100%',
+  height: '3em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .2s ease-in-out',
+  WebkitTransition: 'all .2s ease-in-out',
+  marginBottom: '1em'
+} as const;
+
+const searchText = {
+  width: '8em',
+  display: 'inline-block'
+} as const;
+
+const searchInput = {
+  width: 'calc( 100% - 10em )',
+  height: '2em',
+  margin: '0',
+  padding: '0 1em',
+  border: '1px solid #EEE'
+} as const;
+
+const historyContainer = {
+  ...searchContainer,
+  padding: '0.2em 0.625em'
+} as const;
+
+const historyElementStyle = {
+  width: 'auto',
+  height: '2em',
+  lineHeight: '2em',
+  textAlign: 'center',
+  borderRadius: '1em',
+  display: 'inline-block',
+  cursor: 'pointer',
+  backgroundColor: SharedStyle.PRIMARY_COLOR.alt,
+  color: SharedStyle.PRIMARY_COLOR.text_main,
+  textTransform: 'capitalize',
+  margin: '0.25em',
+  padding: '0 1em'
+} as const;
+
+interface CatalogListProps {
+  state: State;
+  width: number;
+  height: number;
+  style?: React.CSSProperties;
+}
+
+interface CatalogListState {
+  categories: CatalogCategory[];
+  elements: CatalogElement[];
+  matchString: string;
+  matchedElements: CatalogElement[];
+}
+
+export default class CatalogList extends Component<
+  CatalogListProps,
+  CatalogListState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(props: CatalogListProps, context: ReactPlannerContextProps) {
+    super(props, context);
+
+    const page = props.state.catalog.page;
+    const currentCategory = CatalogFn.getCategory(context.catalog, page);
+    const elementsToDisplay = currentCategory.elements.filter((element) =>
+      element.info.visibility ? element.info.visibility.catalog : true
+    );
+
+    this.state = {
+      categories: currentCategory.categories,
+      elements: elementsToDisplay,
+      matchString: '',
+      matchedElements: []
+    };
+  }
+
+  flattenCategories(categories: CatalogCategory[]) {
+    let toRet: CatalogElement[] = [];
+
+    for (let x = 0; x < categories.length; x++) {
+      const curr = categories[x];
+      toRet = toRet.concat(curr.elements);
+      if (curr.categories.length)
+        toRet = toRet.concat(this.flattenCategories(curr.categories));
+    }
+
+    return toRet;
+  }
+
+  matcharray(text: string) {
+    const array = this.state.elements.concat(
+      this.flattenCategories(this.state.categories)
+    );
+
+    const filtered = [];
+
+    if (text != '') {
+      const regexp = new RegExp(text, 'i');
+      for (let i = 0; i < array.length; i++) {
+        if (regexp.test(array[i].info.title)) {
+          filtered.push(array[i]);
+        }
+      }
+    }
+
+    this.setState({
+      matchString: text,
+      matchedElements: filtered
+    });
+  }
+
+  select(element: CatalogElement) {
+    switch (element.prototype) {
+      case 'lines':
+        this.context.linesActions.selectToolDrawingLine(element.name);
+        break;
+      case 'items':
+        this.context.itemsActions.selectToolDrawingItem(element.name);
+        break;
+      case 'holes':
+        this.context.holesActions.selectToolDrawingHole(element.name);
+        break;
+    }
+
+    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+      element
+    );
+  }
+
+  render() {
+    const page = this.props.state.catalog.page;
+    const currentCategory = CatalogFn.getCategory(this.context.catalog, page);
+    const categoriesToDisplay = currentCategory.categories;
+    const elementsToDisplay = currentCategory.elements.filter((element) =>
+      element.info.visibility ? element.info.visibility.catalog : true
+    );
+
+    let breadcrumbComponent = null;
+
+    if (page !== 'root') {
+      const breadcrumbsNames = [];
+
+      this.props.state.catalog.path.forEach((pathName) => {
+        breadcrumbsNames.push({
+          name: CatalogFn.getCategory(this.context.catalog, pathName).label,
+          action: () =>
+            this.context.projectActions.goBackToCatalogPage(pathName)
+        });
+      });
+
+      breadcrumbsNames.push({ name: currentCategory.label });
+
+      breadcrumbComponent = <CatalogBreadcrumb names={breadcrumbsNames} />;
+    }
+
+    const pathSize = this.props.state.catalog.path.length;
+
+    const turnBackButton =
+      pathSize > 0 ? (
+        <CatalogTurnBackPageItem
+          key={pathSize}
+          page={
+            this.context.catalog.categories[
+            this.props.state.catalog.path[pathSize - 1]
+            ]
+          }
+        />
+      ) : null;
+
+    const selectedHistory = this.props.state.selectedElementsHistory;
+    const selectedHistoryElements = selectedHistory.map((el, ind) => (
+      <div
+        key={ind}
+        style={historyElementStyle}
+        title={el.name}
+        onClick={() => this.select(el)}
+      >
+        {el.name}
+      </div>
+    ));
+
+    return (
+      <ContentContainer
+        width={this.props.width}
+        height={this.props.height}
+        style={{ ...containerStyle, ...this.props.style }}
+      >
+        <ContentTitle>{this.context.translator.t('Catalog')}</ContentTitle>
+        {breadcrumbComponent}
+        <div style={searchContainer}>
+          <span style={searchText}>
+            {this.context.translator.t('Search Element')}
+          </span>
+          <input
+            type="text"
+            style={searchInput}
+            onChange={(e) => {
+              this.matcharray(e.target.value);
+            }}
+          />
+        </div>
+        {selectedHistory.length ? (
+          <div style={historyContainer}>
+            <span>{this.context.translator.t('Last Selected')}</span>
+            {selectedHistoryElements}
+          </div>
+        ) : null}
+        <div style={itemsStyle}>
+          {this.state.matchString === ''
+            ? [
+              turnBackButton,
+              categoriesToDisplay.map((cat) => (
+                <CatalogPageItem
+                  key={cat.name}
+                  page={cat}
+                  oldPage={currentCategory}
+                />
+              )),
+              elementsToDisplay.map((elem) => (
+                <CatalogItem key={elem.name} element={elem} />
+              ))
+            ]
+            : this.state.matchedElements.map((elem) => (
+              <CatalogItem key={elem.name} element={elem} />
+            ))}
+        </div>
+      </ContentContainer>
+    );
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/catalog-view/catalog-page-item.tsx ====================
+import React, { Component } from 'react';
+
+import { MdNavigateNext } from 'react-icons/md';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .2s ease-in-out',
+  WebkitTransition: 'all .2s ease-in-out',
+  alignSelf: 'center',
+  justifySelf: 'center'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_TITLE = {
+  width: '100%',
+  position: 'absolute',
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '.5em',
+  padding: '1em',
+  textTransform: 'capitalize',
+  WebkitTransition: 'all .15s ease-in-out'
+} as const;
+
+const STYLE_TITLE_HOVERED = {
+  ...STYLE_TITLE,
+  fontSize: '1.4em',
+  transform: 'translateY(-60px)',
+  color: 'rgb(28, 166, 252)',
+  marginTop: '0.5em'
+} as const;
+
+const STYLE_NEXT_HOVER = {
+  position: 'absolute',
+  color: SharedStyle.SECONDARY_COLOR.main,
+  fontSize: '5em',
+  width: '100%'
+} as const;
+
+const CONTAINER_DIV = {
+  background: SharedStyle.COLORS.white,
+  marginBottom: '5px',
+  border: 'solid 1px #EEE',
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+} as const;
+
+interface CatalogPageItemProps {
+  page: {
+    name: string;
+    label: string;
+    [key: string]: any;
+  };
+  oldPage: {
+    name: string;
+    label: string;
+    [key: string]: any;
+  };
+}
+
+interface CatalogPageItemState {
+  hover: boolean;
+}
+
+export default class CatalogPageItem extends Component<
+  CatalogPageItemProps,
+  CatalogPageItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogPageItemProps,
+    context: React.ContextType<typeof ReactPlannerContext>
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  changePage(newPage: string) {
+    this.context.projectActions.changeCatalogPage(
+      newPage,
+      this.props.oldPage.name
+    );
+  }
+
+  render() {
+    const page = this.props.page;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.changePage(page.name)}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        {hover ? (
+          <div style={CONTAINER_DIV}>
+            <b style={STYLE_TITLE_HOVERED}>{page.label}</b>
+            <MdNavigateNext style={STYLE_NEXT_HOVER} />
+          </div>
+        ) : (
+          <div style={CONTAINER_DIV}>
+            <b style={STYLE_TITLE}>{page.label}</b>
+          </div>
+        )}
+      </div>
+    );
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/catalog-view/catalog-turn-back-page-item.tsx ====================
+import React, { Component } from 'react';
+
+import { MdNavigateBefore } from 'react-icons/md';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  margin: '0.3em',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .2s ease-in-out',
+  WebkitTransition: 'all .2s ease-in-out'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_BACK = {
+  position: 'absolute',
+  color: SharedStyle.COLORS.black,
+  fontSize: '5em',
+  width: '100%'
+} as const;
+
+const STYLE_BACK_HOVER = {
+  ...STYLE_BACK,
+  color: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const CONTAINER_DIV = {
+  background: SharedStyle.COLORS.white,
+  marginBottom: '5px',
+  border: 'solid 1px #e6e6e6',
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+} as const;
+
+interface CatalogTurnBackPageItemProps {
+  page: {
+    name: string;
+    label: string;
+    [key: string]: any;
+  };
+}
+
+interface CatalogTurnBackPageItemState {
+  hover: boolean;
+}
+
+export default class CatalogTurnBackPageItem extends Component<
+  CatalogTurnBackPageItemProps,
+  CatalogTurnBackPageItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogTurnBackPageItemProps,
+    context: typeof ReactPlannerContext
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  changePage(newPage: string) {
+    this.context.projectActions.goBackToCatalogPage(newPage);
+  }
+
+  render() {
+    const page = this.props.page;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.changePage(page.name)}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        <div style={CONTAINER_DIV}>
+          <MdNavigateBefore style={!hover ? STYLE_BACK : STYLE_BACK_HOVER} />
+        </div>
+      </div>
+    );
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/content.tsx ====================
+import React from 'react';
+
+import * as constants from '../constants';
+import { StateProps } from '../models';
+
+import CatalogList from './catalog-view/catalog-list';
+import ProjectConfigurator from './configurator/project-configurator';
+import Viewer2D from './viewer2d/viewer2d';
+import Viewer3D from './viewer3d/viewer3d';
+import Viewer3DFirstPerson from './viewer3d/viewer3d-first-person';
+
+interface ContentProps {
+  state: StateProps;
+  width: number;
+  height: number;
+  customContents: {
+    [key: string]: React.ComponentType<{
+      state: StateProps;
+      width: number;
+      height: number;
+    }>;
+  };
+}
+
+export default function Content({
+  width,
+  height,
+  state,
+  customContents
+}: ContentProps) {
+  const mode = state.mode;
+
+  switch (mode) {
+    case constants.MODE_3D_VIEW:
+      return <Viewer3D state={state} width={width} height={height} />;
+
+    case constants.MODE_3D_FIRST_PERSON:
+      return (
+        <Viewer3DFirstPerson state={state} width={width} height={height} />
+      );
+
+    case constants.MODE_VIEWING_CATALOG:
+      return <CatalogList state={state} width={width} height={height} />;
+
+    case constants.MODE_IDLE:
+    case constants.MODE_2D_ZOOM_IN:
+    case constants.MODE_2D_ZOOM_OUT:
+    case constants.MODE_2D_PAN:
+    case constants.MODE_WAITING_DRAWING_LINE:
+    case constants.MODE_DRAGGING_LINE:
+    case constants.MODE_DRAGGING_VERTEX:
+    case constants.MODE_DRAGGING_ITEM:
+    case constants.MODE_DRAWING_LINE:
+    case constants.MODE_DRAWING_HOLE:
+    case constants.MODE_DRAWING_ITEM:
+    case constants.MODE_DRAGGING_HOLE:
+    case constants.MODE_ROTATING_ITEM:
+      return <Viewer2D state={state} width={width} height={height} />;
+
+    case constants.MODE_CONFIGURING_PROJECT:
+      return (
+        <ProjectConfigurator width={width} height={height} state={state} />
+      );
+
+    default:
+      if (customContents.hasOwnProperty(mode)) {
+        const CustomContent = customContents[mode];
+        return <CustomContent width={width} height={height} state={state} />;
+      } else {
+        throw new Error(`Mode ${mode} doesn't have a mapped content`);
+      }
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/footerbar/footer-content-button.tsx ====================
+import React, { Component } from 'react';
+
+import { FaTimes as IconClose } from 'react-icons/fa';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+
+const labelContainerStyle = {
+  width: 'auto',
+  display: 'inline-block',
+  margin: 0,
+  padding: '0px 5px 0px 0px'
+} as const;
+
+const toggleButtonStyle = {
+  color: '#CCC',
+  textAlign: 'center',
+  cursor: 'pointer',
+  userSelect: 'none'
+} as const;
+
+const toggleButtonStyleOver = {
+  ...toggleButtonStyle,
+  color: SharedStyle.COLORS.white
+} as const;
+
+const contentContainerStyleActive = {
+  position: 'fixed',
+  width: 'calc( 100% - 2px )',
+  height: '40%',
+  left: 0,
+  bottom: 20,
+  backgroundColor: SharedStyle.PRIMARY_COLOR.alt,
+  borderTop: SharedStyle.PRIMARY_COLOR.border,
+  zIndex: 0,
+  padding: 0,
+  margin: 0,
+  transition: 'all 300ms ease'
+} as const;
+
+const contentContainerStyleInactive = {
+  ...contentContainerStyleActive,
+  visibility: 'hidden',
+  height: 0
+} as const;
+
+const contentHeaderStyle = {
+  position: 'relative',
+  width: '100%',
+  height: '2em',
+  top: 0,
+  left: 0,
+  borderBottom: SharedStyle.PRIMARY_COLOR.border
+} as const;
+
+const titleStyle = {
+  position: 'relative',
+  height: '2em',
+  lineHeight: '2em',
+  marginLeft: '1em'
+} as const;
+
+const contentAreaStyle = {
+  position: 'relative',
+  width: '100%',
+  height: 'calc( 100% - 2em )',
+  padding: '1em',
+  overflowY: 'auto'
+} as const;
+
+const iconCloseStyleOut = {
+  position: 'absolute',
+  width: '2em',
+  height: '2em',
+  right: 0,
+  top: 0,
+  padding: '0.5em',
+  borderLeft: SharedStyle.PRIMARY_COLOR.border,
+  cursor: 'pointer'
+} as const;
+
+const iconCloseStyleOver = {
+  ...iconCloseStyleOut,
+  color: SharedStyle.COLORS.white,
+  backgroundColor: SharedStyle.SECONDARY_COLOR.alt
+} as const;
+
+const iconStyle = {
+  width: '15px',
+  height: '15px',
+  marginTop: '-2px',
+  marginRight: '2px'
+} as const;
+
+const textStyle = {
+  position: 'relative'
+} as const;
+
+interface FooterContentButtonProps {
+  text: string;
+  textStyle?: React.CSSProperties;
+  icon: React.FC<React.SVGProps<SVGSVGElement>>;
+  iconStyle?: React.CSSProperties;
+  content: React.ReactNode[];
+  toggleState?: boolean;
+  title?: string;
+  titleStyle?: React.CSSProperties;
+}
+
+interface FooterContentButtonState {
+  over: boolean;
+  closeOver: boolean;
+  active: boolean;
+}
+
+export default class FooterContentButton extends Component<
+  FooterContentButtonProps,
+  FooterContentButtonState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+  constructor(
+    props: FooterContentButtonProps,
+    context: FooterContentButtonState
+  ) {
+    super(props, context);
+
+    this.state = {
+      over: false,
+      closeOver: false,
+      active: this.props.toggleState || false
+    };
+  }
+
+  toggleOver() {
+    this.setState({ over: true });
+  }
+  toggleOut() {
+    this.setState({ over: false });
+  }
+
+  toggle(e: React.MouseEvent) {
+    const isActive = !this.state.active;
+    this.setState({ active: isActive });
+  }
+
+  shouldComponentUpdate(
+    nextProps: FooterContentButtonProps,
+    nextState: FooterContentButtonState
+  ) {
+    if (this.state.over != nextState.over) return true;
+    if (this.state.closeOver != nextState.closeOver) return true;
+    if (this.state.active != nextState.active) return true;
+
+    if (this.props.content.length != nextProps.content.length) return true;
+    if (this.props.toggleState != nextProps.toggleState) return true;
+
+    return false;
+  }
+
+  componentDidUpdate(prevProps: FooterContentButtonProps) {
+    if (this.props.toggleState != prevProps.toggleState)
+      this.setState({ ...this.state, active: !!this.props.toggleState });
+  }
+
+  render() {
+    const s = this.state;
+    const p = this.props;
+
+    const LabelIcon = p.icon;
+    const labelIconStyle = p.iconStyle || {};
+    const labelTextStyle = p.textStyle || {};
+    const inputTitleStyle = p.titleStyle || {};
+
+    return (
+      <div style={labelContainerStyle}>
+        <div
+          style={s.over || s.active ? toggleButtonStyleOver : toggleButtonStyle}
+          onClick={(e) => this.toggle(e)}
+          title={p.title}
+        >
+          <LabelIcon style={{ ...labelIconStyle, ...iconStyle }} />
+          <span style={{ ...textStyle, ...labelTextStyle }}>{p.text}</span>
+        </div>
+        <div
+          style={
+            s.active
+              ? contentContainerStyleActive
+              : contentContainerStyleInactive
+          }
+        >
+          <div style={contentHeaderStyle}>
+            <b style={{ ...titleStyle, ...inputTitleStyle }}>{p.title}</b>
+            <IconClose
+              style={s.closeOver ? iconCloseStyleOver : iconCloseStyleOut}
+              onMouseOver={(e) => this.setState({ closeOver: true })}
+              onMouseOut={(e) => this.setState({ closeOver: false })}
+              onClick={(e) => this.toggle(e)}
+            />
+          </div>
+          <div style={contentAreaStyle}>{p.content}</div>
+        </div>
+      </div>
+    );
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/sidebar/sidebar.tsx ====================
+import React from 'react';
+
+import { MODE_VIEWING_CATALOG } from '../../constants';
+import { State } from '../../models';
+import * as SharedStyle from '../../shared-style';
+import { ComponentType } from '../../types';
+
+import PanelElementEditor from './panel-element-editor/panel-element-editor';
+import PanelMultiElementsEditor from './panel-element-editor/panel-multi-elements-editor';
+import PanelGroupEditor from './panel-group-editor';
+
+const FLOAT_SIDEBAR_STYLE: React.CSSProperties = {
+  position: 'fixed',
+  top: 72,
+  right: 12,
+  width: 220,
+  maxHeight: 320,
+  overflow: 'auto',
+  zIndex: 9999,
+  background: '#1f1f1f',
+  borderRadius: 10,
+  boxShadow: '0 10px 30px rgba(0,0,0,0.35)'
+};
+
+const STYLE = {
+  backgroundColor: SharedStyle.PRIMARY_COLOR.main,
+  display: 'block',
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  paddingBottom: '12px'
+} as const;
+
+interface SidebarProps {
+  state: State;
+  width: number;
+  height: number;
+  sidebarComponents: ComponentType[]; // kept for API compatibility; not used in "properties-only" mode
+}
+
+export default function Sidebar({ state, width, height }: SidebarProps) {
+  // ✅ Hide the floating info/editor box during Catalog view
+  if (state.mode === MODE_VIEWING_CATALOG) return null;
+
+  const selectedLayer = state.scene.selectedLayer;
+  if (!selectedLayer) return null;
+
+  const selected = state.scene.layers[selectedLayer].selected;
+
+  const multiselected =
+    selected.lines.length > 1 ||
+    selected.items.length > 1 ||
+    selected.holes.length > 1 ||
+    selected.areas.length > 1 ||
+    selected.lines.length + selected.items.length + selected.holes.length + selected.areas.length > 1;
+
+  const selectedGroup = Object.values(state.scene.groups).find((g) => g.selected);
+
+  return (
+    <aside
+      style={{ width, height, ...STYLE, ...FLOAT_SIDEBAR_STYLE }}
+      onKeyDown={(event) => event.stopPropagation()}
+      onKeyUp={(event) => event.stopPropagation()}
+      className="sidebar sidebar--floating"
+    >
+      {!multiselected && <PanelElementEditor state={state} />}
+      {multiselected && <PanelMultiElementsEditor state={state} />}
+
+      {!!selectedGroup && <PanelGroupEditor state={state} groupID={selectedGroup.id} />}
+    </aside>
+  );
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/style/content-container.tsx ====================
+import React from 'react';
+
+const STYLE = {
+  padding: '0 20px',
+  overflowY: 'auto'
+} as const;
+
+interface ContentContainerProps {
+  children: React.ReactNode;
+  width: number;
+  height: number;
+  style?: React.CSSProperties;
+}
+
+export default function ContentContainer({
+  children,
+  width,
+  height,
+  style = {}
+}: ContentContainerProps) {
+  return (
+    <div
+      style={{ width, height, ...STYLE, ...style }}
+      onWheel={(event) => event.stopPropagation()}
+    >
+      {children}
+    </div>
+  );
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/style/content-title.tsx ====================
+import React from 'react';
+
+import * as SharedStyle from '../../shared-style';
+
+const STYLE = {
+  color: SharedStyle.PRIMARY_COLOR.alt,
+  fontWeight: 300
+} as const;
+
+interface ContentTitleProps {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  [key: string]: any;
+}
+
+export default function ContentTitle({
+  children,
+  style = {},
+  ...rest
+}: ContentTitleProps) {
+  return (
+    <h1 style={{ ...STYLE, ...style }} {...rest}>
+      {children}
+    </h1>
+  );
+}

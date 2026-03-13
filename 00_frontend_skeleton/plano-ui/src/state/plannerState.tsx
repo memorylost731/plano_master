@@ -76,6 +76,15 @@ export const SUBSERVICES: Record<MainService, string[]> = {
   other: ["To be defined", "Custom request", "Special works"],
 };
 
+type AreaService = "painting" | "flooring" | "plastering" | "boards";
+
+type AreaServiceDraft = {
+  painting: Set<string>;
+  flooring: Set<string>;
+  plastering: Set<string>;
+  boards: Set<string>;
+};
+
 type State = {
   activeMain: MainService;
   setActiveMain: (s: MainService) => void;
@@ -90,6 +99,23 @@ type State = {
   /* Building from GeoSelect map */
   selectedBuilding: SelectedBuilding | null;
   setSelectedBuilding: (b: SelectedBuilding | null) => void;
+
+  selectedSurfaces: Set<string>;
+  toggleSurface: (surfaceId: string) => void;
+  clearSelectedSurfaces: () => void;
+
+  areaServiceDraft: AreaServiceDraft;
+  applyAreaService: (service: AreaService) => void;
+  removeSurfaceFromAreaService: (service: AreaService, surfaceId: string) => void;
+
+  activeAreaSubService: string | null;
+  setActiveAreaSubService: (value: string | null) => void;
+  activeAreaMaterialKey: string | null;
+  setActiveAreaMaterialKey: (value: string | null) => void;
+  activeAreaMaterialLabel: string | null;
+  setActiveAreaMaterialLabel: (value: string | null) => void;
+  activeAreaMaterialColor: string | null;
+  setActiveAreaMaterialColor: (value: string | null) => void;
 };
 
 const KEY = "plano:plannerSelections:v1";
@@ -99,6 +125,7 @@ function load(): { activeMain: MainService; selected: Record<MainService, string
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
+
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return null;
 
@@ -134,15 +161,16 @@ function save(activeMain: MainService, selected: Record<MainService, Set<string>
       other: Array.from(selected.other),
     },
   };
+
   localStorage.setItem(KEY, JSON.stringify(payload));
 }
 
-/** ✅ This name must match your main.tsx import */
 export function PlannerStateProvider({ children }: { children: React.ReactNode }) {
   const initial = load();
 
   const [selectedBuilding, setSelectedBuilding] = useState<SelectedBuilding | null>(null);
   const [activeMain, setActiveMain] = useState<MainService>(initial?.activeMain || "electricity");
+
   const [selected, setSelected] = useState<Record<MainService, Set<string>>>(() => ({
     electricity: new Set(initial?.selected.electricity || []),
     plumbing: new Set(initial?.selected.plumbing || []),
@@ -152,6 +180,81 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
     boards: new Set(initial?.selected.boards || []),
     other: new Set(initial?.selected.other || []),
   }));
+
+  const [selectedSurfaces, setSelectedSurfaces] = useState<Set<string>>(new Set());
+
+  const [areaServiceDraft, setAreaServiceDraft] = useState<AreaServiceDraft>({
+    painting: new Set(),
+    flooring: new Set(),
+    plastering: new Set(),
+    boards: new Set(),
+  });
+
+  const [activeAreaSubService, setActiveAreaSubService] = useState<string | null>(null);
+  const [activeAreaMaterialKey, setActiveAreaMaterialKey] = useState<string | null>(null);
+  const [activeAreaMaterialLabel, setActiveAreaMaterialLabel] = useState<string | null>(null);
+  const [activeAreaMaterialColor, setActiveAreaMaterialColor] = useState<string | null>(null);
+
+  const toggleSurface = (surfaceId: string) => {
+    setSelectedSurfaces((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(surfaceId)) {
+        next.delete(surfaceId);
+      } else {
+        next.add(surfaceId);
+      }
+
+      console.log("Selected surfaces:", Array.from(next));
+
+      return next;
+    });
+  };
+
+  const clearSelectedSurfaces = () => {
+    setSelectedSurfaces(new Set());
+  };
+
+  const applyAreaService = (service: AreaService) => {
+    setAreaServiceDraft((prev) => {
+      const next: AreaServiceDraft = {
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+      };
+
+      selectedSurfaces.forEach((surfaceId) => {
+        next[service].add(surfaceId);
+      });
+
+      console.log("Area service draft:", {
+        service,
+        surfaces: Array.from(next[service]),
+        subService: activeAreaSubService,
+        materialKey: activeAreaMaterialKey,
+        materialLabel: activeAreaMaterialLabel,
+        color: activeAreaMaterialColor,
+      });
+
+      return next;
+    });
+  };
+
+  const removeSurfaceFromAreaService = (service: AreaService, surfaceId: string) => {
+    setAreaServiceDraft((prev) => {
+      const next: AreaServiceDraft = {
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+      };
+
+      next[service].delete(surfaceId);
+
+      return next;
+    });
+  };
 
   useEffect(() => {
     save(activeMain, selected);
@@ -168,8 +271,10 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
         boards: new Set(prev.boards),
         other: new Set(prev.other),
       };
+
       if (next[main].has(sub)) next[main].delete(sub);
       else next[main].add(sub);
+
       return next;
     });
   };
@@ -184,6 +289,8 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
       boards: new Set(),
       other: new Set(),
     });
+
+    clearSelectedSurfaces();
   };
 
   const selectedCount = useMemo(() => {
@@ -214,12 +321,25 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
     selectedCount,
     selectedBuilding,
     setSelectedBuilding: stableSetSelectedBuilding,
+    selectedSurfaces,
+    toggleSurface,
+    clearSelectedSurfaces,
+    areaServiceDraft,
+    applyAreaService,
+    removeSurfaceFromAreaService,
+    activeAreaSubService,
+    setActiveAreaSubService,
+    activeAreaMaterialKey,
+    setActiveAreaMaterialKey,
+    activeAreaMaterialLabel,
+    setActiveAreaMaterialLabel,
+    activeAreaMaterialColor,
+    setActiveAreaMaterialColor,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-/** ✅ This name must match Planner3D.tsx import */
 export function usePlannerState() {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error("usePlannerState must be used inside PlannerStateProvider");

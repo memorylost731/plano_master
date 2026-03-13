@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 
 import { CatalogCategory, CatalogFn } from '../../catalog/catalog';
+import { MODE_IDLE } from '../../constants';
 import { State } from '../../models';
 import ReactPlannerContext, {
   ReactPlannerContextProps
@@ -65,6 +66,16 @@ const searchInput = {
 const historyContainer = {
   ...searchContainer,
   padding: '0.2em 0.625em'
+} as const;
+
+const backToCanvasButton = {
+  marginBottom: '1em',
+  padding: '10px',
+  background: '#f0f0f0',
+  border: '1px solid #ccc',
+  cursor: 'pointer',
+  textAlign: 'center',
+  fontWeight: 'bold'
 } as const;
 
 const historyElementStyle = {
@@ -207,7 +218,7 @@ export default class CatalogList extends Component<
           key={pathSize}
           page={
             this.context.catalog.categories[
-            this.props.state.catalog.path[pathSize - 1]
+              this.props.state.catalog.path[pathSize - 1]
             ]
           }
         />
@@ -232,7 +243,16 @@ export default class CatalogList extends Component<
         style={{ ...containerStyle, ...this.props.style }}
       >
         <ContentTitle>{this.context.translator.t('Catalog')}</ContentTitle>
+
+        <div
+          style={backToCanvasButton}
+          onClick={() => this.context.projectActions.setMode(MODE_IDLE)}
+        >
+          Back to canvas
+        </div>
+
         {breadcrumbComponent}
+
         <div style={searchContainer}>
           <span style={searchText}>
             {this.context.translator.t('Search Element')}
@@ -245,30 +265,32 @@ export default class CatalogList extends Component<
             }}
           />
         </div>
+
         {selectedHistory.length ? (
           <div style={historyContainer}>
             <span>{this.context.translator.t('Last Selected')}</span>
             {selectedHistoryElements}
           </div>
         ) : null}
+
         <div style={itemsStyle}>
           {this.state.matchString === ''
             ? [
-              turnBackButton,
-              categoriesToDisplay.map((cat) => (
-                <CatalogPageItem
-                  key={cat.name}
-                  page={cat}
-                  oldPage={currentCategory}
-                />
-              )),
-              elementsToDisplay.map((elem) => (
-                <CatalogItem key={elem.name} element={elem} />
-              ))
-            ]
+                turnBackButton,
+                categoriesToDisplay.map((cat) => (
+                  <CatalogPageItem
+                    key={cat.name}
+                    page={cat}
+                    oldPage={currentCategory}
+                  />
+                )),
+                elementsToDisplay.map((elem) => (
+                  <CatalogItem key={elem.name} element={elem} />
+                ))
+              ]
             : this.state.matchedElements.map((elem) => (
-              <CatalogItem key={elem.name} element={elem} />
-            ))}
+                <CatalogItem key={elem.name} element={elem} />
+              ))}
         </div>
       </ContentContainer>
     );

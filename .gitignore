@@ -38,3 +38,7 @@ db_data/
 PAT.txt
 *.token
 *.pat
+
+# Local scratch / dumps (do not commit)
+*.bak
+PLANO_REACT_PLANNER_FULL_DUMP.txt

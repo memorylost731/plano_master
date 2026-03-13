@@ -541,6 +541,16 @@ export function buildWall(
 
   frontFace.name = 'frontFace';
   backFace.name = 'backFace';
+  (frontFace as any).userData = {
+  surfaceType: 'front',
+  wallId: element.id
+  };
+
+  (backFace as any).userData = {
+  surfaceType: 'back',
+  wallId: element.id
+  };
+
 
   const merged = new Group();
   merged.add(soul, frontFace, backFace);

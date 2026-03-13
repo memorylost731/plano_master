@@ -1,0 +1,1133 @@
+
+==================== FILE: 00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx ====================
+import { useMemo, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bolt,
+  Wrench,
+  Paintbrush,
+  Grid3X3,
+  Layers,
+  Boxes,
+  MoreHorizontal,
+  FilePlus,
+  FolderOpen,
+  Save,
+  Plus,
+  Undo2,
+  Settings,
+  PersonStanding,
+  FileText,
+} from "lucide-react";
+
+import PlannerFrame, { type PlannerApi } from "../../components/planner/PlannerFrame";
+
+import {
+  MAIN_SERVICES,
+  SUBSERVICES,
+  usePlannerState,
+  type MainService,
+} from "../../state/plannerState";
+
+type ViewMode = "2D" | "3D";
+
+const ICONS: Record<MainService, LucideIcon> = {
+  electricity: Bolt,
+  plumbing: Wrench,
+  painting: Paintbrush,
+  flooring: Grid3X3,
+  plastering: Layers,
+  boards: Boxes,
+  other: MoreHorizontal,
+};
+
+export default function Planner() {
+  const navigate = useNavigate();
+
+  const apiRef = useRef<PlannerApi | null>(null);
+  const didInitRef = useRef(false);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("2D");
+  const [engineMode, setEngineMode] = useState<string>("");
+
+  const {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    hasAnySelection,
+    selectedCount,
+    clearAll,
+  } = usePlannerState();
+
+  const subs = useMemo(() => SUBSERVICES[activeMain], [activeMain]);
+
+  const handleApi = useCallback((api: PlannerApi) => {
+    apiRef.current = api;
+    if (!didInitRef.current) {
+      didInitRef.current = true;
+      api.cmd("VIEW_2D");
+      api.cmd("SELECT_TOOL_EDIT");
+      setViewMode("2D");
+    }
+  }, []);
+
+  const go2D = useCallback(() => {
+    setViewMode("2D");
+    apiRef.current?.cmd("VIEW_2D");
+    apiRef.current?.cmd("SELECT_TOOL_EDIT");
+  }, []);
+
+  const go3D = useCallback(() => {
+    setViewMode("3D");
+    apiRef.current?.cmd("VIEW_3D");
+  }, []);
+
+  const isCatalogOpen = engineMode === "MODE_VIEWING_CATALOG";
+
+  return (
+    <div className={`${viewMode === "2D" ? "planner2d-bg" : "planner3d-bg"} fixed inset-0 text-zinc-900`}>
+      <PlannerFrame onApi={handleApi} onModeChange={setEngineMode} />
+
+      {/* TOP BAR (FULL WIDTH – NO SLIDER, NO WRAP) */}
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex justify-center p-2">
+        <div className="pointer-events-auto glass-panel w-[calc(100vw-24px)] px-4 py-1">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 font-semibold"
+            >
+              <span className="text-base">PlanO</span>
+            </button>
+
+            {/* SERVICES (3D only) — hidden while catalog is open */}
+            {viewMode === "3D" && !isCatalogOpen ? (
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 justify-center px-1">
+                  {MAIN_SERVICES.map((s) => {
+                    const Icon = ICONS[s.key];
+                    const isActive = activeMain === s.key;
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => {setActiveMain(s.key);
+                          setActiveMain(s.key);
+                          apiRef.current?.cmd("OPEN_CATALOG");
+                        }}
+                        className={`plano-dock-item flex items-center gap-2 px-2 py-1 text-xs ${
+                          isActive ? "ring-2 ring-white/70" : ""
+                        }`}
+                        title={s.label}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="hidden lg:inline">{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            {/* ACTIONS — hidden while catalog is open */}
+            {!isCatalogOpen && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("NEW_PROJECT")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="New project"
+                >
+                  <FilePlus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.saveProjectDownload()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Save project"
+                >
+                  <Save className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.loadProjectPicker()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Load project (JSON/PDF/Image via Raster)"
+                >
+                  <FolderOpen className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_CATALOG")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Open catalog"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go3D}
+                  className={`plano-glass-btn px-4 py-2 text-sm font-semibold ${
+                    viewMode === "3D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                  title="3D View"
+                >
+                  3D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go2D}
+                  className={`plano-glass-btn px-4 py-2 text-sm font-semibold ${
+                    viewMode === "2D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                  title="2D View"
+                >
+                  2D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => viewMode === "3D" && apiRef.current?.cmd("VIEW_3D_FIRST_PERSON")}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    viewMode === "3D" ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                  title="3D First Person (3D only)"
+                  disabled={viewMode !== "3D"}
+                >
+                  <PersonStanding className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("UNDO")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Undo"
+                >
+                  <Undo2 className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Configure project"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/estimate")}
+                  disabled={!hasAnySelection}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    hasAnySelection ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                  title="Estimate"
+                >
+                  <FileText className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      
+
+      {/* IMPORTANT: removed the PlanO right NAV overlay entirely */}
+    </div>
+  );
+}
+
+==================== FILE: 02_react_planner/react-planner/demo/src/catalog_custom/mycatalog.ts ====================
+declare let require: {
+  context(directory: string, useSubdirectories?: boolean, regExp?: RegExp): any;
+};
+
+import { CatalogFactory, CatalogFn } from '@archef2000/react-planner';
+
+import Area from './areas/area/planner-element';
+import Wall from './lines/wall/planner-element';
+
+// EXACT COPY of PlanO MAIN_SERVICES + SUBSERVICES (source: plano-ui/src/state/plannerState.tsx)
+// NOTE: "other" exists in PlanO state, but we DO NOT render it as a catalog tile (per your request).
+const PLANO_MAIN_SERVICES = [
+  { key: 'electricity', label: 'Electricity' },
+  { key: 'plumbing', label: 'Plumbing' },
+  { key: 'painting', label: 'Painting' },
+  { key: 'flooring', label: 'Flooring' },
+  { key: 'plastering', label: 'Plastering' },
+  { key: 'boards', label: 'Boards' },
+  { key: 'other', label: 'Other' }
+] as const;
+
+const PLANO_SUBSERVICES: Record<(typeof PLANO_MAIN_SERVICES)[number]['key'], string[]> = {
+  electricity: [
+    'Switches & plugs',
+    'Overlaps with plumbing',
+    'Oven',
+    'Hob',
+    'Fridge freezer',
+    'Microwave',
+    'AC'
+  ],
+  plumbing: [
+    'Floor drain',
+    'Shower cubical',
+    'Bathroom sink',
+    'Mixers',
+    'Kitchen sink',
+    'Water heater',
+    'Washing machine',
+    'Dishwasher',
+    'Tap for water'
+  ],
+  painting: ['Internal paint', 'External paint'],
+  flooring: [
+    'Ceramic tiles 60×60',
+    'Ceramic tiles 120×60',
+    'Ceramic tiles custom',
+    'Laminate',
+    'Microcement',
+    'Polished concrete',
+    'Parquet'
+  ],
+  plastering: [
+    'Internal (monacote+finittura)',
+    'Internal (microcement)',
+    'External (GR1000)',
+    'External (silicato)',
+    'Stone restoration'
+  ],
+  boards: ['Flat ceiling', 'L-shape bulkhead', 'U-shape bulkhead', 'Custom shapes'],
+  other: ['To be defined', 'Custom request', 'Special works']
+};
+
+function safeSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+export function createCatalog() {
+  const catalog: any = CatalogFactory();
+
+  // Base geometry elements
+  CatalogFn.registerElement(catalog, Area);
+  CatalogFn.registerElement(catalog, Wall);
+
+  // Load + register holes
+  const Holes: any[] = [];
+  const holesContext = require.context('./holes/', true, /planner-element\.[tj]sx$/);
+  holesContext.keys().forEach((key: string) => {
+    const el = holesContext(key).default;
+    Holes.push(el);
+    CatalogFn.registerElement(catalog, el);
+  });
+
+  // Load + register items
+  const Items: any[] = [];
+  const itemsContext = require.context('./items/', true, /planner-element\.[tj]sx$/);
+  itemsContext.keys().forEach((key: string) => {
+    const el = itemsContext(key).default;
+    Items.push(el);
+    CatalogFn.registerElement(catalog, el);
+  });
+
+  // Existing catalog categories (unchanged)
+  CatalogFn.registerCategory(
+    catalog,
+    'windows',
+    'Windows',
+    Holes.filter((h) => h?.info?.tag?.includes('window'))
+  );
+  CatalogFn.registerCategory(
+    catalog,
+    'doors',
+    'Doors',
+    Holes.filter((h) => h?.info?.tag?.includes('door'))
+  );
+
+  // ---------------------------------------------------------
+  // Append PlanO categories at the END (structure only; no moves)
+  // ---------------------------------------------------------
+
+  // Create subcategory without pushing it into root.categories (so it does NOT appear on root page)
+  const ensureHiddenSubCategory = (name: string, label: string) => {
+    if (!catalog.categories[name]) {
+      catalog.categories[name] = { name, label, categories: [], elements: [] };
+    }
+    return catalog.categories[name];
+  };
+
+  for (const svc of PLANO_MAIN_SERVICES) {
+    // Per your request: do NOT show "Other" in catalog
+    if (svc.key === 'other') continue;
+
+    const mainName = `plano_${svc.key}`;
+
+    // Create main PlanO category tile (this is what appears at root; appended at end)
+    if (!catalog.categories[mainName]) {
+      CatalogFn.registerCategory(catalog, mainName, svc.label, []);
+    }
+
+    const mainCat = catalog.categories[mainName];
+
+    // Create subcategories (empty placeholders for now; no guessing about which items go where)
+    const subs = PLANO_SUBSERVICES[svc.key] || [];
+    for (const subLabel of subs) {
+      const subName = `plano_${svc.key}__${safeSlug(subLabel)}`;
+      const subCat = ensureHiddenSubCategory(subName, subLabel);
+
+      if (!mainCat.categories.some((c: any) => c.name === subCat.name)) {
+        mainCat.categories.push(subCat);
+      }
+    }
+  }
+
+  return catalog;
+}
+
+export default createCatalog();
+
+==================== FILE: 02_react_planner/react-planner/src/actions/project-actions.ts ====================
+import { ReactNode } from 'react';
+
+import { produce } from 'immer';
+
+import { CatalogJson } from '../catalog/catalog';
+import {
+  ADD_CIRCULAR_GUIDE,
+  ADD_HORIZONTAL_GUIDE,
+  ADD_VERTICAL_GUIDE,
+  ALTERATE_STATE,
+  CHANGE_CATALOG_PAGE,
+  COPY_PROPERTIES,
+  GO_BACK_TO_CATALOG_PAGE,
+  INIT_CATALOG,
+  LOAD_PROJECT,
+  ModeType,
+  NEW_PROJECT,
+  OPEN_CATALOG,
+  OPEN_PROJECT_CONFIGURATOR,
+  PASTE_PROPERTIES,
+  PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY,
+  REMOVE,
+  REMOVE_CIRCULAR_GUIDE,
+  REMOVE_HORIZONTAL_GUIDE,
+  REMOVE_VERTICAL_GUIDE,
+  ROLLBACK,
+  SAVE_PROJECT,
+  SELECT_TOOL_EDIT,
+  SET_AREAS_ATTRIBUTES,
+  SET_HOLES_ATTRIBUTES,
+  SET_ITEMS_ATTRIBUTES,
+  SET_LINES_ATTRIBUTES,
+  SET_MODE,
+  SET_PROJECT_PROPERTIES,
+  SET_PROPERTIES,
+  THROW_ERROR,
+  THROW_WARNING,
+  TOGGLE_SNAP,
+  UNDO,
+  UNSELECT_ALL,
+  UPDATE_MOUSE_COORDS,
+  UPDATE_ZOOM_SCALE
+} from '../constants';
+import { Area, Item, Scene } from '../models';
+import {
+  CatalogElement,
+  HoleAttributes,
+  LineAttributes,
+  SnapMaskType
+} from '../types';
+
+export function loadProject(sceneJSON: Scene) {
+  return {
+    type: LOAD_PROJECT,
+    sceneJSON
+  };
+}
+
+export function newProject() {
+  return {
+    type: NEW_PROJECT
+  };
+}
+
+export function saveProject() {
+  return {
+    type: SAVE_PROJECT
+  };
+}
+
+export function openCatalog() {
+  return {
+    type: OPEN_CATALOG
+  };
+}
+
+export function changeCatalogPage(newPage: string, oldPage: string) {
+  return {
+    type: CHANGE_CATALOG_PAGE,
+    newPage,
+    oldPage
+  };
+}
+
+export function goBackToCatalogPage(newPage: string) {
+  return {
+    type: GO_BACK_TO_CATALOG_PAGE,
+    newPage
+  };
+}
+
+export function selectToolEdit() {
+  return {
+    type: SELECT_TOOL_EDIT
+  };
+}
+
+export function unselectAll() {
+  return {
+    type: UNSELECT_ALL
+  };
+}
+
+export function setProperties(properties: Record<string, any>) {
+  return {
+    type: SET_PROPERTIES,
+    properties
+  };
+}
+
+export function setItemsAttributes(itemsAttributes: Item) {
+  itemsAttributes = produce(itemsAttributes, (draft) => {
+    draft.rotation = parseFloat(draft.rotation as any);
+  });
+
+  return {
+    type: SET_ITEMS_ATTRIBUTES,
+    itemsAttributes
+  };
+}
+
+export function setLinesAttributes(linesAttributes: LineAttributes) {
+  linesAttributes = produce(linesAttributes, (draft) => {
+    draft.vertexOne.x = parseFloat(draft.vertexOne.x as any);
+    draft.vertexOne.y = parseFloat(draft.vertexOne.y as any);
+    draft.vertexTwo.x = parseFloat(draft.vertexTwo.x as any);
+    draft.vertexTwo.y = parseFloat(draft.vertexTwo.y as any);
+  });
+
+  return {
+    type: SET_LINES_ATTRIBUTES,
+    linesAttributes
+  };
+}
+
+export function setHolesAttributes(holesAttributes: HoleAttributes) {
+  holesAttributes = produce(holesAttributes, (draft) => {
+    draft.offset = parseFloat(draft.offset as any);
+  });
+
+  return {
+    type: SET_HOLES_ATTRIBUTES,
+    holesAttributes
+  };
+}
+
+export function setAreasAttributes(areasAttributes: Area) {
+  return {
+    type: SET_AREAS_ATTRIBUTES,
+    areasAttributes
+  };
+}
+
+export function remove() {
+  return {
+    type: REMOVE
+  };
+}
+
+export function undo() {
+  return {
+    type: UNDO
+  };
+}
+
+export function rollback() {
+  return {
+    type: ROLLBACK
+  };
+}
+
+export function openProjectConfigurator() {
+  return {
+    type: OPEN_PROJECT_CONFIGURATOR
+  };
+}
+
+export function setProjectProperties(properties: Partial<Scene>) {
+  return {
+    type: SET_PROJECT_PROPERTIES,
+    properties
+  };
+}
+
+export function initCatalog(catalog: CatalogJson) {
+  return {
+    type: INIT_CATALOG,
+    catalog
+  };
+}
+
+export function updateMouseCoord({ x = 0, y = 0 }: { x: number; y: number }) {
+  return {
+    type: UPDATE_MOUSE_COORDS,
+    coords: { x, y }
+  };
+}
+
+export function updateZoomScale(scale: number) {
+  return {
+    type: UPDATE_ZOOM_SCALE,
+    scale
+  };
+}
+
+export function toggleSnap(mask: SnapMaskType) {
+  return {
+    type: TOGGLE_SNAP,
+    mask
+  };
+}
+
+export function throwError(error: ReactNode) {
+  return {
+    type: THROW_ERROR,
+    error
+  };
+}
+
+export function throwWarning(warning: ReactNode) {
+  return {
+    type: THROW_WARNING,
+    warning
+  };
+}
+
+export function copyProperties(properties: Record<string, any>) {
+  return {
+    type: COPY_PROPERTIES,
+    properties
+  };
+}
+
+export function pasteProperties() {
+  return {
+    type: PASTE_PROPERTIES
+  };
+}
+
+export function pushLastSelectedCatalogElementToHistory(
+  element: CatalogElement
+) {
+  return {
+    type: PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY,
+    element
+  };
+}
+
+export function setAlterateState(alterate?: boolean) {
+  return {
+    type: ALTERATE_STATE,
+    alterate
+  };
+}
+
+export function setMode(mode: ModeType) {
+  return {
+    type: SET_MODE,
+    mode
+  };
+}
+
+export function addHorizontalGuide(coordinate: number) {
+  return {
+    type: ADD_HORIZONTAL_GUIDE,
+    coordinate
+  };
+}
+
+export function addVerticalGuide(coordinate: number) {
+  return {
+    type: ADD_VERTICAL_GUIDE,
+    coordinate
+  };
+}
+
+export function addCircularGuide(x: number, y: number, radius: number) {
+  return {
+    type: ADD_CIRCULAR_GUIDE,
+    x,
+    y,
+    radius
+  };
+}
+export function removeHorizontalGuide(guideID: string) {
+  return {
+    type: REMOVE_HORIZONTAL_GUIDE,
+    guideID
+  };
+}
+
+export function removeVerticalGuide(guideID: string) {
+  return {
+    type: REMOVE_VERTICAL_GUIDE,
+    guideID
+  };
+}
+
+export function removeCircularGuide(guideID: string) {
+  return {
+    type: REMOVE_CIRCULAR_GUIDE,
+    guideID
+  };
+}
+
+==================== FILE: 02_react_planner/react-planner/src/reducers/project-reducer.ts ====================
+import { ReactNode } from 'react';
+
+import { produce } from 'immer';
+
+import { Project } from '../class/export';
+import {
+  ADD_CIRCULAR_GUIDE,
+  ADD_HORIZONTAL_GUIDE,
+  ADD_VERTICAL_GUIDE,
+  ALTERATE_STATE,
+  CHANGE_CATALOG_PAGE,
+  COPY_PROPERTIES,
+  GO_BACK_TO_CATALOG_PAGE,
+  INIT_CATALOG,
+  LOAD_PROJECT,
+  MODE_IDLE,
+  ModeType,
+  NEW_PROJECT,
+  OPEN_CATALOG,
+  OPEN_PROJECT_CONFIGURATOR,
+  PASTE_PROPERTIES,
+  PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY,
+  REMOVE,
+  REMOVE_CIRCULAR_GUIDE,
+  REMOVE_HORIZONTAL_GUIDE,
+  REMOVE_VERTICAL_GUIDE,
+  ROLLBACK,
+  SELECT_TOOL_EDIT,
+  SET_AREAS_ATTRIBUTES,
+  SET_HOLES_ATTRIBUTES,
+  SET_ITEMS_ATTRIBUTES,
+  SET_LINES_ATTRIBUTES,
+  SET_MODE,
+  SET_PROJECT_PROPERTIES,
+  SET_PROPERTIES,
+  THROW_ERROR,
+  THROW_WARNING,
+  TOGGLE_SNAP,
+  UNDO,
+  UNSELECT_ALL,
+  UPDATE_MOUSE_COORDS,
+  UPDATE_ZOOM_SCALE
+} from '../constants';
+import { Area, CatalogState, Item, Scene, State } from '../models';
+import {
+  CatalogElement,
+  HoleAttributes,
+  LineAttributes,
+  SnapMaskType
+} from '../types';
+import { history } from '../utils/export';
+
+export type NewProjectAction = {
+  type: typeof NEW_PROJECT;
+};
+
+export type LoadProjectAction = {
+  type: typeof LOAD_PROJECT;
+  sceneJSON: Scene;
+};
+
+export type OpenCatalogAction = {
+  type: typeof OPEN_CATALOG;
+};
+
+export type ChangeCatalogPageAction = {
+  type: typeof CHANGE_CATALOG_PAGE;
+  oldPage: string;
+  newPage: string;
+};
+
+export type GoBackToCatalogPageAction = {
+  type: typeof GO_BACK_TO_CATALOG_PAGE;
+  newPage: string;
+};
+
+export type SelectToolEditAction = {
+  type: typeof SELECT_TOOL_EDIT;
+};
+
+export type UnselectAllAction = {
+  type: typeof UNSELECT_ALL;
+};
+
+export type SetPropertiesAction = {
+  type: typeof SET_PROPERTIES;
+  properties: Record<string, any>;
+};
+
+export type SetItemsAttributesAction = {
+  type: typeof SET_ITEMS_ATTRIBUTES;
+  itemsAttributes: Partial<Item>;
+};
+
+export type SetLinesAttributesAction = {
+  type: typeof SET_LINES_ATTRIBUTES;
+  linesAttributes: Partial<LineAttributes>;
+};
+
+export type SetHolesAttributesAction = {
+  type: typeof SET_HOLES_ATTRIBUTES;
+  holesAttributes: Partial<HoleAttributes>;
+};
+
+export type SetAreasAttributesAction = {
+  type: typeof SET_AREAS_ATTRIBUTES;
+  areasAttributes: Partial<Area>;
+};
+
+export type RemoveAction = {
+  type: typeof REMOVE;
+};
+
+export type UnDoAction = {
+  type: typeof UNDO;
+};
+
+export type RollbackAction = {
+  type: typeof ROLLBACK;
+};
+
+export type SetProjectPropertiesAction = {
+  type: typeof SET_PROJECT_PROPERTIES;
+  properties: Partial<Scene>;
+};
+
+export type OpenProjectConfiguratorAction = {
+  type: typeof OPEN_PROJECT_CONFIGURATOR;
+};
+
+export type InitCatalogAction = {
+  type: typeof INIT_CATALOG;
+  catalog: CatalogState;
+};
+
+export type UpdateMouseCoordsAction = {
+  type: typeof UPDATE_MOUSE_COORDS;
+  coords: { x: number; y: number };
+};
+
+export type UpdateZoomScaleAction = {
+  type: typeof UPDATE_ZOOM_SCALE;
+  scale: number;
+};
+
+export type ToggleSnapAction = {
+  type: typeof TOGGLE_SNAP;
+  mask: SnapMaskType;
+};
+
+export type ThrowErrorAction = {
+  type: typeof THROW_ERROR;
+  error: ReactNode;
+};
+
+export type ThrowWarningAction = {
+  type: typeof THROW_WARNING;
+  warning: ReactNode;
+};
+
+export type CopyPropertiesAction = {
+  type: typeof COPY_PROPERTIES;
+  properties: Record<string, any>;
+};
+
+export type PastePropertiesAction = {
+  type: typeof PASTE_PROPERTIES;
+};
+
+export type PushLastSelectedCatalogElementToHistoryAction = {
+  type: typeof PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY;
+  element: CatalogElement;
+};
+
+export type AlterateStateAction = {
+  type: typeof ALTERATE_STATE;
+  alterate?: boolean;
+};
+
+export type SetModeAction = {
+  type: typeof SET_MODE;
+  mode: ModeType;
+};
+
+export type AddHorizontalGuideAction = {
+  type: typeof ADD_HORIZONTAL_GUIDE;
+  coordinate: number;
+};
+
+export type AddVerticalGuideAction = {
+  type: typeof ADD_VERTICAL_GUIDE;
+  coordinate: number;
+};
+
+export type AddCircularGuideAction = {
+  type: typeof ADD_CIRCULAR_GUIDE;
+  x: number;
+  y: number;
+  radius: number;
+};
+
+export type RemoveHorizontalGuideAction = {
+  type: typeof REMOVE_HORIZONTAL_GUIDE;
+  guideID: string;
+};
+
+export type RemoveVerticalGuideAction = {
+  type: typeof REMOVE_VERTICAL_GUIDE;
+  guideID: string;
+};
+
+export type RemoveCircularGuideAction = {
+  type: typeof REMOVE_CIRCULAR_GUIDE;
+  guideID: string;
+};
+
+export type ProjectAction =
+  | NewProjectAction
+  | LoadProjectAction
+  | OpenCatalogAction
+  | ChangeCatalogPageAction
+  | GoBackToCatalogPageAction
+  | SelectToolEditAction
+  | UnselectAllAction
+  | SetPropertiesAction
+  | SetItemsAttributesAction
+  | SetLinesAttributesAction
+  | SetHolesAttributesAction
+  | SetAreasAttributesAction
+  | RemoveAction
+  | UnDoAction
+  | RollbackAction
+  | SetProjectPropertiesAction
+  | OpenProjectConfiguratorAction
+  | InitCatalogAction
+  | UpdateMouseCoordsAction
+  | UpdateZoomScaleAction
+  | ToggleSnapAction
+  | ThrowErrorAction
+  | ThrowWarningAction
+  | CopyPropertiesAction
+  | PastePropertiesAction
+  | PushLastSelectedCatalogElementToHistoryAction
+  | AlterateStateAction
+  | SetModeAction
+  | AddHorizontalGuideAction
+  | AddVerticalGuideAction
+  | AddCircularGuideAction
+  | RemoveHorizontalGuideAction
+  | RemoveVerticalGuideAction
+  | RemoveCircularGuideAction;
+
+export default function projectReducer(
+  state: State,
+  action: ProjectAction
+): State {
+  switch (action.type) {
+    case NEW_PROJECT:
+      return Project.newProject(state);
+
+    case LOAD_PROJECT:
+      return Project.loadProject(state, action.sceneJSON);
+
+    case OPEN_CATALOG:
+      return Project.openCatalog(state);
+
+    case CHANGE_CATALOG_PAGE:
+      return Project.changeCatalogPage(state, action.oldPage, action.newPage);
+
+    case GO_BACK_TO_CATALOG_PAGE:
+      return Project.goBackToCatalogPage(state, action.newPage);
+
+    case SELECT_TOOL_EDIT:
+      return Project.setMode(state, MODE_IDLE);
+
+    case UNSELECT_ALL:
+      return Project.unselectAll(state);
+
+    case SET_PROPERTIES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setProperties(
+        state,
+        state.scene.selectedLayer as string,
+        action.properties
+      );
+
+    case SET_ITEMS_ATTRIBUTES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setItemsAttributes(state, action.itemsAttributes);
+
+    case SET_LINES_ATTRIBUTES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setLinesAttributes(state, action.linesAttributes);
+
+    case SET_HOLES_ATTRIBUTES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setHolesAttributes(state, action.holesAttributes);
+
+    case SET_AREAS_ATTRIBUTES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setAreasAttributes(state, action.areasAttributes);
+
+    case REMOVE:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.remove(state);
+
+    case UNDO:
+      return Project.undo(state);
+
+    case ROLLBACK:
+      return Project.rollback(state);
+
+    case SET_PROJECT_PROPERTIES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setProjectProperties(state, action.properties);
+
+    case OPEN_PROJECT_CONFIGURATOR:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.openProjectConfigurator(state);
+
+    case INIT_CATALOG:
+      return Project.initCatalog(state, action.catalog);
+
+    case UPDATE_MOUSE_COORDS:
+      return Project.updateMouseCoord(state, action.coords);
+
+    case UPDATE_ZOOM_SCALE:
+      return Project.updateZoomScale(state, action.scale);
+
+    case TOGGLE_SNAP:
+      return Project.toggleSnap(state, action.mask);
+
+    case THROW_ERROR:
+      return Project.throwError(state, action.error);
+
+    case THROW_WARNING:
+      return Project.throwWarning(state, action.warning);
+
+    case COPY_PROPERTIES:
+      return Project.copyProperties(state, action.properties);
+
+    case PASTE_PROPERTIES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.pasteProperties(state);
+
+    case PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY:
+      return Project.pushLastSelectedCatalogElementToHistory(
+        state,
+        action.element
+      );
+
+    case ALTERATE_STATE:
+      return Project.setAlterate(state, action.alterate);
+
+    case SET_MODE:
+      return Project.setMode(state, action.mode);
+
+    case ADD_HORIZONTAL_GUIDE:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.addHorizontalGuide(state, action.coordinate);
+
+    case ADD_VERTICAL_GUIDE:
+      return Project.addVerticalGuide(state, action.coordinate);
+
+    case ADD_CIRCULAR_GUIDE:
+      return Project.addCircularGuide(state, action.x, action.y, action.radius);
+
+    case REMOVE_HORIZONTAL_GUIDE:
+      return Project.removeHorizontalGuide(state, action.guideID);
+
+    case REMOVE_VERTICAL_GUIDE:
+      return Project.removeVerticalGuide(state, action.guideID);
+
+    case REMOVE_CIRCULAR_GUIDE:
+      return Project.removeCircularGuide(state, action.guideID);
+  }
+}

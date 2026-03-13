@@ -1,3 +1,4 @@
+===== MYCATALOG =====
 declare let require: {
   context(directory: string, useSubdirectories?: boolean, regExp?: RegExp): any;
 };
@@ -7,6 +8,8 @@ import { CatalogFactory, CatalogFn } from '@archef2000/react-planner';
 import Area from './areas/area/planner-element';
 import Wall from './lines/wall/planner-element';
 
+// EXACT COPY of PlanO MAIN_SERVICES + SUBSERVICES (source: plano-ui/src/state/plannerState.tsx)
+// NOTE: "other" exists in PlanO state, but we DO NOT render it as a catalog tile (per your request).
 const PLANO_MAIN_SERVICES = [
   { key: 'electricity', label: 'Electricity' },
   { key: 'plumbing', label: 'Plumbing' },
@@ -66,34 +69,35 @@ function safeSlug(s: string) {
 export function createCatalog() {
   const catalog: any = CatalogFactory();
 
-  CatalogFn.registerElement(catalog, Area as any);
-  CatalogFn.registerElement(catalog, Wall as any);
+  // Base geometry elements
+  CatalogFn.registerElement(catalog, Area);
+  CatalogFn.registerElement(catalog, Wall);
 
+  // Load + register holes
   const Holes: any[] = [];
   const holesContext = require.context('./holes/', true, /planner-element\.[tj]sx$/);
   holesContext.keys().forEach((key: string) => {
     const el = holesContext(key).default;
     Holes.push(el);
-    CatalogFn.registerElement(catalog, el as any);
+    CatalogFn.registerElement(catalog, el);
   });
 
+  // Load + register items
   const Items: any[] = [];
   const itemsContext = require.context('./items/', true, /planner-element\.[tj]sx$/);
   itemsContext.keys().forEach((key: string) => {
     const el = itemsContext(key).default;
     Items.push(el);
-    if (!catalog.elements[el.name]) {
-      CatalogFn.registerElement(catalog, el as any);
-    }
+    CatalogFn.registerElement(catalog, el);
   });
 
+  // Existing catalog categories (unchanged)
   CatalogFn.registerCategory(
     catalog,
     'windows',
     'Windows',
     Holes.filter((h) => h?.info?.tag?.includes('window'))
   );
-
   CatalogFn.registerCategory(
     catalog,
     'doors',
@@ -101,6 +105,11 @@ export function createCatalog() {
     Holes.filter((h) => h?.info?.tag?.includes('door'))
   );
 
+  // ---------------------------------------------------------
+  // Append PlanO categories at the END (structure only; no moves)
+  // ---------------------------------------------------------
+
+  // Create subcategory without pushing it into root.categories (so it does NOT appear on root page)
   const ensureHiddenSubCategory = (name: string, label: string) => {
     if (!catalog.categories[name]) {
       catalog.categories[name] = { name, label, categories: [], elements: [] };
@@ -108,40 +117,27 @@ export function createCatalog() {
     return catalog.categories[name];
   };
 
-  const paintWhite = Items.find((el) => el?.name === 'paint-white');
-  const paintGrey = Items.find((el) => el?.name === 'paint-grey');
-  const paintBeige = Items.find((el) => el?.name === 'paint-beige');
-
   for (const svc of PLANO_MAIN_SERVICES) {
+    // Per your request: do NOT show "Other" in catalog
     if (svc.key === 'other') continue;
 
     const mainName = `plano_${svc.key}`;
 
+    // Create main PlanO category tile (this is what appears at root; appended at end)
     if (!catalog.categories[mainName]) {
       CatalogFn.registerCategory(catalog, mainName, svc.label, []);
     }
 
     const mainCat = catalog.categories[mainName];
-    const subs = PLANO_SUBSERVICES[svc.key] || [];
 
+    // Create subcategories (empty placeholders for now; no guessing about which items go where)
+    const subs = PLANO_SUBSERVICES[svc.key] || [];
     for (const subLabel of subs) {
       const subName = `plano_${svc.key}__${safeSlug(subLabel)}`;
       const subCat = ensureHiddenSubCategory(subName, subLabel);
 
       if (!mainCat.categories.some((c: any) => c.name === subCat.name)) {
         mainCat.categories.push(subCat);
-      }
-
-      if (svc.key === 'painting' && subLabel === 'Internal paint') {
-        if (paintWhite && !subCat.elements.find((el: any) => el.name === paintWhite.name)) {
-          subCat.elements.push(paintWhite);
-        }
-        if (paintGrey && !subCat.elements.find((el: any) => el.name === paintGrey.name)) {
-          subCat.elements.push(paintGrey);
-        }
-        if (paintBeige && !subCat.elements.find((el: any) => el.name === paintBeige.name)) {
-          subCat.elements.push(paintBeige);
-        }
       }
     }
   }
@@ -150,3 +146,44 @@ export function createCatalog() {
 }
 
 export default createCatalog();
+
+===== INTERNAL PAINT ELEMENT =====
+import {
+  CatalogElementInfo,
+  CatalogElementTextures,
+  ElementsFactories
+} from '@archef2000/react-planner';
+
+const info: CatalogElementInfo = {
+  title: 'internal paint',
+  tag: ['painting'],
+  description: 'Internal wall paint',
+  image: ''
+};
+
+const textures: CatalogElementTextures = {
+  white_paint: {
+    name: 'White Paint',
+    uri: require('../area/textures/grass.jpg'),
+    lengthRepeatScale: 0.002,
+    heightRepeatScale: 0.002
+  },
+  light_grey_paint: {
+    name: 'Light Grey Paint',
+    uri: require('../area/textures/tile1.jpg'),
+    lengthRepeatScale: 0.002,
+    heightRepeatScale: 0.002
+  },
+  beige_paint: {
+    name: 'Beige Paint',
+    uri: require('../area/textures/parquet.jpg'),
+    lengthRepeatScale: 0.002,
+    heightRepeatScale: 0.002
+  }
+};
+
+export default ElementsFactories.AreaFactory('paint-internal', info, textures);
+===== AREAS TREE =====
+02_react_planner/react-planner/demo/src/catalog_custom/areas
+02_react_planner/react-planner/demo/src/catalog_custom/areas/internal-paint
+02_react_planner/react-planner/demo/src/catalog_custom/areas/internal-paint/planner-element.tsx

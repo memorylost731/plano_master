@@ -1,0 +1,612 @@
+===== 1) MYCATALOG =====
+
+import PaintWhite from './items/paint-white/planner-element';
+import PaintGrey from './items/paint-grey/planner-element';
+import PaintBeige from './items/paint-beige/planner-element';
+
+
+declare let require: {
+  context(directory: string, useSubdirectories?: boolean, regExp?: RegExp): any;
+};
+
+import { CatalogFactory, CatalogFn } from '@archef2000/react-planner';
+
+import Area from './areas/area/planner-element';
+import Wall from './lines/wall/planner-element';
+
+import PaintWhite from './items/paint-white/planner-element';
+import PaintGrey from './items/paint-grey/planner-element';
+import PaintBeige from './items/paint-beige/planner-element';
+
+const PLANO_MAIN_SERVICES = [
+  { key: 'electricity', label: 'Electricity' },
+  { key: 'plumbing', label: 'Plumbing' },
+  { key: 'painting', label: 'Painting' },
+  { key: 'flooring', label: 'Flooring' },
+  { key: 'plastering', label: 'Plastering' },
+  { key: 'boards', label: 'Boards' },
+  { key: 'other', label: 'Other' }
+] as const;
+
+const PLANO_SUBSERVICES: Record<(typeof PLANO_MAIN_SERVICES)[number]['key'], string[]> = {
+  electricity: [
+    'Switches & plugs',
+    'Overlaps with plumbing',
+    'Oven',
+    'Hob',
+    'Fridge freezer',
+    'Microwave',
+    'AC'
+  ],
+  plumbing: [
+    'Floor drain',
+    'Shower cubical',
+    'Bathroom sink',
+    'Mixers',
+    'Kitchen sink',
+    'Water heater',
+    'Washing machine',
+    'Dishwasher',
+    'Tap for water'
+  ],
+  painting: ['Internal paint', 'External paint'],
+  flooring: [
+    'Ceramic tiles 60×60',
+    'Ceramic tiles 120×60',
+    'Ceramic tiles custom',
+    'Laminate',
+    'Microcement',
+    'Polished concrete',
+    'Parquet'
+  ],
+  plastering: [
+    'Internal (monacote+finittura)',
+    'Internal (microcement)',
+    'External (GR1000)',
+    'External (silicato)',
+    'Stone restoration'
+  ],
+  boards: ['Flat ceiling', 'L-shape bulkhead', 'U-shape bulkhead', 'Custom shapes'],
+  other: ['To be defined', 'Custom request', 'Special works']
+};
+
+function safeSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+export function createCatalog() {
+  const catalog: any = CatalogFactory();
+
+  CatalogFn.registerElement(catalog, Area);
+  CatalogFn.registerElement(catalog, Wall);
+
+  CatalogFn.registerElement(catalog, PaintWhite);
+  CatalogFn.registerElement(catalog, PaintGrey);
+  CatalogFn.registerElement(catalog, PaintBeige);
+
+  const Holes: any[] = [];
+  const holesContext = require.context('./holes/', true, /planner-element\.[tj]sx$/);
+  holesContext.keys().forEach((key: string) => {
+    const el = holesContext(key).default;
+    Holes.push(el);
+    CatalogFn.registerElement(catalog, el);
+  });
+
+  const Items: any[] = [];
+  const itemsContext = require.context('./items/', true, /planner-element\.[tj]sx$/);
+  itemsContext.keys().forEach((key: string) => {
+    const el = itemsContext(key).default;
+    Items.push(el);
+    if (!catalog.elements[el.name]) {
+      CatalogFn.registerElement(catalog, el);
+    }
+  });
+
+  CatalogFn.registerCategory(
+    catalog,
+    'windows',
+    'Windows',
+    Holes.filter((h) => h?.info?.tag?.includes('window'))
+  );
+
+  CatalogFn.registerCategory(
+    catalog,
+    'doors',
+    'Doors',
+    Holes.filter((h) => h?.info?.tag?.includes('door'))
+  );
+
+  const ensureHiddenSubCategory = (name: string, label: string) => {
+    if (!catalog.categories[name]) {
+      catalog.categories[name] = { name, label, categories: [], elements: [] };
+
+===== 2) PAINT WHITE =====
+import React from 'react';
+import { BoxGeometry, MeshBasicMaterial, Mesh, BoxHelper } from 'three';
+
+export default {
+  name: 'paint-white',
+  prototype: 'items',
+
+  info: {
+    title: 'White Paint',
+    tag: ['painting'],
+    description: 'Internal white paint',
+    image: ''
+  },
+
+  properties: {
+    color: {
+      label: 'Color',
+      type: 'color',
+      defaultValue: '#ffffff'
+    }
+  },
+
+  render2D: (element: any) => {
+    const style = {
+      stroke: '#000',
+      strokeWidth: element.selected ? '2px' : '0px',
+      fill: element.properties.get('color')
+    };
+
+    return (
+      <g transform="translate(-50, -50)">
+        <rect x="0" y="0" width="100" height="100" style={style} />
+      </g>
+    );
+  },
+
+  render3D: (element: any) => {
+    const geometry = new BoxGeometry(100, 100, 100);
+    const material = new MeshBasicMaterial({
+      color: element.properties.get('color')
+    });
+
+    const mesh = new Mesh(geometry, material);
+
+    if (element.selected) {
+      const box = new BoxHelper(mesh, '#000');
+      box.material.linewidth = 1;
+      box.material.depthTest = false;
+      box.renderOrder = 1000;
+      mesh.add(box);
+    }
+
+    mesh.position.y = 50;
+
+    return Promise.resolve(mesh);
+  }
+};
+===== 3) PAINT GREY =====
+import React from 'react';
+import { BoxGeometry, MeshBasicMaterial, Mesh, BoxHelper } from 'three';
+
+export default {
+  name: 'paint-grey',
+  prototype: 'items',
+
+  info: {
+    title: 'Grey Paint',
+    tag: ['painting'],
+    description: 'Internal grey paint',
+    image: ''
+  },
+
+  properties: {
+    color: {
+      label: 'Color',
+      type: 'color',
+      defaultValue: '#cccccc'
+    }
+  },
+
+  render2D: (element: any) => {
+    const style = {
+      stroke: '#000',
+      strokeWidth: element.selected ? '2px' : '0px',
+      fill: element.properties.get('color')
+    };
+
+    return (
+      <g transform="translate(-50, -50)">
+        <rect x="0" y="0" width="100" height="100" style={style} />
+      </g>
+    );
+  },
+
+  render3D: (element: any) => {
+    const geometry = new BoxGeometry(100, 100, 100);
+    const material = new MeshBasicMaterial({
+      color: element.properties.get('color')
+    });
+
+    const mesh = new Mesh(geometry, material);
+
+    if (element.selected) {
+      const box = new BoxHelper(mesh, '#000');
+      box.material.linewidth = 1;
+      box.material.depthTest = false;
+      box.renderOrder = 1000;
+      mesh.add(box);
+    }
+
+    mesh.position.y = 50;
+
+    return Promise.resolve(mesh);
+  }
+};
+===== 4) PAINT BEIGE =====
+import React from 'react';
+import { BoxGeometry, MeshBasicMaterial, Mesh, BoxHelper } from 'three';
+
+export default {
+  name: 'paint-beige',
+  prototype: 'items',
+
+  info: {
+    title: 'Beige Paint',
+    tag: ['painting'],
+    description: 'Internal beige paint',
+    image: ''
+  },
+
+  properties: {
+    color: {
+      label: 'Color',
+      type: 'color',
+      defaultValue: '#e6d3b3'
+    }
+  },
+
+  render2D: (element: any) => {
+    const style = {
+      stroke: '#000',
+      strokeWidth: element.selected ? '2px' : '0px',
+      fill: element.properties.get('color')
+    };
+
+    return (
+      <g transform="translate(-50, -50)">
+        <rect x="0" y="0" width="100" height="100" style={style} />
+      </g>
+    );
+  },
+
+  render3D: (element: any) => {
+    const geometry = new BoxGeometry(100, 100, 100);
+    const material = new MeshBasicMaterial({
+      color: element.properties.get('color')
+    });
+
+    const mesh = new Mesh(geometry, material);
+
+    if (element.selected) {
+      const box = new BoxHelper(mesh, '#000');
+      box.material.linewidth = 1;
+      box.material.depthTest = false;
+      box.renderOrder = 1000;
+      mesh.add(box);
+    }
+
+    mesh.position.y = 50;
+
+    return Promise.resolve(mesh);
+  }
+};
+===== 5) WORKING CUBE TEMPLATE =====
+import React from 'react';
+
+import {
+  defineCatalogElement,
+  ReactPlannerSharedStyle
+} from '@archef2000/react-planner';
+import { BoxGeometry, BoxHelper, Mesh, MeshBasicMaterial } from 'three';
+
+export default defineCatalogElement({
+  name: 'cube',
+  prototype: 'items',
+
+  info: {
+    title: 'cube',
+    tag: ['demo'],
+    description: 'Demo item',
+    image: require('./cube.png')
+  },
+
+  properties: {
+    color: {
+      label: 'Color',
+      type: 'color',
+      defaultValue: ReactPlannerSharedStyle.AREA_MESH_COLOR.unselected
+    },
+    width: {
+      label: 'Width',
+      type: 'length-measure',
+      defaultValue: {
+        length: 100
+      }
+    },
+    height: {
+      label: 'Height',
+      type: 'length-measure',
+      defaultValue: {
+        length: 100
+      }
+    },
+    depth: {
+      label: 'Depth',
+      type: 'length-measure',
+      defaultValue: {
+        length: 100
+      }
+    }
+  },
+
+  render2D: (element, layer, scene) => {
+    const style = {
+      stroke: !element.selected
+        ? ReactPlannerSharedStyle.LINE_MESH_COLOR.unselected
+        : ReactPlannerSharedStyle.MESH_SELECTED,
+      strokeWidth: 2,
+      fill: element.properties.color
+    } as const;
+
+    const w = element.properties.width.length;
+    const d = element.properties.depth.length;
+    const w2 = w / 2;
+    const d2 = d / 2;
+
+    return (
+      <g transform={`translate(-${w2}, -${d2})`}>
+        <rect x="0" y="0" width={w} height={d} style={style} />
+      </g>
+    );
+  },
+
+  async render3D(element, layer, scene) {
+    const w = element.properties.width.length;
+    const h = element.properties.height.length;
+    const d = element.properties.depth.length;
+    const geometry = new BoxGeometry(w, h, d);
+    const material = new MeshBasicMaterial({
+      color: element.properties.color
+    });
+
+    const mesh = new Mesh(geometry, material);
+
+    const box = new BoxHelper(
+      mesh,
+      !element.selected
+        ? ReactPlannerSharedStyle.LINE_MESH_COLOR.unselected
+        : ReactPlannerSharedStyle.MESH_SELECTED
+    );
+    box.material.linewidth = 2;
+    box.renderOrder = 1000;
+    mesh.add(box);
+
+    mesh.position.y = h / 2;
+
+    return mesh;
+  }
+});
+
+===== 6) ITEMS TREE =====
+02_react_planner/react-planner/demo/src/catalog_custom/items
+02_react_planner/react-planner/demo/src/catalog_custom/items/air-conditioner
+02_react_planner/react-planner/demo/src/catalog_custom/items/air-conditioner/air_conditioner.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/air-conditioner/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/armchairs
+02_react_planner/react-planner/demo/src/catalog_custom/items/armchairs/armchairs.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/armchairs/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/balcony
+02_react_planner/react-planner/demo/src/catalog_custom/items/balcony/balcony.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/balcony/bricks.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/balcony/brick_white_normal.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/balcony/painted.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/balcony/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/bench
+02_react_planner/react-planner/demo/src/catalog_custom/items/bench/bench.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/bench/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/bench/wood.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/blackboard
+02_react_planner/react-planner/demo/src/catalog_custom/items/blackboard/blackboard.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/blackboard/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/bookcase
+02_react_planner/react-planner/demo/src/catalog_custom/items/bookcase/bookcase.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/bookcase/bookTexture1.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/bookcase/bookTexture2.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/bookcase/bookTexture3.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/bookcase/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/bookcase/wood.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/camera
+02_react_planner/react-planner/demo/src/catalog_custom/items/camera/camera.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/camera/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/canteencart
+02_react_planner/react-planner/demo/src/catalog_custom/items/canteencart/canteen_cart.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/canteencart/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/canteen-table
+02_react_planner/react-planner/demo/src/catalog_custom/items/canteen-table/canteen_table.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/canteen-table/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/chair
+02_react_planner/react-planner/demo/src/catalog_custom/items/chair/chair.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/chairdesk
+02_react_planner/react-planner/demo/src/catalog_custom/items/chairdesk/chairdesk.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/chairdesk/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/chair/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/child-chair-desk
+02_react_planner/react-planner/demo/src/catalog_custom/items/child-chair-desk/chairDesk.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/child-chair-desk/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart
+02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/cleaning_cart.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/coat-hook
+02_react_planner/react-planner/demo/src/catalog_custom/items/coat-hook/coat-hook.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/coat-hook/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/coat-hook/wood.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/column
+02_react_planner/react-planner/demo/src/catalog_custom/items/column/column.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/column/copper.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/column/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/column-square
+02_react_planner/react-planner/demo/src/catalog_custom/items/column-square/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/column-square/square_column.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/cube
+02_react_planner/react-planner/demo/src/catalog_custom/items/cube/cube.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/cube/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/desk
+02_react_planner/react-planner/demo/src/catalog_custom/items/desk/desk.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/deskdouble
+02_react_planner/react-planner/demo/src/catalog_custom/items/deskdouble/deskdouble.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/deskdouble/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/deskoffice
+02_react_planner/react-planner/demo/src/catalog_custom/items/deskoffice/desk.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/deskoffice/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/deskoffice/white.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/deskoffice/wood.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/desk/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/electrical-panel
+02_react_planner/react-planner/demo/src/catalog_custom/items/electrical-panel/electricalPanel.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/electrical-panel/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/electrical-panel/texturePanel.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher
+02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/fire-extinguisher.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/gage-image.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/label-image.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/fridge
+02_react_planner/react-planner/demo/src/catalog_custom/items/fridge/fridge.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/fridge/logo.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/fridge/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/fridge/steel.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/hanger
+02_react_planner/react-planner/demo/src/catalog_custom/items/hanger/hanger.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/hanger/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/hiroos
+02_react_planner/react-planner/demo/src/catalog_custom/items/hiroos/hiroos.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/hiroos/hiroosTexture.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/hiroos/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/hub
+02_react_planner/react-planner/demo/src/catalog_custom/items/hub/front.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/hub/hub.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/hub/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/image
+02_react_planner/react-planner/demo/src/catalog_custom/items/image/imageful.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/image/image.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/image/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/kitchen
+02_react_planner/react-planner/demo/src/catalog_custom/items/kitchen/darksteel.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/kitchen/kitchen.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/kitchen/logo.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/kitchen/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/kitchen/steel.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/lim
+02_react_planner/react-planner/demo/src/catalog_custom/items/lim/example_lim.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/lim/lim.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/lim/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/metal-detector
+02_react_planner/react-planner/demo/src/catalog_custom/items/metal-detector/display1.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/metal-detector/display2.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/metal-detector/metalDetector.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/metal-detector/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc
+02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/black.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/keyboard.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/monitorPC.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/power.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/white.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/naspo
+02_react_planner/react-planner/demo/src/catalog_custom/items/naspo/naspofront.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/naspo/naspo.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/naspo/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/paint-beige
+02_react_planner/react-planner/demo/src/catalog_custom/items/paint-beige/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/paint-grey
+02_react_planner/react-planner/demo/src/catalog_custom/items/paint-grey/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/paint-white
+02_react_planner/react-planner/demo/src/catalog_custom/items/paint-white/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/projector
+02_react_planner/react-planner/demo/src/catalog_custom/items/projector/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/projector/projector.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-modern-style
+02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-modern-style/ModernStyleRadiator.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-modern-style/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-old-style
+02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-old-style/OldStyleRadiator.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-old-style/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/recycling-bins
+02_react_planner/react-planner/demo/src/catalog_custom/items/recycling-bins/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/recycling-bins/recycle.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/recycling-bins/recycling-bins.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/router-wifi
+02_react_planner/react-planner/demo/src/catalog_custom/items/router-wifi/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/router-wifi/routerWifi.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/schneider
+02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/lcd.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/monitor.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/schneider.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk
+02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk-double
+02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk-double/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk-double/school-desk-double.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk-double/wood.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk/school-desk.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk/wood.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/simple-stair
+02_react_planner/react-planner/demo/src/catalog_custom/items/simple-stair/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/simple-stair/simple-stair.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/simple-stair/textures
+02_react_planner/react-planner/demo/src/catalog_custom/items/sink
+02_react_planner/react-planner/demo/src/catalog_custom/items/sink/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/sink/sink.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/smoke-detector
+02_react_planner/react-planner/demo/src/catalog_custom/items/smoke-detector/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/smoke-detector/smokeDetector.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/sofa
+02_react_planner/react-planner/demo/src/catalog_custom/items/sofa/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/sofa-single
+02_react_planner/react-planner/demo/src/catalog_custom/items/sofa-single/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/sofa-single/sofa.mtl
+02_react_planner/react-planner/demo/src/catalog_custom/items/sofa-single/sofa.obj
+02_react_planner/react-planner/demo/src/catalog_custom/items/sofa-single/sofa.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/sofa-single/texture.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/sofa/sofa.mtl
+02_react_planner/react-planner/demo/src/catalog_custom/items/sofa/sofa.obj
+02_react_planner/react-planner/demo/src/catalog_custom/items/sofa/sofa.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/sofa/texture.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/table
+02_react_planner/react-planner/demo/src/catalog_custom/items/table/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/table/table.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/teaching-post
+02_react_planner/react-planner/demo/src/catalog_custom/items/teaching-post/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/teaching-post/teaching-post.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/teaching-post/wood.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d
+02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/helvetiker_regular.typeface.ts
+02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/img.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/three-phase-panel
+02_react_planner/react-planner/demo/src/catalog_custom/items/three-phase-panel/PanelTexture.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/three-phase-panel/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/three-phase-panel/threePhasePanel.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/toilet
+02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/toilet.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/trash
+02_react_planner/react-planner/demo/src/catalog_custom/items/trash/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/trash/trash.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/tv
+02_react_planner/react-planner/demo/src/catalog_custom/items/tv/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/tv/tv.mtl
+02_react_planner/react-planner/demo/src/catalog_custom/items/tv/tv.obj
+02_react_planner/react-planner/demo/src/catalog_custom/items/tv/tv.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/umbrella-stand
+02_react_planner/react-planner/demo/src/catalog_custom/items/umbrella-stand/bronze-texture.jpg
+02_react_planner/react-planner/demo/src/catalog_custom/items/umbrella-stand/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/umbrella-stand/umbrellaStand.png
+02_react_planner/react-planner/demo/src/catalog_custom/items/wardrobe
+02_react_planner/react-planner/demo/src/catalog_custom/items/wardrobe/planner-element.tsx
+02_react_planner/react-planner/demo/src/catalog_custom/items/wardrobe/wardrobe.png

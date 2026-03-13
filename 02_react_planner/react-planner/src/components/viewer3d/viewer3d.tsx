@@ -18,6 +18,11 @@ interface Scene3DViewerProps {
   height: number;
 }
 
+type HighlightEntry = {
+  mesh: Three.Mesh;
+  originalMaterial: Three.Material;
+};
+
 const hudStyle: React.CSSProperties = {
   position: 'absolute',
   left: 12,
@@ -50,6 +55,8 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
   planData: PlanData | undefined;
   orbitController: OrbitControls | undefined;
 
+  highlightedMeshes: Map<string, HighlightEntry>;
+
   mouseDownEvent: undefined | ((event: MouseEvent) => void);
   mouseUpEvent: undefined | ((event: MouseEvent) => void);
 
@@ -59,6 +66,7 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
     this.width = props.width;
     this.height = props.height;
     this.canvasWrapper = React.createRef<HTMLDivElement>();
+    this.highlightedMeshes = new Map<string, HighlightEntry>();
 
     this.renderer =
       (window as any).__threeRenderer ||
@@ -66,9 +74,67 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
     (window as any).__threeRenderer = this.renderer;
   }
 
+  private getMeshKey(mesh: Three.Mesh) {
+    return `${mesh.uuid}:${mesh.name}`;
+  }
+
+  private isSelectableFace(mesh: Three.Object3D): mesh is Three.Mesh {
+    return (
+      mesh instanceof Three.Mesh &&
+      (mesh.name === 'frontFace' || mesh.name === 'backFace') &&
+      !Array.isArray((mesh as Three.Mesh).material)
+    );
+  }
+
+  private clearAllHighlights() {
+  this.highlightedMeshes.forEach((entry) => {
+    entry.mesh.material = entry.originalMaterial;
+  });
+  this.highlightedMeshes.clear();
+ }
+
+  private removeHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+    const entry = this.highlightedMeshes.get(key);
+    if (!entry) return;
+
+    entry.mesh.material = entry.originalMaterial;
+    this.highlightedMeshes.delete(key);
+  }
+
+  private addHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+    if (this.highlightedMeshes.has(key)) return;
+
+    const baseMaterial = mesh.material;
+    if (Array.isArray(baseMaterial) || !baseMaterial) return;
+
+    const highlightMaterial = (baseMaterial as Three.Material).clone();
+    highlightMaterial.transparent = true;
+    highlightMaterial.opacity = 0.35;
+    highlightMaterial.depthWrite = false;
+
+    this.highlightedMeshes.set(key, {
+      mesh,
+      originalMaterial: baseMaterial
+    });
+
+    mesh.material = highlightMaterial;
+  }
+
+  private toggleHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+
+    if (this.highlightedMeshes.has(key)) {
+      this.removeHighlight(mesh);
+    } else {
+      this.addHighlight(mesh);
+    }
+  }
+
   private computeSelectedAreaM2(): number | null {
     const { state } = this.props;
-    const unit = this.context.catalog.unit; // usually "cm"
+    const unit = this.context.catalog.unit;
     const selectedLayerID = state.scene.selectedLayer;
     if (!selectedLayerID) return null;
 
@@ -96,12 +162,12 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
 
       if (pts.length < 3) continue;
 
-      // shoelace in unit^2
       let sum = 0;
       for (let i = 0; i < pts.length; i++) {
         const j = (i + 1) % pts.length;
         sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
       }
+
       const areaUnit2 = Math.abs(sum) / 2;
       const areaM2 = areaUnit2 * metersPerUnit * metersPerUnit;
 
@@ -109,7 +175,7 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
     }
 
     if (!isFinite(totalM2) || totalM2 <= 0) return null;
-    return Math.round(totalM2 * 100) / 100; // 2 decimals
+    return Math.round(totalM2 * 100) / 100;
   }
 
   componentDidMount() {
@@ -117,11 +183,9 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
 
     const scene3D = new Three.Scene();
 
-    // RENDERER
     this.renderer.setClearColor(new Three.Color(SharedStyle.COLORS.white));
     this.renderer.setSize(this.width, this.height);
 
-    // LOAD DATA
     const planData = parseData(state.scene, this.context);
 
     scene3D.add(planData.plan);
@@ -132,7 +196,6 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
 
     scene3D.add(camera);
 
-    // Set position for the camera
     const cameraPositionX =
       -(planData.boundingBox.max.x - planData.boundingBox.min.x) / 2;
     const cameraPositionY =
@@ -143,14 +206,16 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
     camera.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
     camera.up = new Three.Vector3(0, 1, 0);
 
-    // LIGHT
     const ambient = new Three.AmbientLight(0xffffff, 0.45);
     scene3D.add(ambient);
+
     const hemi = new Three.HemisphereLight(0xffffff, 0x666666, 0.5);
     scene3D.add(hemi);
+
     const spotLight1 = new Three.SpotLight(SharedStyle.COLORS.white, 1.0);
     spotLight1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
     scene3D.add(spotLight1);
+
     const dirLight = new Three.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(
       cameraPositionX + 300,
@@ -159,7 +224,6 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
     );
     scene3D.add(dirLight);
 
-    // OBJECT PICKING
     const toIntersect = [planData.plan];
     const mouse = new Three.Vector2();
     const raycaster = new Three.Raycaster();
@@ -168,8 +232,10 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
       this.lastMousePosition.x = (event.offsetX / this.width) * 2 - 1;
       this.lastMousePosition.y = (-event.offsetY / this.height) * 2 + 1;
     };
+
     this.mouseUpEvent = (event: MouseEvent) => {
       event.preventDefault();
+
       mouse.x = (event.offsetX / this.width) * 2 - 1;
       mouse.y = -(event.offsetY / this.height) * 2 + 1;
 
@@ -178,53 +244,103 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
         Math.abs(mouse.y - this.lastMousePosition.y) <= 0.02
       ) {
         raycaster.setFromCamera(mouse, camera);
+
         const intersects = raycaster.intersectObjects(toIntersect, true);
 
         if (intersects.length > 0 && !isNaN(intersects[0].distance)) {
           const object = intersects[0].object as any;
-          object.interact && object.interact();
+
+          if (this.isSelectableFace(object)) {
+
+            this.toggleHighlight(object);
+
+            const mesh = object as Three.Mesh;
+
+            const wallId = mesh.userData?.wallId;
+            const surfaceType = mesh.userData?.surfaceType;
+
+            if (wallId && surfaceType) {
+
+              const surfaceId = `${wallId}:${surfaceType}`;
+
+              console.log("Surface selected:", surfaceId);
+
+              window.parent?.postMessage(
+                {
+                  protocolVersion: 1,
+                  type: "SURFACE_SELECTED",
+                  payload: {
+                    surfaceId,
+                    wallId,
+                    surfaceType
+                  }
+                },
+                "*"
+              );
+            }
+
+            const interactable = mesh as Three.Mesh & { interact?: () => void };
+            interactable.interact?.();
+          } else {
+            this.clearAllHighlights();
+            this.context.projectActions.unselectAll();
+          }
         } else {
+          this.clearAllHighlights();
           this.context.projectActions.unselectAll();
         }
       }
     };
 
-    if (this.mouseDownEvent)
+    if (this.mouseDownEvent) {
       this.renderer.domElement.addEventListener(
         'mousedown',
         this.mouseDownEvent
       );
-    if (this.mouseUpEvent)
-      this.renderer.domElement.addEventListener('mouseup', this.mouseUpEvent);
+    }
+
+    if (this.mouseUpEvent) {
+      this.renderer.domElement.addEventListener(
+        'mouseup',
+        this.mouseUpEvent
+      );
+    }
+
     this.renderer.domElement.style.display = 'block';
 
-    if (this.canvasWrapper.current)
+    if (this.canvasWrapper.current) {
       this.canvasWrapper.current.appendChild(this.renderer.domElement);
+    }
 
-    // create orbit controls
     const orbitController = new OrbitControls(camera, this.renderer.domElement);
+
     const spotLightTarget = new Three.Object3D();
     spotLightTarget.name = 'spotLightTarget';
+
     spotLightTarget.position.set(
       orbitController.target.x,
       orbitController.target.y,
       orbitController.target.z
     );
+
     scene3D.add(spotLightTarget);
     spotLight1.target = spotLightTarget;
 
     const render = () => {
       orbitController.update();
+
       spotLight1.position.set(
         camera.position.x,
         camera.position.y,
         camera.position.z
       );
+
       spotLightTarget.position.set(
         orbitController.target.x,
         orbitController.target.y,
         orbitController.target.z
       );
+
       camera.updateMatrix();
       camera.updateMatrixWorld();
 
@@ -249,19 +365,25 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
     cancelAnimationFrame(this.renderingID);
     this.orbitController?.dispose();
 
-    if (this.mouseDownEvent)
+    this.clearAllHighlights();
+
+    if (this.mouseDownEvent) {
       this.renderer.domElement.removeEventListener(
         'mousedown',
         this.mouseDownEvent
       );
-    if (this.mouseUpEvent)
+    }
+
+    if (this.mouseUpEvent) {
       this.renderer.domElement.removeEventListener(
         'mouseup',
         this.mouseUpEvent
       );
+    }
 
     if (this.scene3D) {
       disposeScene(this.scene3D);
+
       if (this.planData) {
         this.scene3D.remove(this.planData.plan);
         this.scene3D.remove(this.planData.grid);
@@ -272,13 +394,16 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
     this.planData = undefined;
     this.camera = undefined;
     this.orbitController = undefined;
+
     this.renderer.renderLists.dispose();
   }
 
   componentDidUpdate(prevProps: Scene3DViewerProps) {
     const { width, height } = this.props;
+
     this.width = width;
     this.height = height;
+
     if (this.camera) {
       this.camera.aspect = width / height;
       this.camera.updateProjectionMatrix();
@@ -286,6 +411,7 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
 
     if (prevProps && this.props.state.scene !== prevProps.state.scene) {
       const changedValues = diff(prevProps.state.scene, this.props.state.scene);
+
       if (this.planData) {
         updateScene(
           this.planData,
@@ -296,6 +422,7 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
         );
       }
     }
+
     this.renderer.setSize(width, height);
   }
 
@@ -307,6 +434,7 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
         {areaM2 !== null ? (
           <div style={hudStyle}>Selected area: {areaM2} m²</div>
         ) : null}
+
         <div ref={this.canvasWrapper} />
       </div>
     );

@@ -1,0 +1,1156 @@
+
+==================== FILE: 00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx ====================
+import { useMemo, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bolt,
+  Wrench,
+  Paintbrush,
+  Grid3X3,
+  Layers,
+  Boxes,
+  MoreHorizontal,
+  FilePlus,
+  FolderOpen,
+  Save,
+  Plus,
+  Undo2,
+  Settings,
+  PersonStanding,
+  FileText,
+} from "lucide-react";
+
+import PlannerFrame, { type PlannerApi } from "../../components/planner/PlannerFrame";
+
+import {
+  MAIN_SERVICES,
+  SUBSERVICES,
+  usePlannerState,
+  type MainService,
+} from "../../state/plannerState";
+
+type ViewMode = "2D" | "3D";
+
+const ICONS: Record<MainService, LucideIcon> = {
+  electricity: Bolt,
+  plumbing: Wrench,
+  painting: Paintbrush,
+  flooring: Grid3X3,
+  plastering: Layers,
+  boards: Boxes,
+  other: MoreHorizontal,
+};
+
+export default function Planner() {
+  const navigate = useNavigate();
+
+  const apiRef = useRef<PlannerApi | null>(null);
+  const didInitRef = useRef(false);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("2D");
+  const [engineMode, setEngineMode] = useState<string>("");
+
+  const {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    hasAnySelection,
+    selectedCount,
+    clearAll,
+  } = usePlannerState();
+
+  const subs = useMemo(() => SUBSERVICES[activeMain], [activeMain]);
+
+  const handleApi = useCallback((api: PlannerApi) => {
+    apiRef.current = api;
+    if (!didInitRef.current) {
+      didInitRef.current = true;
+      api.cmd("VIEW_2D");
+      api.cmd("SELECT_TOOL_EDIT");
+      setViewMode("2D");
+    }
+  }, []);
+
+  const go2D = useCallback(() => {
+    setViewMode("2D");
+    apiRef.current?.cmd("VIEW_2D");
+    apiRef.current?.cmd("SELECT_TOOL_EDIT");
+  }, []);
+
+  const go3D = useCallback(() => {
+    setViewMode("3D");
+    apiRef.current?.cmd("VIEW_3D");
+  }, []);
+
+  const isCatalogOpen = engineMode === "MODE_VIEWING_CATALOG";
+
+  return (
+    <div className={`${viewMode === "2D" ? "planner2d-bg" : "planner3d-bg"} fixed inset-0 text-zinc-900`}>
+      <PlannerFrame onApi={handleApi} onModeChange={setEngineMode} />
+
+      {/* TOP BAR (FULL WIDTH – NO SLIDER, NO WRAP) */}
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex justify-center p-2">
+        <div className="pointer-events-auto glass-panel w-[calc(100vw-24px)] px-4 py-1">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 font-semibold"
+            >
+              <span className="text-base">PlanO</span>
+            </button>
+
+            {/* SERVICES (3D only) — hidden while catalog is open */}
+            {viewMode === "3D" && !isCatalogOpen ? (
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 justify-center px-1">
+                  {MAIN_SERVICES.map((s) => {
+                    const Icon = ICONS[s.key];
+                    const isActive = activeMain === s.key;
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => setActiveMain(s.key)}
+                        className={`plano-dock-item flex items-center gap-2 px-2 py-1 text-xs ${
+                          isActive ? "ring-2 ring-white/70" : ""
+                        }`}
+                        title={s.label}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="hidden lg:inline">{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            {/* ACTIONS — hidden while catalog is open */}
+            {!isCatalogOpen && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("NEW_PROJECT")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="New project"
+                >
+                  <FilePlus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.saveProjectDownload()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Save project"
+                >
+                  <Save className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.loadProjectPicker()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Load project (JSON/PDF/Image via Raster)"
+                >
+                  <FolderOpen className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_CATALOG")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Open catalog"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go3D}
+                  className={`plano-glass-btn px-4 py-2 text-sm font-semibold ${
+                    viewMode === "3D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                  title="3D View"
+                >
+                  3D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go2D}
+                  className={`plano-glass-btn px-4 py-2 text-sm font-semibold ${
+                    viewMode === "2D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                  title="2D View"
+                >
+                  2D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => viewMode === "3D" && apiRef.current?.cmd("VIEW_3D_FIRST_PERSON")}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    viewMode === "3D" ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                  title="3D First Person (3D only)"
+                  disabled={viewMode !== "3D"}
+                >
+                  <PersonStanding className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("UNDO")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Undo"
+                >
+                  <Undo2 className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Configure project"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/estimate")}
+                  disabled={!hasAnySelection}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    hasAnySelection ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                  title="Estimate"
+                >
+                  <FileText className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* LEFT SUBSERVICES only in 3D (HIDDEN while catalog is open) */}
+      {viewMode === "3D" && !isCatalogOpen && (
+        <div className="pointer-events-none absolute left-4 top-36 z-50">
+          <div className="pointer-events-auto w-[300px] glass-panel overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/20">
+              <div className="text-[11px] font-semibold text-zinc-900">
+                {MAIN_SERVICES.find((x) => x.key === activeMain)?.label.toUpperCase()} SUB-SERVICES
+              </div>
+              <div className="text-[11px] text-zinc-700">
+                Click to toggle. Selected are highlighted.
+              </div>
+            </div>
+
+            <div className="p-3 space-y-2 max-h-[62vh] overflow-auto">
+              {subs.map((sub) => {
+                const isActive = selected[activeMain].has(sub);
+                return (
+                  <button
+                    key={sub}
+                    type="button"
+                    onClick={() => toggleSub(activeMain, sub)}
+                    className={`plano-dock-item w-full px-3 py-2 text-sm text-left ${
+                      isActive ? "ring-2 ring-white/70" : ""
+                    }`}
+                    title={sub}
+                  >
+                    {sub}
+                  </button>
+                );
+              })}
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearAll();
+                    apiRef.current?.cmd("UNSELECT_ALL");
+                  }}
+                  className="plano-glass-btn w-full px-3 py-2 text-sm font-semibold"
+                >
+                  Reset selections
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* IMPORTANT: removed the PlanO right NAV overlay entirely */}
+    </div>
+  );
+}
+
+==================== FILE: 00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx ====================
+import { useEffect, useRef } from "react";
+
+const ENGINE_URL = "http://localhost:5173";
+const PROTOCOL_VERSION = 1;
+
+const RASTER_URL = "http://localhost:8000/upload-plan";
+
+export type PlannerCmd =
+  | "NEW_PROJECT"
+  | "OPEN_CATALOG"
+  | "VIEW_2D"
+  | "VIEW_3D"
+  | "VIEW_3D_FIRST_PERSON"
+  | "UNDO"
+  | "OPEN_PROJECT_CONFIGURATOR"
+  | "TOOL_PAN"
+  | "TOOL_ZOOM_IN"
+  | "TOOL_ZOOM_OUT"
+  | "SELECT_TOOL_EDIT"
+  | "UNSELECT_ALL"
+  | "LOAD_PROJECT_JSON"
+  | "LOAD_RASTER_JSON"
+  | "REQUEST_SCENE_JSON";
+
+export type PlannerApi = {
+  cmd: (c: PlannerCmd, payload?: any) => void;
+  loadProjectPicker: () => void;
+  saveProjectDownload: () => void;
+};
+
+type Props = {
+  onApi?: (api: PlannerApi) => void;
+  onModeChange?: (mode: string) => void;
+};
+
+function downloadJson(filename: string, data: any) {
+  const dataStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+export default function PlannerFrame({ onApi, onModeChange }: Props) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  // IMPORTANT: Use '*' to avoid targetOrigin mismatch during dev.
+  // Engine validates event.origin.
+  const postToEngine = (msg: any) => {
+    const w = iframeRef.current?.contentWindow;
+    if (!w) return;
+    w.postMessage(msg, "*");
+  };
+
+  const cmd = (c: PlannerCmd, payload?: any) => {
+    postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "CMD", cmd: c, payload });
+  };
+
+  const loadProjectPicker = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json,.png,.jpg,.jpeg,application/pdf";
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      try {
+        if (file.name.toLowerCase().endsWith(".json")) {
+          const text = await file.text();
+          const scene = JSON.parse(text);
+          cmd("LOAD_PROJECT_JSON", { scene });
+          return;
+        }
+
+        const form = new FormData();
+        form.append("file", file);
+
+        const resp = await fetch(RASTER_URL, { method: "POST", body: form });
+        if (!resp.ok) {
+          const msg = await resp.text();
+          throw new Error(`Raster upload failed (${resp.status}): ${msg}`);
+        }
+
+        const raw = await resp.json();
+        cmd("LOAD_RASTER_JSON", { raw });
+      } catch (e: any) {
+        alert(e?.message || String(e));
+        console.error(e);
+      }
+    };
+
+    input.click();
+  };
+
+  const saveProjectDownload = () => {
+    cmd("REQUEST_SCENE_JSON");
+  };
+
+  useEffect(() => {
+    onApi?.({ cmd, loadProjectPicker, saveProjectDownload });
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== "http://localhost:5173") return;
+
+      const data: any = event.data;
+      if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
+
+      if (data.type === "ERROR") console.error("[ENGINE ERROR]", data.message);
+
+      // ONLY CHANGE: allow PlanO to know when catalog mode is active
+      if (data.type === "MODE_CHANGED") {
+        const mode = data?.payload?.mode;
+        if (typeof mode === "string") onModeChange?.(mode);
+        return;
+      }
+
+      if (data.type === "SCENE_JSON") {
+        const scene = data?.payload?.scene;
+        if (scene) downloadJson("plano_scene.json", scene);
+      }
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [onApi, onModeChange]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      src={ENGINE_URL}
+      title="React Planner Engine"
+      allow="clipboard-read; clipboard-write"
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100vh",
+        border: 0,
+        zIndex: 1,
+        background: "#fff",
+      }}
+      onLoad={() => postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "PING" })}
+    />
+  );
+}
+
+==================== FILE: 00_frontend_skeleton/plano-ui/src/state/plannerState.tsx ====================
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+export type MainService =
+  | "electricity"
+  | "plumbing"
+  | "painting"
+  | "flooring"
+  | "plastering"
+  | "boards"
+  | "other";
+
+export const MAIN_SERVICES: Array<{ key: MainService; label: string }> = [
+  { key: "electricity", label: "Electricity" },
+  { key: "plumbing", label: "Plumbing" },
+  { key: "painting", label: "Painting" },
+  { key: "flooring", label: "Flooring" },
+  { key: "plastering", label: "Plastering" },
+  { key: "boards", label: "Boards" },
+  { key: "other", label: "Other" },
+];
+
+export const SUBSERVICES: Record<MainService, string[]> = {
+  electricity: [
+    "Switches & plugs",
+    "Overlaps with plumbing",
+    "Oven",
+    "Hob",
+    "Fridge freezer",
+    "Microwave",
+    "AC",
+  ],
+  plumbing: [
+    "Floor drain",
+    "Shower cubical",
+    "Bathroom sink",
+    "Mixers",
+    "Kitchen sink",
+    "Water heater",
+    "Washing machine",
+    "Dishwasher",
+    "Tap for water",
+  ],
+  painting: ["Internal paint", "External paint"],
+  flooring: [
+    "Ceramic tiles 60×60",
+    "Ceramic tiles 120×60",
+    "Ceramic tiles custom",
+    "Laminate",
+    "Microcement",
+    "Polished concrete",
+    "Parquet",
+  ],
+  plastering: [
+    "Internal (monacote+finittura)",
+    "Internal (microcement)",
+    "External (GR1000)",
+    "External (silicato)",
+    "Stone restoration",
+  ],
+  boards: ["Flat ceiling", "L-shape bulkhead", "U-shape bulkhead", "Custom shapes"],
+  other: ["To be defined", "Custom request", "Special works"],
+};
+
+type State = {
+  activeMain: MainService;
+  setActiveMain: (s: MainService) => void;
+
+  selected: Record<MainService, Set<string>>;
+  toggleSub: (main: MainService, sub: string) => void;
+  clearAll: () => void;
+
+  hasAnySelection: boolean;
+  selectedCount: number;
+};
+
+const KEY = "plano:plannerSelections:v1";
+const Ctx = createContext<State | null>(null);
+
+function load(): { activeMain: MainService; selected: Record<MainService, string[]> } | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const activeMain = (parsed.activeMain as MainService) || "electricity";
+    const sel = (parsed.selected as Record<string, string[]>) || {};
+
+    const out: Record<MainService, string[]> = {
+      electricity: sel.electricity || [],
+      plumbing: sel.plumbing || [],
+      painting: sel.painting || [],
+      flooring: sel.flooring || [],
+      plastering: sel.plastering || [],
+      boards: sel.boards || [],
+      other: sel.other || [],
+    };
+
+    return { activeMain, selected: out };
+  } catch {
+    return null;
+  }
+}
+
+function save(activeMain: MainService, selected: Record<MainService, Set<string>>) {
+  const payload = {
+    activeMain,
+    selected: {
+      electricity: Array.from(selected.electricity),
+      plumbing: Array.from(selected.plumbing),
+      painting: Array.from(selected.painting),
+      flooring: Array.from(selected.flooring),
+      plastering: Array.from(selected.plastering),
+      boards: Array.from(selected.boards),
+      other: Array.from(selected.other),
+    },
+  };
+  localStorage.setItem(KEY, JSON.stringify(payload));
+}
+
+/** ✅ This name must match your main.tsx import */
+export function PlannerStateProvider({ children }: { children: React.ReactNode }) {
+  const initial = load();
+
+  const [activeMain, setActiveMain] = useState<MainService>(initial?.activeMain || "electricity");
+  const [selected, setSelected] = useState<Record<MainService, Set<string>>>(() => ({
+    electricity: new Set(initial?.selected.electricity || []),
+    plumbing: new Set(initial?.selected.plumbing || []),
+    painting: new Set(initial?.selected.painting || []),
+    flooring: new Set(initial?.selected.flooring || []),
+    plastering: new Set(initial?.selected.plastering || []),
+    boards: new Set(initial?.selected.boards || []),
+    other: new Set(initial?.selected.other || []),
+  }));
+
+  useEffect(() => {
+    save(activeMain, selected);
+  }, [activeMain, selected]);
+
+  const toggleSub = (main: MainService, sub: string) => {
+    setSelected((prev) => {
+      const next: Record<MainService, Set<string>> = {
+        electricity: new Set(prev.electricity),
+        plumbing: new Set(prev.plumbing),
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+        other: new Set(prev.other),
+      };
+      if (next[main].has(sub)) next[main].delete(sub);
+      else next[main].add(sub);
+      return next;
+    });
+  };
+
+  const clearAll = () => {
+    setSelected({
+      electricity: new Set(),
+      plumbing: new Set(),
+      painting: new Set(),
+      flooring: new Set(),
+      plastering: new Set(),
+      boards: new Set(),
+      other: new Set(),
+    });
+  };
+
+  const selectedCount = useMemo(() => {
+    return (
+      selected.electricity.size +
+      selected.plumbing.size +
+      selected.painting.size +
+      selected.flooring.size +
+      selected.plastering.size +
+      selected.boards.size +
+      selected.other.size
+    );
+  }, [selected]);
+
+  const hasAnySelection = selectedCount > 0;
+
+  const value: State = {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    clearAll,
+    hasAnySelection,
+    selectedCount,
+  };
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/** ✅ This name must match Planner3D.tsx import */
+export function usePlannerState() {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("usePlannerState must be used inside PlannerStateProvider");
+  return ctx;
+}
+
+==================== FILE: 02_react_planner/react-planner/demo/src/renderer.tsx ====================
+import React, { useEffect } from 'react';
+
+import {
+  Models as PlannerModels,
+  Plugins as PlannerPlugins,
+  reducer as PlannerReducer,
+  ReactPlanner
+} from '@archef2000/react-planner';
+import { configureStore } from '@reduxjs/toolkit';
+import { produce } from 'immer';
+import { createRoot } from 'react-dom/client';
+import { Provider } from 'react-redux';
+import useMeasure from 'react-use-measure';
+
+import { createCatalog } from './catalog_custom/mycatalog';
+
+/**
+ * We wire PlanO UI -> React-Planner engine via postMessage.
+ * PlanO sends messages from:
+ * /00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx
+ *
+ * This engine:
+ * - listens for CMD messages
+ * - dispatches the same Redux actions that the React-Planner toolbar would call
+ * - reports MODE_CHANGED + SCENE_JSON back to the parent
+ */
+
+// ------- Protocol (must match PlanO PlannerFrame.tsx) -------
+const PROTOCOL_VERSION = 1;
+
+// ------- Import action creators + constants from local source -------
+import * as constants from '../../src/constants';
+import { normalizeSceneFromRaster } from '../../src/utils/scene-normalizer';
+
+import * as projectActions from '../../src/actions/project-actions';
+import * as viewer2DActions from '../../src/actions/viewer2d-actions';
+import * as viewer3DActions from '../../src/actions/viewer3d-actions';
+import * as linesActions from '../../src/actions/lines-actions';
+import * as holesActions from '../../src/actions/holes-actions';
+import * as itemsActions from '../../src/actions/items-actions';
+
+//define state
+const AppState = {
+  'react-planner': PlannerModels.State()
+};
+
+//define reducer
+const reducer = (state: { [key: string]: any } | undefined, action: any) => {
+  state = state || AppState;
+  state = produce(state, (draft) => {
+    draft['react-planner'] = PlannerReducer(draft['react-planner'], action);
+  });
+  return state;
+};
+
+const store = configureStore({
+  reducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      thunk: true,
+      immutableCheck: true,
+      serializableCheck: false,
+      actionCreatorCheck: true
+    }).concat()
+});
+
+const plugins = [PlannerPlugins.Keyboard(), PlannerPlugins.ConsoleDebugger()];
+
+// ---- helpers to talk to parent (PlanO) ----
+function postToParent(msg: any) {
+  try {
+    // targetOrigin '*' is OK; parent verifies origin is http://localhost:5173
+    window.parent?.postMessage(msg, '*');
+  } catch (e: any) {
+    // ignore
+  }
+}
+
+function emitModeChanged(mode: string) {
+  postToParent({
+    protocolVersion: PROTOCOL_VERSION,
+    type: 'MODE_CHANGED',
+    payload: { mode }
+  });
+}
+
+function emitError(message: string) {
+  postToParent({
+    protocolVersion: PROTOCOL_VERSION,
+    type: 'ERROR',
+    message
+  });
+}
+
+function emitSceneJson(scene: any) {
+  postToParent({
+    protocolVersion: PROTOCOL_VERSION,
+    type: 'SCENE_JSON',
+    payload: { scene }
+  });
+}
+
+// Component that uses useMeasure hook
+function ResponsiveReactPlanner() {
+  const [ref, bounds] = useMeasure();
+  const catalog = createCatalog();
+
+  useEffect(() => {
+    // Send initial mode to PlanO as soon as possible
+    const st: any = store.getState()['react-planner'];
+    if (st?.mode) emitModeChanged(String(st.mode));
+
+    // Subscribe to mode changes
+    let lastMode = st?.mode;
+    const unsubscribe = store.subscribe(() => {
+      const cur: any = store.getState()['react-planner'];
+      const mode = cur?.mode;
+      if (mode && mode !== lastMode) {
+        lastMode = mode;
+        emitModeChanged(String(mode));
+      }
+    });
+
+    // Listen for PlanO commands
+    const onMessage = (event: MessageEvent) => {
+      // PlanO uses '*' targetOrigin, so accept but validate message shape
+      const data: any = event.data;
+      if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
+
+      // Basic ping (PlanO sends on iframe load)
+      if (data.type === 'PING') {
+        const cur: any = store.getState()['react-planner'];
+        if (cur?.mode) emitModeChanged(String(cur.mode));
+        return;
+      }
+
+      if (data.type !== 'CMD') return;
+
+      const cmd: string = data.cmd;
+      const payload: any = data.payload || {};
+
+      try {
+        const planner: any = store.getState()['react-planner'];
+
+        switch (cmd) {
+          // ----- toolbar equivalents -----
+          case 'NEW_PROJECT':
+            store.dispatch(projectActions.newProject());
+            break;
+
+          case 'OPEN_CATALOG':
+            store.dispatch(projectActions.openCatalog());
+            break;
+
+          case 'VIEW_2D':
+            store.dispatch(projectActions.setMode(constants.MODE_IDLE));
+            break;
+
+          case 'VIEW_3D':
+            store.dispatch(viewer3DActions.selectTool3DView());
+            break;
+
+          case 'VIEW_3D_FIRST_PERSON':
+            store.dispatch(viewer3DActions.selectTool3DFirstPerson());
+            break;
+
+          case 'UNDO':
+            store.dispatch(projectActions.undo());
+            break;
+
+          case 'OPEN_PROJECT_CONFIGURATOR':
+            store.dispatch(projectActions.openProjectConfigurator());
+            break;
+
+          // ----- 2D tools -----
+          case 'TOOL_PAN':
+            store.dispatch(viewer2DActions.selectToolPan());
+            break;
+
+          case 'TOOL_ZOOM_IN':
+            store.dispatch(viewer2DActions.selectToolZoomIn());
+            break;
+
+          case 'TOOL_ZOOM_OUT':
+            store.dispatch(viewer2DActions.selectToolZoomOut());
+            break;
+
+          case 'SELECT_TOOL_EDIT':
+            store.dispatch(projectActions.selectToolEdit());
+            break;
+
+          case 'UNSELECT_ALL':
+            store.dispatch(projectActions.unselectAll());
+            break;
+
+          // ----- loading -----
+          case 'LOAD_PROJECT_JSON': {
+            const scene = payload?.scene;
+            if (!scene) throw new Error('LOAD_PROJECT_JSON: missing payload.scene');
+            store.dispatch(projectActions.loadProject(scene));
+            break;
+          }
+
+          case 'LOAD_RASTER_JSON': {
+            const raw = payload?.raw;
+            if (!raw) throw new Error('LOAD_RASTER_JSON: missing payload.raw');
+            const scene = normalizeSceneFromRaster(raw);
+            store.dispatch(projectActions.loadProject(scene));
+            break;
+          }
+
+          // ----- export -----
+          case 'REQUEST_SCENE_JSON': {
+            const st2: any = store.getState()['react-planner'];
+            const scene = st2?.scene;
+            if (!scene) throw new Error('REQUEST_SCENE_JSON: scene not available');
+            emitSceneJson(scene);
+            break;
+          }
+
+          default:
+            // Unknown command: ignore but report to parent
+            emitError(`Unknown CMD: ${cmd}`);
+            break;
+        }
+
+        // After any command, inform parent of current mode (helps keep UI in sync)
+        const after: any = store.getState()['react-planner'];
+        if (after?.mode) emitModeChanged(String(after.mode));
+      } catch (e: any) {
+        emitError(e?.message || String(e));
+      }
+    };
+
+    window.addEventListener('message', onMessage);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      unsubscribe();
+    };
+  }, []);
+
+  return (
+    <div ref={ref} style={{ width: '100%', height: '100%' }}>
+      {bounds.width > 0 && bounds.height > 0 && (
+        <ReactPlanner
+          catalog={catalog}
+          width={bounds.width}
+          height={bounds.height}
+          plugins={plugins}
+          // Keep toolbarButtons empty; PlanO is the toolbar.
+          toolbarButtons={[]}
+          stateExtractor={(state) => state['react-planner']}
+        />
+      )}
+    </div>
+  );
+}
+
+//render
+const container = document.getElementById('app');
+if (!container) {
+  throw new Error('Container element not found');
+}
+
+// Reuse a single React root across HMR updates
+const globalAny = globalThis as any;
+const ROOT_KEY = '__REACT_PLANNER_DEMO_ROOT__';
+const root =
+  globalAny[ROOT_KEY] || (globalAny[ROOT_KEY] = createRoot(container));
+
+root.render(
+  <Provider store={store}>
+    <ResponsiveReactPlanner />
+  </Provider>
+);
+
+if ((module as any)?.hot) {
+  try {
+    (module as any).hot.dispose(() => {
+      root.unmount();
+      delete globalAny[ROOT_KEY];
+    });
+  } catch {}
+}
+
+==================== FILE: 02_react_planner/react-planner/src/react-planner.tsx ====================
+import React, { useContext, useEffect } from 'react';
+
+import { enableMapSet } from 'immer';
+import { connect, ReactReduxContext } from 'react-redux';
+import { bindActionCreators, Dispatch, Store } from 'redux';
+
+import actions, {
+  AreaActionsType,
+  GroupsActionsType,
+  HolesActionsType,
+  ItemsActionsType,
+  LinesActionsType,
+  ProjectActionsType,
+  SceneActionsType,
+  VerticesActionsType,
+  Viewer2DActionsType,
+  Viewer3DActionsType
+} from './actions/export';
+import { CatalogFactory, CatalogJson } from './catalog/catalog';
+import Content from './components/content';
+import FooterBar from './components/footerbar/footerbar';
+import Sidebar from './components/sidebar/sidebar';
+import Toolbar from './components/toolbar/toolbar';
+import ReactPlannerContext from './react-planner-context';
+import Translator from './translator/translator';
+import {
+  FooterBarComponentProps,
+  ReactPlannerPlugin,
+  ReactPlannerStateExtractor
+} from './types';
+import { objectsMap } from './utils/objects-utils';
+import { VERSION } from './version';
+
+enableMapSet();
+
+/**
+ * IMPORTANT:
+ * - React-Planner toolbar remains mounted (functionality intact)
+ * - but is hidden, so only PlanO buttons/icons are visible (no duplicates)
+ * - Sidebar (information box) stays visible
+ */
+const toolbarW = 0; // canvas takes full width
+const sidebarW = 0; // floating sidebar (overlay)
+const footerBarH = 0;
+
+const wrapperStyle: React.CSSProperties = {
+  display: 'flex',
+  flexFlow: 'row nowrap',
+  position: 'relative'
+};
+
+interface ReactPlannerOptionalProps {
+  translator: Translator;
+  catalog: CatalogJson;
+  allowProjectFileSupport: boolean;
+  toolbarButtons: any[];
+  sidebarComponents: [];
+  customContents: {};
+  softwareSignature: string; // `React Planner ${VERSION}`
+  footerbarComponents: React.ComponentType<FooterBarComponentProps>[];
+  customOverlays: { [key: string]: React.ComponentType<any> }[];
+  customActions: { [key: string]: any };
+}
+
+interface ReactPlannerExternalProps {
+  plugins: ReactPlannerPlugin[];
+  autosaveKey?: string;
+  autosaveDelay?: number;
+  width: number;
+  height: number;
+  stateExtractor: ReactPlannerStateExtractor;
+}
+
+interface ReactPlannerInternalProps {
+  projectActions: ProjectActionsType;
+  viewer2DActions: Viewer2DActionsType;
+  viewer3DActions: Viewer3DActionsType;
+  linesActions: LinesActionsType;
+  holesActions: HolesActionsType;
+  sceneActions: SceneActionsType;
+  verticesActions: VerticesActionsType;
+  itemsActions: ItemsActionsType;
+  areaActions: AreaActionsType;
+  groupsActions: GroupsActionsType;
+}
+
+type ExternalReactPlannerProps = ReactPlannerExternalProps &
+  Partial<ReactPlannerOptionalProps>;
+type ReactPlannerProps = ReactPlannerInternalProps &
+  ReactPlannerExternalProps &
+  Partial<ReactPlannerOptionalProps>;
+type InternalReactPlannerProps = ReactPlannerInternalProps &
+  ReactPlannerExternalProps &
+  ReactPlannerOptionalProps;
+
+function ReactPlanner(props: InternalReactPlannerProps) {
+  const { width, height, stateExtractor, ...restProps } = props;
+
+  const context = useContext(ReactReduxContext);
+  if (!context)
+    throw new Error(
+      'ReactPlanner must be used inside a <Provider> component from react-redux library'
+    );
+
+  useEffect(() => {
+    const store = context.store;
+    const { projectActions, catalog, stateExtractor, plugins } = props;
+    plugins.forEach((plugin) => plugin(store, stateExtractor));
+    projectActions.initCatalog(catalog);
+  }, []);
+
+  useEffect(() => {
+    const { stateExtractor, projectActions, catalog } = props;
+    const state = context.store.getState();
+    const plannerState = stateExtractor(state);
+    const catalogReady = plannerState.catalog.ready;
+    if (!catalogReady) {
+      projectActions.initCatalog(catalog);
+    }
+  }, [props]);
+
+  const state = context.store.getState();
+
+  const contentW = width - toolbarW; // toolbarW=0 so full width
+  const toolbarH = height - footerBarH;
+  const contentH = height - footerBarH;
+  const sidebarH = height - footerBarH;
+
+  const extractedState = stateExtractor(state);
+
+  return (
+    <div style={{ ...wrapperStyle, height }}>
+      {/* Toolbar kept for functionality, but hidden to avoid duplicate icons/buttons */}
+      <div style={{ display: 'none' }}>
+        <Toolbar
+          {...restProps}
+          width={50} // keep original internal width
+          height={toolbarH}
+          state={extractedState}
+        />
+      </div>
+
+      <Content
+        {...restProps}
+        width={contentW}
+        height={contentH}
+        state={extractedState}
+      />{' '}
+      <Sidebar
+        {...restProps}
+        width={sidebarW}
+        height={sidebarH}
+        state={extractedState}
+      />
+      <div style={{ display: 'none' }}>
+        <FooterBar
+          {...restProps}
+          width={width}
+          height={20} // keep original internal height
+          state={extractedState}
+        />
+      </div>
+
+    </div>
+  );
+}
+
+//redux connect
+function mapStateToProps(reduxState: Store) {
+  return {
+    state: reduxState
+  };
+}
+
+function mapDispatchToProps(dispatch: Dispatch) {
+  return objectsMap(actions, (actionNamespace) =>
+    bindActionCreators(actions[actionNamespace], dispatch)
+  );
+}
+
+function ReactPlannerWrapper(tempProps: ReactPlannerProps) {
+  const {
+    translator = new Translator(),
+    catalog = CatalogFactory(),
+    allowProjectFileSupport = true,
+    toolbarButtons = [],
+    sidebarComponents = [],
+    footerbarComponents = [],
+    customContents = {},
+    customOverlays = [],
+    customActions = {},
+    softwareSignature = `React-Planner ${VERSION}`,
+    ...otherProps
+  } = tempProps;
+  const props = {
+    ...otherProps,
+    translator,
+    catalog,
+    allowProjectFileSupport,
+    toolbarButtons,
+    sidebarComponents,
+    footerbarComponents,
+    customContents,
+    customOverlays,
+    customActions,
+    softwareSignature
+  } as InternalReactPlannerProps;
+  return (
+    <ReactPlannerContext.Provider value={{ ...props }}>
+      <ReactPlanner {...props} />
+    </ReactPlannerContext.Provider>
+  );
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(ReactPlannerWrapper as React.ComponentType<ExternalReactPlannerProps>);

@@ -1,0 +1,1845 @@
+===== 1) CATALOG ITEM =====
+import React, { Component } from 'react';
+
+import { FaPlusCircle as IconAdd } from 'react-icons/fa';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElement } from '../../types';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .15s ease-in-out',
+  WebkitTransition: 'all .15s ease-in-out',
+  alignSelf: 'center',
+  justifySelf: 'center'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_TITLE = {
+  width: '100%',
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '.5em',
+  textTransform: 'capitalize'
+} as const;
+
+const STYLE_TITLE_HOVER = {
+  ...STYLE_TITLE,
+  color: SharedStyle.COLORS.white
+} as const;
+
+const STYLE_IMAGE_CONTAINER = {
+  width: '100%',
+  height: '8em',
+  position: 'relative',
+  overflow: 'hidden',
+  border: 'solid 1px #e6e6e6',
+  padding: 0,
+  margin: 0,
+  marginBottom: '5px'
+} as const;
+
+const STYLE_IMAGE = {
+  position: 'absolute',
+  background: '#222',
+  width: '100%',
+  height: '100%',
+  backgroundSize: 'contain',
+  backgroundPosition: '50% 50%',
+  backgroundColor: SharedStyle.COLORS.white,
+  backgroundRepeat: 'no-repeat',
+  transition: 'all .2s ease-in-out'
+} as const;
+
+const STYLE_IMAGE_HOVER = {
+  ...STYLE_IMAGE,
+  transform: 'scale(1.2)'
+} as const;
+
+const STYLE_PLUS_HOVER = {
+  marginTop: '1.5em',
+  color: SharedStyle.SECONDARY_COLOR.main,
+  fontSize: '2em',
+  opacity: '0.7',
+  width: '100%'
+} as const;
+
+const STYLE_DESCRIPTION = {
+  display: 'block',
+  height: '2em',
+  margin: '0 auto',
+  fontSize: '0.75em',
+  fontStyle: 'italic',
+  lineHeight: '1em',
+  WebkitLineClamp: '2',
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
+} as const;
+
+const STYLE_TAGS = {
+  listStyle: 'none',
+  margin: '0px',
+  padding: '0px',
+  fontSize: '11px',
+  marginBottom: '3px'
+} as const;
+
+const STYLE_TAG = {
+  display: 'inline-block',
+  background: '#337ab7',
+  color: SharedStyle.COLORS.white,
+  padding: '1px 4px',
+  marginRight: '3px',
+  borderRadius: '3px'
+} as const;
+
+interface CatalogItemProps {
+  element: CatalogElement;
+}
+
+interface CatalogItemState {
+  hover: boolean;
+}
+
+export default class CatalogItem extends Component<
+  CatalogItemProps,
+  CatalogItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogItemProps,
+    context: React.ContextType<typeof ReactPlannerContext>
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  select() {
+    const element = this.props.element;
+
+    switch (element.prototype) {
+      case 'lines':
+        this.context.linesActions.selectToolDrawingLine(element.name);
+        break;
+      case 'items':
+        this.context.itemsActions.selectToolDrawingItem(element.name);
+        break;
+      case 'holes':
+        this.context.holesActions.selectToolDrawingHole(element.name);
+        break;
+    }
+
+    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+      element
+    );
+  }
+
+  render() {
+    const element = this.props.element;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.select()}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        <b style={!hover ? STYLE_TITLE : STYLE_TITLE_HOVER}>
+          {element.info.title}
+        </b>
+        <div style={STYLE_IMAGE_CONTAINER}>
+          <div
+            style={{
+              ...(!hover ? STYLE_IMAGE : STYLE_IMAGE_HOVER),
+              backgroundImage: 'url(' + element.info.image + ')'
+            }}
+          >
+            {hover ? <IconAdd style={STYLE_PLUS_HOVER} /> : null}
+          </div>
+        </div>
+        <ul style={STYLE_TAGS}>
+          {element.info.tag.map((tag, index) => (
+            <li style={STYLE_TAG} key={index}>
+              {tag}
+            </li>
+          ))}
+        </ul>
+        <div style={STYLE_DESCRIPTION}>{element.info.description}</div>
+      </div>
+    );
+  }
+}
+
+===== 2) CATALOG LIST =====
+import React, { Component } from 'react';
+
+import { CatalogCategory, CatalogFn } from '../../catalog/catalog';
+import { MODE_IDLE } from '../../constants';
+import { State } from '../../models';
+import ReactPlannerContext, {
+  ReactPlannerContextProps
+} from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElement } from '../../types';
+import ContentContainer from '../style/content-container';
+import ContentTitle from '../style/content-title';
+
+import CatalogBreadcrumb from './catalog-breadcrumb';
+import CatalogItem from './catalog-item';
+import CatalogPageItem from './catalog-page-item';
+import CatalogTurnBackPageItem from './catalog-turn-back-page-item';
+
+const containerStyle = {
+  position: 'fixed',
+  width: 'calc( 100% - 51px)',
+  height: 'calc( 100% - 20px)',
+  backgroundColor: '#FFF',
+  padding: '1em',
+  left: 50,
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  zIndex: 10
+} as const;
+
+const itemsStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(14em, 1fr))',
+  gridGap: '10px',
+  marginTop: '1em'
+} as const;
+
+const searchContainer = {
+  width: '100%',
+  height: '3em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .2s ease-in-out',
+  WebkitTransition: 'all .2s ease-in-out',
+  marginBottom: '1em'
+} as const;
+
+const searchText = {
+  width: '8em',
+  display: 'inline-block'
+} as const;
+
+const searchInput = {
+  width: 'calc( 100% - 10em )',
+  height: '2em',
+  margin: '0',
+  padding: '0 1em',
+  border: '1px solid #EEE'
+} as const;
+
+const historyContainer = {
+  ...searchContainer,
+  padding: '0.2em 0.625em'
+} as const;
+
+const backToCanvasButton = {
+  marginBottom: '1em',
+  padding: '10px',
+  background: '#f0f0f0',
+  border: '1px solid #ccc',
+  cursor: 'pointer',
+  textAlign: 'center',
+  fontWeight: 'bold'
+} as const;
+
+const historyElementStyle = {
+  width: 'auto',
+  height: '2em',
+  lineHeight: '2em',
+  textAlign: 'center',
+  borderRadius: '1em',
+  display: 'inline-block',
+  cursor: 'pointer',
+  backgroundColor: SharedStyle.PRIMARY_COLOR.alt,
+  color: SharedStyle.PRIMARY_COLOR.text_main,
+  textTransform: 'capitalize',
+  margin: '0.25em',
+  padding: '0 1em'
+} as const;
+
+interface CatalogListProps {
+  state: State;
+  width: number;
+  height: number;
+  style?: React.CSSProperties;
+}
+
+interface CatalogListState {
+  categories: CatalogCategory[];
+  elements: CatalogElement[];
+  matchString: string;
+  matchedElements: CatalogElement[];
+}
+
+export default class CatalogList extends Component<
+  CatalogListProps,
+  CatalogListState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(props: CatalogListProps, context: ReactPlannerContextProps) {
+    super(props, context);
+
+    const page = props.state.catalog.page;
+    const currentCategory = CatalogFn.getCategory(context.catalog, page);
+    const elementsToDisplay = currentCategory.elements.filter((element) =>
+      element.info.visibility ? element.info.visibility.catalog : true
+    );
+
+    this.state = {
+      categories: currentCategory.categories,
+      elements: elementsToDisplay,
+      matchString: '',
+      matchedElements: []
+    };
+  }
+
+  flattenCategories(categories: CatalogCategory[]) {
+    let toRet: CatalogElement[] = [];
+
+    for (let x = 0; x < categories.length; x++) {
+      const curr = categories[x];
+      toRet = toRet.concat(curr.elements);
+      if (curr.categories.length)
+        toRet = toRet.concat(this.flattenCategories(curr.categories));
+    }
+
+    return toRet;
+  }
+
+  matcharray(text: string) {
+    const array = this.state.elements.concat(
+      this.flattenCategories(this.state.categories)
+    );
+
+    const filtered = [];
+
+    if (text != '') {
+      const regexp = new RegExp(text, 'i');
+      for (let i = 0; i < array.length; i++) {
+        if (regexp.test(array[i].info.title)) {
+          filtered.push(array[i]);
+        }
+      }
+    }
+
+    this.setState({
+      matchString: text,
+      matchedElements: filtered
+    });
+  }
+
+  select(element: CatalogElement) {
+    switch (element.prototype) {
+      case 'lines':
+        this.context.linesActions.selectToolDrawingLine(element.name);
+        break;
+      case 'items':
+        this.context.itemsActions.selectToolDrawingItem(element.name);
+        break;
+      case 'holes':
+        this.context.holesActions.selectToolDrawingHole(element.name);
+        break;
+    }
+
+    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+      element
+    );
+  }
+
+  render() {
+    const page = this.props.state.catalog.page;
+    const currentCategory = CatalogFn.getCategory(this.context.catalog, page);
+    const categoriesToDisplay = currentCategory.categories;
+    const elementsToDisplay = currentCategory.elements.filter((element) =>
+      element.info.visibility ? element.info.visibility.catalog : true
+    );
+
+    let breadcrumbComponent = null;
+
+    if (page !== 'root') {
+      const breadcrumbsNames = [];
+
+      this.props.state.catalog.path.forEach((pathName) => {
+        breadcrumbsNames.push({
+          name: CatalogFn.getCategory(this.context.catalog, pathName).label,
+          action: () =>
+            this.context.projectActions.goBackToCatalogPage(pathName)
+        });
+      });
+
+      breadcrumbsNames.push({ name: currentCategory.label });
+
+      breadcrumbComponent = <CatalogBreadcrumb names={breadcrumbsNames} />;
+    }
+
+    const pathSize = this.props.state.catalog.path.length;
+
+    const turnBackButton =
+      pathSize > 0 ? (
+        <CatalogTurnBackPageItem
+          key={pathSize}
+          page={
+            this.context.catalog.categories[
+              this.props.state.catalog.path[pathSize - 1]
+            ]
+          }
+        />
+      ) : null;
+
+    const selectedHistory = this.props.state.selectedElementsHistory;
+    const selectedHistoryElements = selectedHistory.map((el, ind) => (
+      <div
+        key={ind}
+        style={historyElementStyle}
+        title={el.name}
+        onClick={() => this.select(el)}
+      >
+        {el.name}
+      </div>
+    ));
+
+    return (
+      <ContentContainer
+        width={this.props.width}
+        height={this.props.height}
+        style={{ ...containerStyle, ...this.props.style }}
+      >
+        <ContentTitle>{this.context.translator.t('Catalog')}</ContentTitle>
+
+        <div
+          style={backToCanvasButton}
+          onClick={() => this.context.projectActions.setMode(MODE_IDLE)}
+        >
+          Back to canvas
+        </div>
+
+        {breadcrumbComponent}
+
+        <div style={searchContainer}>
+          <span style={searchText}>
+            {this.context.translator.t('Search Element')}
+          </span>
+          <input
+            type="text"
+            style={searchInput}
+            onChange={(e) => {
+              this.matcharray(e.target.value);
+            }}
+          />
+        </div>
+
+        {selectedHistory.length ? (
+          <div style={historyContainer}>
+            <span>{this.context.translator.t('Last Selected')}</span>
+            {selectedHistoryElements}
+          </div>
+        ) : null}
+
+        <div style={itemsStyle}>
+          {this.state.matchString === ''
+            ? [
+                turnBackButton,
+                categoriesToDisplay.map((cat) => (
+                  <CatalogPageItem
+                    key={cat.name}
+                    page={cat}
+                    oldPage={currentCategory}
+                  />
+                )),
+                elementsToDisplay.map((elem) => (
+                  <CatalogItem key={elem.name} element={elem} />
+                ))
+              ]
+            : this.state.matchedElements.map((elem) => (
+                <CatalogItem key={elem.name} element={elem} />
+              ))}
+        </div>
+      </ContentContainer>
+    );
+  }
+}
+===== 3) MYCATALOG =====
+declare let require: {
+  context(directory: string, useSubdirectories?: boolean, regExp?: RegExp): any;
+};
+
+import { CatalogFactory, CatalogFn } from '@archef2000/react-planner';
+
+import Area from './areas/area/planner-element';
+import Wall from './lines/wall/planner-element';
+
+const PLANO_MAIN_SERVICES = [
+  { key: 'electricity', label: 'Electricity' },
+  { key: 'plumbing', label: 'Plumbing' },
+  { key: 'painting', label: 'Painting' },
+  { key: 'flooring', label: 'Flooring' },
+  { key: 'plastering', label: 'Plastering' },
+  { key: 'boards', label: 'Boards' },
+  { key: 'other', label: 'Other' }
+] as const;
+
+const PLANO_SUBSERVICES: Record<(typeof PLANO_MAIN_SERVICES)[number]['key'], string[]> = {
+  electricity: [
+    'Switches & plugs',
+    'Overlaps with plumbing',
+    'Oven',
+    'Hob',
+    'Fridge freezer',
+    'Microwave',
+    'AC'
+  ],
+  plumbing: [
+    'Floor drain',
+    'Shower cubical',
+    'Bathroom sink',
+    'Mixers',
+    'Kitchen sink',
+    'Water heater',
+    'Washing machine',
+    'Dishwasher',
+    'Tap for water'
+  ],
+  painting: ['Internal paint', 'External paint'],
+  flooring: [
+    'Ceramic tiles 60×60',
+    'Ceramic tiles 120×60',
+    'Ceramic tiles custom',
+    'Laminate',
+    'Microcement',
+    'Polished concrete',
+    'Parquet'
+  ],
+  plastering: [
+    'Internal (monacote+finittura)',
+    'Internal (microcement)',
+    'External (GR1000)',
+    'External (silicato)',
+    'Stone restoration'
+  ],
+  boards: ['Flat ceiling', 'L-shape bulkhead', 'U-shape bulkhead', 'Custom shapes'],
+  other: ['To be defined', 'Custom request', 'Special works']
+};
+
+function safeSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+export function createCatalog() {
+  const catalog: any = CatalogFactory();
+
+  CatalogFn.registerElement(catalog, Area as any);
+  CatalogFn.registerElement(catalog, Wall as any);
+
+  const Holes: any[] = [];
+  const holesContext = require.context('./holes/', true, /planner-element\.[tj]sx$/);
+  holesContext.keys().forEach((key: string) => {
+    const el = holesContext(key).default;
+    Holes.push(el);
+    CatalogFn.registerElement(catalog, el as any);
+  });
+
+  const Items: any[] = [];
+  const itemsContext = require.context('./items/', true, /planner-element\.[tj]sx$/);
+  itemsContext.keys().forEach((key: string) => {
+    const el = itemsContext(key).default;
+    Items.push(el);
+    if (!catalog.elements[el.name]) {
+      CatalogFn.registerElement(catalog, el as any);
+    }
+  });
+
+  CatalogFn.registerCategory(
+    catalog,
+    'windows',
+    'Windows',
+    Holes.filter((h) => h?.info?.tag?.includes('window'))
+  );
+
+  CatalogFn.registerCategory(
+    catalog,
+    'doors',
+    'Doors',
+    Holes.filter((h) => h?.info?.tag?.includes('door'))
+  );
+
+  const ensureHiddenSubCategory = (name: string, label: string) => {
+    if (!catalog.categories[name]) {
+      catalog.categories[name] = { name, label, categories: [], elements: [] };
+    }
+    return catalog.categories[name];
+  };
+
+  const paintWhite = Items.find((el) => el?.name === 'paint-white');
+  const paintGrey = Items.find((el) => el?.name === 'paint-grey');
+  const paintBeige = Items.find((el) => el?.name === 'paint-beige');
+
+  for (const svc of PLANO_MAIN_SERVICES) {
+    if (svc.key === 'other') continue;
+
+    const mainName = `plano_${svc.key}`;
+
+    if (!catalog.categories[mainName]) {
+      CatalogFn.registerCategory(catalog, mainName, svc.label, []);
+    }
+
+    const mainCat = catalog.categories[mainName];
+    const subs = PLANO_SUBSERVICES[svc.key] || [];
+
+    for (const subLabel of subs) {
+      const subName = `plano_${svc.key}__${safeSlug(subLabel)}`;
+      const subCat = ensureHiddenSubCategory(subName, subLabel);
+
+      if (!mainCat.categories.some((c: any) => c.name === subCat.name)) {
+        mainCat.categories.push(subCat);
+      }
+
+      if (svc.key === 'painting' && subLabel === 'Internal paint') {
+        if (paintWhite && !subCat.elements.find((el: any) => el.name === paintWhite.name)) {
+          subCat.elements.push(paintWhite);
+        }
+        if (paintGrey && !subCat.elements.find((el: any) => el.name === paintGrey.name)) {
+          subCat.elements.push(paintGrey);
+        }
+        if (paintBeige && !subCat.elements.find((el: any) => el.name === paintBeige.name)) {
+          subCat.elements.push(paintBeige);
+        }
+      }
+    }
+  }
+
+  return catalog;
+}
+
+export default createCatalog();
+===== 4) PLANNER PAGE =====
+import { useMemo, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bolt,
+  Wrench,
+  Paintbrush,
+  Grid3X3,
+  Layers,
+  Boxes,
+  MoreHorizontal,
+  FilePlus,
+  FolderOpen,
+  Save,
+  Plus,
+  Undo2,
+  Settings,
+  PersonStanding,
+  FileText,
+} from "lucide-react";
+
+import PlannerFrame, { type PlannerApi } from "../../components/planner/PlannerFrame";
+
+import {
+  MAIN_SERVICES,
+  SUBSERVICES,
+  usePlannerState,
+  type MainService,
+} from "../../state/plannerState";
+
+type ViewMode = "2D" | "3D";
+
+const ICONS: Record<MainService, LucideIcon> = {
+  electricity: Bolt,
+  plumbing: Wrench,
+  painting: Paintbrush,
+  flooring: Grid3X3,
+  plastering: Layers,
+  boards: Boxes,
+  other: MoreHorizontal,
+};
+
+export default function Planner() {
+  const navigate = useNavigate();
+
+  const apiRef = useRef<PlannerApi | null>(null);
+  const didInitRef = useRef(false);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("2D");
+  const [engineMode, setEngineMode] = useState<string>("");
+
+  const [activeSubService, setActiveSubService] = useState<string | null>(null);
+
+  const {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    hasAnySelection,
+    selectedCount,
+    clearAll,
+    toggleSurface,
+    applyAreaService,
+  } = usePlannerState();
+
+  const subs = useMemo(() => SUBSERVICES[activeMain], [activeMain]);
+
+  const handleApi = useCallback((api: PlannerApi) => {
+    apiRef.current = api;
+
+    if (!didInitRef.current) {
+      didInitRef.current = true;
+      api.cmd("VIEW_2D");
+      api.cmd("SELECT_TOOL_EDIT");
+      setViewMode("2D");
+    }
+  }, []);
+
+  const handleSurfaceSelected = useCallback(
+    (payload: any) => {
+      const surfaceId = payload?.surfaceId;
+      if (!surfaceId) return;
+
+      console.log("PlanO received surface:", surfaceId);
+
+      if (
+        activeSubService &&
+          (
+            activeMain === "painting" ||
+            activeMain === "flooring" ||
+            activeMain === "plastering" ||
+            activeMain === "boards"
+          )
+      ) {
+        applyAreaService(activeMain);
+      } else {
+        toggleSurface(surfaceId);
+      }
+    },
+    [toggleSurface, applyAreaService, activeSubService, activeMain]
+  );
+
+  const go2D = useCallback(() => {
+    setViewMode("2D");
+    apiRef.current?.cmd("VIEW_2D");
+    apiRef.current?.cmd("SELECT_TOOL_EDIT");
+  }, []);
+
+  const go3D = useCallback(() => {
+    setViewMode("3D");
+    apiRef.current?.cmd("VIEW_3D");
+  }, []);
+
+  const isCatalogOpen = engineMode === "MODE_VIEWING_CATALOG";
+
+  return (
+    <div className={`${viewMode === "2D" ? "planner2d-bg" : "planner3d-bg"} fixed inset-0 text-zinc-900`}>
+      <PlannerFrame
+        onApi={handleApi}
+        onModeChange={setEngineMode}
+        onSurfaceSelected={handleSurfaceSelected}
+      />
+
+      {/* TOP TOOLBAR */}
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex justify-center p-2">
+        <div className="pointer-events-auto glass-panel w-[calc(100vw-24px)] px-4 py-1">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 font-semibold"
+            >
+              <span className="text-base">PlanO</span>
+            </button>
+
+            {viewMode === "3D" && !isCatalogOpen ? (
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 justify-center px-1">
+                  {MAIN_SERVICES.map((s) => {
+                    const Icon = ICONS[s.key];
+                    const isActive = activeMain === s.key;
+
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => {
+                          setActiveMain(s.key);
+                          setActiveSubService(null);
+                        }}
+                        className={`plano-dock-item flex items-center gap-2 px-2 py-1 text-xs ${
+                          isActive ? "ring-2 ring-white/70" : ""
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="hidden lg:inline">{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            {!isCatalogOpen && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("NEW_PROJECT")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <FilePlus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.saveProjectDownload()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Save className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.loadProjectPicker()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <FolderOpen className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_CATALOG")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go3D}
+                  className={`plano-glass-btn px-4 py-2 text-sm ${
+                    viewMode === "3D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                >
+                  3D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go2D}
+                  className={`plano-glass-btn px-4 py-2 text-sm ${
+                    viewMode === "2D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                >
+                  2D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("UNDO")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Undo2 className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/estimate")}
+                  disabled={!hasAnySelection}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    hasAnySelection ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                >
+                  <FileText className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* SUB-SERVICE PANEL */}
+      {viewMode === "3D" && activeMain && !isCatalogOpen && (
+        <div className="absolute left-4 top-20 z-40 bg-white rounded-xl shadow-lg p-4 w-60">
+          <div className="font-semibold mb-2">
+            {activeMain} sub-services
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {subs.map((sub) => (
+              <button
+                key={sub}
+                onClick={() => {
+                  setActiveSubService(sub);
+                  console.log("Active sub-service:", sub);
+                }}
+                className={`text-left px-3 py-2 rounded-md border ${
+                  activeSubService === sub
+                    ? "bg-blue-500 text-white"
+                    : "bg-white"
+                }`}
+              >
+                {sub}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+===== 5) PLANNER FRAME =====
+import { useEffect, useRef } from "react";
+
+const ENGINE_URL = "http://localhost:5173";
+const PROTOCOL_VERSION = 1;
+
+const RASTER_URL = "http://localhost:8000/upload-plan";
+
+export type PlannerCmd =
+  | "NEW_PROJECT"
+  | "OPEN_CATALOG"
+  | "CHANGE_CATALOG_PAGE"
+  | "VIEW_2D"
+  | "VIEW_3D"
+  | "VIEW_3D_FIRST_PERSON"
+  | "UNDO"
+  | "OPEN_PROJECT_CONFIGURATOR"
+  | "TOOL_PAN"
+  | "TOOL_ZOOM_IN"
+  | "TOOL_ZOOM_OUT"
+  | "SELECT_TOOL_EDIT"
+  | "UNSELECT_ALL"
+  | "LOAD_PROJECT_JSON"
+  | "LOAD_RASTER_JSON"
+  | "REQUEST_SCENE_JSON";
+
+export type SurfaceSelectedPayload = {
+  surfaceId: string;
+  wallId: string;
+  surfaceType: "front" | "back";
+};
+
+export type PlannerApi = {
+  cmd: (c: PlannerCmd, payload?: any) => void;
+  loadProjectPicker: () => void;
+  saveProjectDownload: () => void;
+};
+
+type Props = {
+  onApi?: (api: PlannerApi) => void;
+  onModeChange?: (mode: string) => void;
+  onSurfaceSelected?: (payload: SurfaceSelectedPayload) => void;
+};
+
+function downloadJson(filename: string, data: any) {
+  const dataStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+export default function PlannerFrame({
+  onApi,
+  onModeChange,
+  onSurfaceSelected,
+}: Props) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  const postToEngine = (msg: any) => {
+    const w = iframeRef.current?.contentWindow;
+    if (!w) return;
+    w.postMessage(msg, "*");
+  };
+
+  const cmd = (c: PlannerCmd, payload?: any) => {
+    postToEngine({
+      protocolVersion: PROTOCOL_VERSION,
+      type: "CMD",
+      cmd: c,
+      payload,
+    });
+  };
+
+  const loadProjectPicker = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json,.png,.jpg,.jpeg,application/pdf";
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      try {
+        if (file.name.toLowerCase().endsWith(".json")) {
+          const text = await file.text();
+          const scene = JSON.parse(text);
+          cmd("LOAD_PROJECT_JSON", { scene });
+          return;
+        }
+
+        const form = new FormData();
+        form.append("file", file);
+
+        const resp = await fetch(RASTER_URL, { method: "POST", body: form });
+        if (!resp.ok) {
+          const msg = await resp.text();
+          throw new Error(`Raster upload failed (${resp.status}): ${msg}`);
+        }
+
+        const raw = await resp.json();
+        cmd("LOAD_RASTER_JSON", { raw });
+      } catch (e: any) {
+        alert(e?.message || String(e));
+        console.error(e);
+      }
+    };
+
+    input.click();
+  };
+
+  const saveProjectDownload = () => {
+    cmd("REQUEST_SCENE_JSON");
+  };
+
+  useEffect(() => {
+    onApi?.({ cmd, loadProjectPicker, saveProjectDownload });
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== "http://localhost:5173") return;
+
+      const data: any = event.data;
+      if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
+
+      if (data.type === "ERROR") {
+        console.error("[ENGINE ERROR]", data.message);
+        return;
+      }
+
+      if (data.type === "MODE_CHANGED") {
+        const mode = data?.payload?.mode;
+        if (typeof mode === "string") onModeChange?.(mode);
+        return;
+      }
+
+      if (data.type === "SURFACE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.surfaceId === "string" &&
+          typeof payload.wallId === "string" &&
+          (payload.surfaceType === "front" || payload.surfaceType === "back")
+        ) {
+          onSurfaceSelected?.(payload);
+        }
+        return;
+      }
+
+      if (data.type === "SCENE_JSON") {
+        const scene = data?.payload?.scene;
+        if (scene) downloadJson("plano_scene.json", scene);
+      }
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [onApi, onModeChange, onSurfaceSelected]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      src={ENGINE_URL}
+      title="React Planner Engine"
+      allow="clipboard-read; clipboard-write"
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100vh",
+        border: 0,
+        zIndex: 1,
+        background: "#fff",
+      }}
+      onLoad={() =>
+        postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "PING" })
+      }
+    />
+  );
+}
+===== 6) PLANNER STATE =====
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+export type MainService =
+  | "electricity"
+  | "plumbing"
+  | "painting"
+  | "flooring"
+  | "plastering"
+  | "boards"
+  | "other";
+
+export const MAIN_SERVICES: Array<{ key: MainService; label: string }> = [
+  { key: "electricity", label: "Electricity" },
+  { key: "plumbing", label: "Plumbing" },
+  { key: "painting", label: "Painting" },
+  { key: "flooring", label: "Flooring" },
+  { key: "plastering", label: "Plastering" },
+  { key: "boards", label: "Boards" },
+  { key: "other", label: "Other" },
+];
+
+export const SUBSERVICES: Record<MainService, string[]> = {
+  electricity: [
+    "Switches & plugs",
+    "Overlaps with plumbing",
+    "Oven",
+    "Hob",
+    "Fridge freezer",
+    "Microwave",
+    "AC",
+  ],
+  plumbing: [
+    "Floor drain",
+    "Shower cubical",
+    "Bathroom sink",
+    "Mixers",
+    "Kitchen sink",
+    "Water heater",
+    "Washing machine",
+    "Dishwasher",
+    "Tap for water",
+  ],
+  painting: ["Internal paint", "External paint"],
+  flooring: [
+    "Ceramic tiles 60×60",
+    "Ceramic tiles 120×60",
+    "Ceramic tiles custom",
+    "Laminate",
+    "Microcement",
+    "Polished concrete",
+    "Parquet",
+  ],
+  plastering: [
+    "Internal (monacote+finittura)",
+    "Internal (microcement)",
+    "External (GR1000)",
+    "External (silicato)",
+    "Stone restoration",
+  ],
+  boards: ["Flat ceiling", "L-shape bulkhead", "U-shape bulkhead", "Custom shapes"],
+  other: ["To be defined", "Custom request", "Special works"],
+};
+
+type AreaService = "painting" | "flooring" | "plastering" | "boards";
+
+type AreaServiceDraft = {
+  painting: Set<string>;
+  flooring: Set<string>;
+  plastering: Set<string>;
+  boards: Set<string>;
+};
+
+type State = {
+  activeMain: MainService;
+  setActiveMain: (s: MainService) => void;
+
+  selected: Record<MainService, Set<string>>;
+  toggleSub: (main: MainService, sub: string) => void;
+  clearAll: () => void;
+
+  hasAnySelection: boolean;
+  selectedCount: number;
+
+  selectedSurfaces: Set<string>;
+  toggleSurface: (surfaceId: string) => void;
+  clearSelectedSurfaces: () => void;
+
+  areaServiceDraft: AreaServiceDraft;
+  applyAreaService: (service: AreaService) => void;
+  removeSurfaceFromAreaService: (service: AreaService, surfaceId: string) => void;
+};
+
+const KEY = "plano:plannerSelections:v1";
+const Ctx = createContext<State | null>(null);
+
+function load(): { activeMain: MainService; selected: Record<MainService, string[]> } | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const activeMain = (parsed.activeMain as MainService) || "electricity";
+    const sel = (parsed.selected as Record<string, string[]>) || {};
+
+    const out: Record<MainService, string[]> = {
+      electricity: sel.electricity || [],
+      plumbing: sel.plumbing || [],
+      painting: sel.painting || [],
+      flooring: sel.flooring || [],
+      plastering: sel.plastering || [],
+      boards: sel.boards || [],
+      other: sel.other || [],
+    };
+
+    return { activeMain, selected: out };
+  } catch {
+    return null;
+  }
+}
+
+function save(activeMain: MainService, selected: Record<MainService, Set<string>>) {
+  const payload = {
+    activeMain,
+    selected: {
+      electricity: Array.from(selected.electricity),
+      plumbing: Array.from(selected.plumbing),
+      painting: Array.from(selected.painting),
+      flooring: Array.from(selected.flooring),
+      plastering: Array.from(selected.plastering),
+      boards: Array.from(selected.boards),
+      other: Array.from(selected.other),
+    },
+  };
+
+  localStorage.setItem(KEY, JSON.stringify(payload));
+}
+
+export function PlannerStateProvider({ children }: { children: React.ReactNode }) {
+  const initial = load();
+
+  const [activeMain, setActiveMain] = useState<MainService>(initial?.activeMain || "electricity");
+
+  const [selected, setSelected] = useState<Record<MainService, Set<string>>>(() => ({
+    electricity: new Set(initial?.selected.electricity || []),
+    plumbing: new Set(initial?.selected.plumbing || []),
+    painting: new Set(initial?.selected.painting || []),
+    flooring: new Set(initial?.selected.flooring || []),
+    plastering: new Set(initial?.selected.plastering || []),
+    boards: new Set(initial?.selected.boards || []),
+    other: new Set(initial?.selected.other || []),
+  }));
+
+  const [selectedSurfaces, setSelectedSurfaces] = useState<Set<string>>(new Set());
+
+  const [areaServiceDraft, setAreaServiceDraft] = useState<AreaServiceDraft>({
+    painting: new Set(),
+    flooring: new Set(),
+    plastering: new Set(),
+    boards: new Set(),
+  });
+
+  const toggleSurface = (surfaceId: string) => {
+    setSelectedSurfaces((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(surfaceId)) {
+        next.delete(surfaceId);
+      } else {
+        next.add(surfaceId);
+      }
+
+      console.log("Selected surfaces:", Array.from(next));
+
+      return next;
+    });
+  };
+
+  const clearSelectedSurfaces = () => {
+    setSelectedSurfaces(new Set());
+  };
+
+  const applyAreaService = (service: AreaService) => {
+    setAreaServiceDraft((prev) => {
+      const next: AreaServiceDraft = {
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+      };
+
+      selectedSurfaces.forEach((surfaceId) => {
+        next[service].add(surfaceId);
+      });
+
+      console.log("Area service draft:", service, Array.from(next[service]));
+
+      return next;
+    });
+  };
+
+  const removeSurfaceFromAreaService = (service: AreaService, surfaceId: string) => {
+    setAreaServiceDraft((prev) => {
+      const next: AreaServiceDraft = {
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+      };
+
+      next[service].delete(surfaceId);
+
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    save(activeMain, selected);
+  }, [activeMain, selected]);
+
+  const toggleSub = (main: MainService, sub: string) => {
+    setSelected((prev) => {
+      const next: Record<MainService, Set<string>> = {
+        electricity: new Set(prev.electricity),
+        plumbing: new Set(prev.plumbing),
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+        other: new Set(prev.other),
+      };
+
+      if (next[main].has(sub)) next[main].delete(sub);
+      else next[main].add(sub);
+
+      return next;
+    });
+  };
+
+  const clearAll = () => {
+    setSelected({
+      electricity: new Set(),
+      plumbing: new Set(),
+      painting: new Set(),
+      flooring: new Set(),
+      plastering: new Set(),
+      boards: new Set(),
+      other: new Set(),
+    });
+
+    clearSelectedSurfaces();
+  };
+
+  const selectedCount = useMemo(() => {
+    return (
+      selected.electricity.size +
+      selected.plumbing.size +
+      selected.painting.size +
+      selected.flooring.size +
+      selected.plastering.size +
+      selected.boards.size +
+      selected.other.size
+    );
+  }, [selected]);
+
+  const hasAnySelection = selectedCount > 0;
+
+  const value: State = {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    clearAll,
+    hasAnySelection,
+    selectedCount,
+    selectedSurfaces,
+    toggleSurface,
+    clearSelectedSurfaces,
+    areaServiceDraft,
+    applyAreaService,
+    removeSurfaceFromAreaService,
+  };
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function usePlannerState() {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("usePlannerState must be used inside PlannerStateProvider");
+  return ctx;
+}
+===== 7) VIEWER 3D =====
+import React, { Component } from 'react';
+
+import convert from 'convert-units';
+import * as Three from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+
+import { State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { diff } from '../../utils/history';
+
+import { parseData, PlanData, updateScene } from './scene-creator';
+import { disposeScene } from './three-memory-cleaner';
+
+interface Scene3DViewerProps {
+  state: State;
+  width: number;
+  height: number;
+}
+
+type HighlightEntry = {
+  mesh: Three.Mesh;
+  originalMaterial: Three.Material;
+};
+
+const hudStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 12,
+  bottom: 12,
+  zIndex: 10000,
+  background: 'rgba(0,0,0,0.65)',
+  color: '#fff',
+  padding: '8px 10px',
+  borderRadius: 8,
+  fontSize: 13,
+  lineHeight: 1.2,
+  pointerEvents: 'none',
+  userSelect: 'none'
+};
+
+export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
+  static contextType = ReactPlannerContext;
+  declare context: React.ContextType<typeof ReactPlannerContext>;
+
+  lastMousePosition: { x: number; y: number } = { x: 0, y: 0 };
+  width: number;
+  height: number;
+  renderingID = 0;
+  renderer: Three.WebGLRenderer;
+
+  canvasWrapper: React.RefObject<null | HTMLDivElement>;
+
+  camera: Three.PerspectiveCamera | undefined;
+  scene3D: Three.Scene | undefined;
+  planData: PlanData | undefined;
+  orbitController: OrbitControls | undefined;
+
+  highlightedMeshes: Map<string, HighlightEntry>;
+
+  mouseDownEvent: undefined | ((event: MouseEvent) => void);
+  mouseUpEvent: undefined | ((event: MouseEvent) => void);
+
+  constructor(props: Scene3DViewerProps) {
+    super(props);
+
+    this.width = props.width;
+    this.height = props.height;
+    this.canvasWrapper = React.createRef<HTMLDivElement>();
+    this.highlightedMeshes = new Map<string, HighlightEntry>();
+
+    this.renderer =
+      (window as any).__threeRenderer ||
+      new Three.WebGLRenderer({ preserveDrawingBuffer: true });
+    (window as any).__threeRenderer = this.renderer;
+  }
+
+  private getMeshKey(mesh: Three.Mesh) {
+    return `${mesh.uuid}:${mesh.name}`;
+  }
+
+  private isSelectableFace(mesh: Three.Object3D): mesh is Three.Mesh {
+    return (
+      mesh instanceof Three.Mesh &&
+      (mesh.name === 'frontFace' || mesh.name === 'backFace') &&
+      !Array.isArray((mesh as Three.Mesh).material)
+    );
+  }
+
+  private clearAllHighlights() {
+  this.highlightedMeshes.forEach((entry) => {
+    entry.mesh.material = entry.originalMaterial;
+  });
+  this.highlightedMeshes.clear();
+ }
+
+  private removeHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+    const entry = this.highlightedMeshes.get(key);
+    if (!entry) return;
+
+    entry.mesh.material = entry.originalMaterial;
+    this.highlightedMeshes.delete(key);
+  }
+
+  private addHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+    if (this.highlightedMeshes.has(key)) return;
+
+    const baseMaterial = mesh.material;
+    if (Array.isArray(baseMaterial) || !baseMaterial) return;
+
+    const highlightMaterial = (baseMaterial as Three.Material).clone();
+    highlightMaterial.transparent = true;
+    highlightMaterial.opacity = 0.35;
+    highlightMaterial.depthWrite = false;
+
+    this.highlightedMeshes.set(key, {
+      mesh,
+      originalMaterial: baseMaterial
+    });
+
+    mesh.material = highlightMaterial;
+  }
+
+  private toggleHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+
+    if (this.highlightedMeshes.has(key)) {
+      this.removeHighlight(mesh);
+    } else {
+      this.addHighlight(mesh);
+    }
+  }
+
+  private computeSelectedAreaM2(): number | null {
+    const { state } = this.props;
+    const unit = this.context.catalog.unit;
+    const selectedLayerID = state.scene.selectedLayer;
+    if (!selectedLayerID) return null;
+
+    const layer: any = state.scene.layers[selectedLayerID];
+    if (!layer) return null;
+
+    const selectedAreaIDs: string[] = layer.selected?.areas || [];
+    if (!selectedAreaIDs.length) return null;
+
+    const metersPerUnit = convert(1).from(unit).to('m');
+
+    let totalM2 = 0;
+
+    for (const areaID of selectedAreaIDs) {
+      const area: any = layer.areas?.[areaID];
+      if (!area) continue;
+
+      const verts: string[] = area.vertices;
+      if (!Array.isArray(verts) || verts.length < 3) continue;
+
+      const pts = verts
+        .map((vid) => layer.vertices?.[vid])
+        .filter(Boolean)
+        .map((v: any) => ({ x: v.x, y: v.y }));
+
+      if (pts.length < 3) continue;
+
+      let sum = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const j = (i + 1) % pts.length;
+        sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+      }
+
+      const areaUnit2 = Math.abs(sum) / 2;
+      const areaM2 = areaUnit2 * metersPerUnit * metersPerUnit;
+
+      totalM2 += areaM2;
+    }
+
+    if (!isFinite(totalM2) || totalM2 <= 0) return null;
+    return Math.round(totalM2 * 100) / 100;
+  }
+
+  componentDidMount() {
+    const { state } = this.props;
+
+    const scene3D = new Three.Scene();
+
+    this.renderer.setClearColor(new Three.Color(SharedStyle.COLORS.white));
+    this.renderer.setSize(this.width, this.height);
+
+    const planData = parseData(state.scene, this.context);
+
+    scene3D.add(planData.plan);
+    scene3D.add(planData.grid);
+
+    const aspectRatio = this.width / this.height;
+    const camera = new Three.PerspectiveCamera(45, aspectRatio, 1, 300000);
+
+    scene3D.add(camera);
+
+    const cameraPositionX =
+      -(planData.boundingBox.max.x - planData.boundingBox.min.x) / 2;
+    const cameraPositionY =
+      ((planData.boundingBox.max.y - planData.boundingBox.min.y) / 2) * 10;
+    const cameraPositionZ =
+      (planData.boundingBox.max.z - planData.boundingBox.min.z) / 2;
+
+    camera.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    camera.up = new Three.Vector3(0, 1, 0);
+
+    const ambient = new Three.AmbientLight(0xffffff, 0.45);
+    scene3D.add(ambient);
+
+    const hemi = new Three.HemisphereLight(0xffffff, 0x666666, 0.5);
+    scene3D.add(hemi);
+
+    const spotLight1 = new Three.SpotLight(SharedStyle.COLORS.white, 1.0);
+    spotLight1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    scene3D.add(spotLight1);
+
+    const dirLight = new Three.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(
+      cameraPositionX + 300,
+      cameraPositionY + 400,
+      cameraPositionZ + 300
+    );
+    scene3D.add(dirLight);
+
+    const toIntersect = [planData.plan];
+    const mouse = new Three.Vector2();
+    const raycaster = new Three.Raycaster();
+
+    this.mouseDownEvent = (event: MouseEvent) => {
+      this.lastMousePosition.x = (event.offsetX / this.width) * 2 - 1;
+      this.lastMousePosition.y = (-event.offsetY / this.height) * 2 + 1;
+    };
+
+    this.mouseUpEvent = (event: MouseEvent) => {
+      event.preventDefault();
+
+      mouse.x = (event.offsetX / this.width) * 2 - 1;
+      mouse.y = -(event.offsetY / this.height) * 2 + 1;
+
+      if (
+        Math.abs(mouse.x - this.lastMousePosition.x) <= 0.02 &&
+        Math.abs(mouse.y - this.lastMousePosition.y) <= 0.02
+      ) {
+        raycaster.setFromCamera(mouse, camera);
+
+        const intersects = raycaster.intersectObjects(toIntersect, true);
+
+        if (intersects.length > 0 && !isNaN(intersects[0].distance)) {
+          const object = intersects[0].object as any;
+
+          if (this.isSelectableFace(object)) {
+
+            this.toggleHighlight(object);
+
+            const mesh = object as Three.Mesh;
+
+            const wallId = mesh.userData?.wallId;
+            const surfaceType = mesh.userData?.surfaceType;
+
+            if (wallId && surfaceType) {
+
+              const surfaceId = `${wallId}:${surfaceType}`;
+
+              console.log("Surface selected:", surfaceId);
+
+              window.parent?.postMessage(
+                {
+                  protocolVersion: 1,
+                  type: "SURFACE_SELECTED",
+                  payload: {
+                    surfaceId,
+                    wallId,
+                    surfaceType
+                  }
+                },
+                "*"
+              );
+            }
+
+            const interactable = mesh as Three.Mesh & { interact?: () => void };
+            interactable.interact?.();
+          } else {
+            this.clearAllHighlights();
+            this.context.projectActions.unselectAll();
+          }
+        } else {
+          this.clearAllHighlights();
+          this.context.projectActions.unselectAll();
+        }
+      }
+    };
+
+    if (this.mouseDownEvent) {
+      this.renderer.domElement.addEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    }
+
+    if (this.mouseUpEvent) {
+      this.renderer.domElement.addEventListener(
+        'mouseup',
+        this.mouseUpEvent
+      );
+    }
+
+    this.renderer.domElement.style.display = 'block';
+
+    if (this.canvasWrapper.current) {
+      this.canvasWrapper.current.appendChild(this.renderer.domElement);
+    }
+
+    const orbitController = new OrbitControls(camera, this.renderer.domElement);
+
+    const spotLightTarget = new Three.Object3D();
+    spotLightTarget.name = 'spotLightTarget';
+
+    spotLightTarget.position.set(
+      orbitController.target.x,
+      orbitController.target.y,
+      orbitController.target.z
+    );
+
+    scene3D.add(spotLightTarget);
+    spotLight1.target = spotLightTarget;
+
+    const render = () => {
+      orbitController.update();
+
+      spotLight1.position.set(
+        camera.position.x,
+        camera.position.y,
+        camera.position.z
+      );
+
+      spotLightTarget.position.set(
+        orbitController.target.x,
+        orbitController.target.y,
+        orbitController.target.z
+      );
+
+      camera.updateMatrix();
+      camera.updateMatrixWorld();
+
+      for (const elemID in planData.sceneGraph.LODs) {
+        planData.sceneGraph.LODs[elemID].update(camera);
+      }
+
+      this.renderer.render(scene3D, camera);
+
+      this.renderingID = requestAnimationFrame(render);
+    };
+
+    render();
+
+    this.camera = camera;
+    this.scene3D = scene3D;
+    this.orbitController = orbitController;
+    this.planData = planData;
+  }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this.renderingID);
+    this.orbitController?.dispose();
+
+    this.clearAllHighlights();
+
+    if (this.mouseDownEvent) {
+      this.renderer.domElement.removeEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    }
+
+    if (this.mouseUpEvent) {
+      this.renderer.domElement.removeEventListener(
+        'mouseup',
+        this.mouseUpEvent
+      );
+    }
+
+    if (this.scene3D) {
+      disposeScene(this.scene3D);
+
+      if (this.planData) {
+        this.scene3D.remove(this.planData.plan);
+        this.scene3D.remove(this.planData.grid);
+      }
+    }
+
+    this.scene3D = undefined;
+    this.planData = undefined;
+    this.camera = undefined;
+    this.orbitController = undefined;
+
+    this.renderer.renderLists.dispose();
+  }
+
+  componentDidUpdate(prevProps: Scene3DViewerProps) {
+    const { width, height } = this.props;
+
+    this.width = width;
+    this.height = height;
+
+    if (this.camera) {
+      this.camera.aspect = width / height;
+      this.camera.updateProjectionMatrix();
+    }
+
+    if (prevProps && this.props.state.scene !== prevProps.state.scene) {
+      const changedValues = diff(prevProps.state.scene, this.props.state.scene);
+
+      if (this.planData) {
+        updateScene(
+          this.planData,
+          this.props.state.scene,
+          prevProps.state.scene,
+          changedValues,
+          this.context
+        );
+      }
+    }
+
+    this.renderer.setSize(width, height);
+  }
+
+  render() {
+    const areaM2 = this.computeSelectedAreaM2();
+
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        {areaM2 !== null ? (
+          <div style={hudStyle}>Selected area: {areaM2} m²</div>
+        ) : null}
+
+        <div ref={this.canvasWrapper} />
+      </div>
+    );
+  }
+}

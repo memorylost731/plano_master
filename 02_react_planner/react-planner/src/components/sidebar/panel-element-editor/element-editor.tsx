@@ -2,7 +2,6 @@ import React, { Component } from 'react';
 
 import convert from 'convert-units';
 import { produce } from 'immer';
-import { MdContentCopy, MdContentPaste } from 'react-icons/md';
 
 import { CatalogFn } from '../../../catalog/catalog';
 import { Area, Item, Layer, StateProps } from '../../../models';
@@ -558,13 +557,7 @@ export default class ElementEditor extends Component<
     }
   }
 
-  copyProperties(properties: Record<string, any>) {
-    this.context.projectActions.copyProperties(properties);
-  }
-
-  pasteProperties() {
-    this.context.projectActions.pasteProperties();
-  }
+ 
 
   private computeSelectedAreaM2(): number | null {
     const { element, layer } = this.props;
@@ -775,26 +768,8 @@ export default class ElementEditor extends Component<
           ))}
         </div>
 
-        <div style={attrPorpSeparatorStyle}>
-          <div style={headActionStyle}>
-            <div
-              title={translator.t('Copy')}
-              style={iconHeadStyle}
-              onClick={(e) => this.copyProperties((element as any).properties)}
-            >
-              <MdContentCopy />
-            </div>
-            {appState.clipboardProperties && (appState as any).clipboardProperties.size ? (
-              <div
-                title={translator.t('Paste')}
-                style={iconHeadStyle}
-                onClick={(e) => this.pasteProperties()}
-              >
-                <MdContentPaste />
-              </div>
-            ) : null}
-          </div>
-        </div>
+
+        
 
         {Object.entries(propertiesFormData).map(([propertyName, data]) => {
           const currentValue = (data as any).currentValue,

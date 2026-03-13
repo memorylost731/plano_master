@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { MODE_VIEWING_CATALOG } from '../../constants';
 import { State } from '../../models';
 import * as SharedStyle from '../../shared-style';
 import { ComponentType } from '../../types';
@@ -10,7 +11,7 @@ import PanelGroupEditor from './panel-group-editor';
 
 const FLOAT_SIDEBAR_STYLE: React.CSSProperties = {
   position: 'fixed',
-  top: 12,
+  top: 72,
   right: 12,
   width: 380,
   maxHeight: 320,
@@ -37,6 +38,9 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ state, width, height }: SidebarProps) {
+  // Hide the floating info/editor box during Catalog view
+  if (state.mode === MODE_VIEWING_CATALOG) return null;
+
   const selectedLayer = state.scene.selectedLayer;
   if (!selectedLayer) return null;
 
