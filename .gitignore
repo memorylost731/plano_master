@@ -33,3 +33,8 @@ Thumbs.db
 
 # Local DB / volumes (if any)
 db_data/
+
+# secrets
+PAT.txt
+*.token
+*.pat

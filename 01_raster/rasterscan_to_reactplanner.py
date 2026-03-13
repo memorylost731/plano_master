@@ -2,7 +2,7 @@
 import json, sys, math, hashlib
 
 def stable_id(prefix: str, payload: str) -> str:
-    h = hashlib.sha1(payload.encode("utf-8")).hexdigest()[:10]
+    h = hashlib.sha1(payload.encode("utf-8"), usedforsecurity=False).hexdigest()[:10]
     return f"{prefix}{h}"
 
 def snap_key(x: float, y: float, tol: float) -> tuple[int, int]:

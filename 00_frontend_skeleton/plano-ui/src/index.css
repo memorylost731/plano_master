@@ -1,5 +1,36 @@
 @import "tailwindcss";
 
+/* =========================================================
+   MapLibre popup reset — remove default chrome
+   ========================================================= */
+.plano-map-popup .maplibregl-popup-content {
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 12px !important;
+  overflow: visible !important;
+}
+
+.plano-map-popup .maplibregl-popup-tip {
+  border-top-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.plano-map-popup .maplibregl-popup-close-button {
+  display: none !important;
+}
+
+/* Ensure map fills viewport without body scroll */
+.maplibregl-map {
+  font-family: inherit;
+}
+
+/* Move navigation controls below search bar on mobile */
+@media (max-width: 640px) {
+  .maplibregl-ctrl-top-left {
+    top: 64px !important;
+  }
+}
+
 
 /* =========================================================
    PlanO — Liquid Glass + Backgrounds (RESTORE)

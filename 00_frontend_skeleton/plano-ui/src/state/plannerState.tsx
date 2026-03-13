@@ -1,4 +1,19 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+
+/* ── Building selection from GeoSelect map ── */
+export interface SelectedBuilding {
+  osmId: string;
+  osmType: "way" | "relation" | "node";
+  name?: string;
+  buildingType?: string;
+  levels?: string;
+  height?: string;
+  address?: string;
+  material?: string;
+  lat: number;
+  lng: number;
+  properties: Record<string, unknown>;
+}
 
 export type MainService =
   | "electricity"
@@ -71,6 +86,10 @@ type State = {
 
   hasAnySelection: boolean;
   selectedCount: number;
+
+  /* Building from GeoSelect map */
+  selectedBuilding: SelectedBuilding | null;
+  setSelectedBuilding: (b: SelectedBuilding | null) => void;
 };
 
 const KEY = "plano:plannerSelections:v1";
@@ -122,6 +141,7 @@ function save(activeMain: MainService, selected: Record<MainService, Set<string>
 export function PlannerStateProvider({ children }: { children: React.ReactNode }) {
   const initial = load();
 
+  const [selectedBuilding, setSelectedBuilding] = useState<SelectedBuilding | null>(null);
   const [activeMain, setActiveMain] = useState<MainService>(initial?.activeMain || "electricity");
   const [selected, setSelected] = useState<Record<MainService, Set<string>>>(() => ({
     electricity: new Set(initial?.selected.electricity || []),
@@ -180,6 +200,10 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
 
   const hasAnySelection = selectedCount > 0;
 
+  const stableSetSelectedBuilding = useCallback((b: SelectedBuilding | null) => {
+    setSelectedBuilding(b);
+  }, []);
+
   const value: State = {
     activeMain,
     setActiveMain,
@@ -188,6 +212,8 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
     clearAll,
     hasAnySelection,
     selectedCount,
+    selectedBuilding,
+    setSelectedBuilding: stableSetSelectedBuilding,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
