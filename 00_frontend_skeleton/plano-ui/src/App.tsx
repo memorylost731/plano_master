@@ -5,6 +5,7 @@ import GeoSelect from "./pages/client/GeoSelect.tsx";
 
 import Planner from "./pages/client/Planner.tsx";
 import Estimate from "./pages/client/Estimate.tsx";
+import Tscm from "./pages/client/Tscm.tsx";
 
 export default function App() {
   return (
@@ -15,6 +16,9 @@ export default function App() {
 
         {/* FULLSCREEN EDITOR ROUTE (NO LAYOUT) */}
         <Route path="/planner" element={<Planner />} />
+
+        {/* FULLSCREEN TSCM COUNTER-SURVEILLANCE MAP */}
+        <Route path="/tscm" element={<Tscm />} />
 
         {/* Backward compatibility: old URLs redirect to the single planner */}
         <Route path="/planner/2d" element={<Navigate to="/planner" replace />} />

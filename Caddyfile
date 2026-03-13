@@ -1,0 +1,21 @@
+:5174 {
+	tls /home/memorylost/plano_master/.certs/cert.pem /home/memorylost/plano_master/.certs/key.pem
+
+	root * /home/memorylost/plano_master/00_frontend_skeleton/plano-ui/dist
+	file_server
+
+	# SPA fallback
+	try_files {path} /index.html
+
+	# Proxy Rasta API to GPU server
+	reverse_proxy /api/raster http://127.0.0.1:8020 {
+		rewrite /api/upload-plan
+	}
+
+	# Compress
+	encode gzip zstd
+
+	# Cache static assets
+	@static path *.js *.css *.png *.jpg *.svg *.woff2
+	header @static Cache-Control "public, max-age=31536000, immutable"
+}
