@@ -28,7 +28,10 @@ export type PlannerCmd =
 export type SurfaceSelectedPayload = {
   surfaceId: string;
   wallId: string;
-  surfaceType: "front" | "back";
+  surfaceType: "front" | "back" | "floor";
+  lengthM?: number;
+  heightM?: number;
+  areaM2?: number;
 };
 
 export type CatalogServiceSelectedPayload = {
@@ -49,6 +52,7 @@ type Props = {
   onApi?: (api: PlannerApi) => void;
   onModeChange?: (mode: string) => void;
   onSurfaceSelected?: (payload: SurfaceSelectedPayload) => void;
+  onSurfacesCleared?: () => void;
   onCatalogServiceSelected?: (payload: CatalogServiceSelectedPayload) => void;
 };
 
@@ -71,6 +75,7 @@ export default function PlannerFrame({
   onApi,
   onModeChange,
   onSurfaceSelected,
+  onSurfacesCleared,
   onCatalogServiceSelected,
 }: Props) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -157,10 +162,19 @@ export default function PlannerFrame({
           payload &&
           typeof payload.surfaceId === "string" &&
           typeof payload.wallId === "string" &&
-          (payload.surfaceType === "front" || payload.surfaceType === "back")
+          (
+            payload.surfaceType === "front" ||
+            payload.surfaceType === "back" ||
+            payload.surfaceType === "floor"
+          )
         ) {
           onSurfaceSelected?.(payload);
         }
+        return;
+      }
+
+      if (data.type === "SURFACES_CLEARED") {
+        onSurfacesCleared?.();
         return;
       }
 
@@ -186,7 +200,13 @@ export default function PlannerFrame({
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [onApi, onModeChange, onSurfaceSelected, onCatalogServiceSelected]);
+  }, [
+    onApi,
+    onModeChange,
+    onSurfaceSelected,
+    onSurfacesCleared,
+    onCatalogServiceSelected,
+  ]);
 
   return (
     <iframe

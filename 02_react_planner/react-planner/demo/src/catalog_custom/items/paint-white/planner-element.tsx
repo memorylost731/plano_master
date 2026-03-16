@@ -11,8 +11,10 @@ export default defineCatalogElement({
     title: 'White Paint',
     tag: ['painting'],
     description: 'Internal white paint',
-    image: ''
-  },
+    image: '',
+    mainService: 'painting',
+    subService: 'Internal paint'
+  } as any,
 
   properties: {
     color: {

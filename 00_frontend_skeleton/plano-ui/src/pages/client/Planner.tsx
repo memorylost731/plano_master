@@ -21,6 +21,7 @@ import {
 import PlannerFrame, {
   type PlannerApi,
   type CatalogServiceSelectedPayload,
+  type SurfaceSelectedPayload,
 } from "../../components/planner/PlannerFrame";
 
 import {
@@ -50,12 +51,22 @@ export default function Planner() {
   const [viewMode, setViewMode] = useState<ViewMode>("2D");
   const [engineMode, setEngineMode] = useState<string>("");
 
+  const selectedSurfacesRef = useRef<Set<string>>(new Set());
+
   const {
     activeMain,
     setActiveMain,
     hasAnySelection,
+    selectedSurfaces,
+    surfaceGeoMap,
+    selectedSurfaceTotalM2,
+    areaServiceDraft,
     toggleSurface,
+    clearSelectedSurfaces,
+    liveSurfaceGeo,
+    setLiveSurfaceGeo,
     applyAreaService,
+    removeSurfaceFromAreaService,
     activeAreaSubService,
     setActiveAreaSubService,
     activeAreaMaterialKey,
@@ -65,6 +76,8 @@ export default function Planner() {
     activeAreaMaterialColor,
     setActiveAreaMaterialColor,
   } = usePlannerState();
+
+  selectedSurfacesRef.current = selectedSurfaces;
 
   const handleApi = useCallback((api: PlannerApi) => {
     apiRef.current = api;
@@ -79,15 +92,21 @@ export default function Planner() {
 
   const handleCatalogServiceSelected = useCallback(
     (payload: CatalogServiceSelectedPayload) => {
-      if (payload.mainService === "painting") {
-        setActiveMain("painting");
+      const areaServices: MainService[] = [
+        "painting",
+        "flooring",
+        "plastering",
+        "boards",
+      ];
+
+      if (areaServices.includes(payload.mainService as MainService)) {
+        setActiveMain(payload.mainService as MainService);
         setActiveAreaSubService(payload.subService);
         setActiveAreaMaterialKey(payload.materialKey);
         setActiveAreaMaterialLabel(payload.materialLabel);
         setActiveAreaMaterialColor(payload.color || null);
         setViewMode("3D");
         apiRef.current?.cmd("VIEW_3D");
-        console.log("Selected catalog material:", payload);
       }
     },
     [
@@ -100,45 +119,70 @@ export default function Planner() {
   );
 
   const handleSurfaceSelected = useCallback(
-    (payload: any) => {
+    (payload: SurfaceSelectedPayload) => {
       const surfaceId = payload?.surfaceId;
       if (!surfaceId) return;
 
-      console.log("PlanO received surface:", surfaceId);
+      setLiveSurfaceGeo({
+        surfaceId,
+        wallId: payload.wallId,
+        surfaceType: payload.surfaceType,
+        lengthM: payload.lengthM ?? null,
+        heightM: payload.heightM ?? null,
+        areaM2: payload.areaM2 ?? null,
+      });
 
-      if (
-        activeAreaSubService &&
-        activeAreaMaterialKey &&
+      const geo = {
+        wallId: payload.wallId,
+        surfaceType: payload.surfaceType,
+        lengthM: payload.lengthM ?? null,
+        heightM: payload.heightM ?? null,
+        areaM2: payload.areaM2 ?? null,
+      };
+
+      const isAreaService =
+        !!activeAreaSubService &&
+        !!activeAreaMaterialKey &&
         (activeMain === "painting" ||
           activeMain === "flooring" ||
           activeMain === "plastering" ||
-          activeMain === "boards")
-      ) {
-        console.log("Applying service/material:", {
-          service: activeMain,
-          subService: activeAreaSubService,
-          materialKey: activeAreaMaterialKey,
-          materialLabel: activeAreaMaterialLabel,
-          color: activeAreaMaterialColor,
-          surfaceId,
-        });
+          activeMain === "boards");
 
-        toggleSurface(surfaceId);
-        applyAreaService(activeMain);
+      if (isAreaService) {
+        const wasSelected = selectedSurfacesRef.current.has(surfaceId);
+
+        toggleSurface(surfaceId, geo);
+
+        const next = new Set(selectedSurfacesRef.current);
+
+        if (wasSelected) {
+          next.delete(surfaceId);
+          selectedSurfacesRef.current = next;
+          removeSurfaceFromAreaService(activeMain, surfaceId);
+        } else {
+          next.add(surfaceId);
+          selectedSurfacesRef.current = next;
+          applyAreaService(activeMain, surfaceId);
+        }
       } else {
-        toggleSurface(surfaceId);
+        toggleSurface(surfaceId, geo);
       }
     },
     [
       toggleSurface,
       applyAreaService,
+      removeSurfaceFromAreaService,
       activeMain,
       activeAreaSubService,
       activeAreaMaterialKey,
-      activeAreaMaterialLabel,
-      activeAreaMaterialColor,
+      setLiveSurfaceGeo,
     ]
   );
+
+  const handleSurfacesCleared = useCallback(() => {
+    clearSelectedSurfaces();
+    selectedSurfacesRef.current = new Set();
+  }, [clearSelectedSurfaces]);
 
   const go2D = useCallback(() => {
     setViewMode("2D");
@@ -151,24 +195,52 @@ export default function Planner() {
     apiRef.current?.cmd("VIEW_3D");
   }, []);
 
-  const openServiceCatalog = useCallback((service: MainService) => {
-    setActiveMain(service);
-    apiRef.current?.cmd("OPEN_CATALOG");
+  const openServiceCatalog = useCallback(
+    (service: MainService) => {
+      setActiveMain(service);
+      apiRef.current?.cmd("OPEN_CATALOG");
 
-    setTimeout(() => {
-      apiRef.current?.cmd("CHANGE_CATALOG_PAGE", {
-        newPage: `plano_${service}`,
-        oldPage: "root",
-      });
-    }, 50);
-  }, [setActiveMain]);
+      setTimeout(() => {
+        apiRef.current?.cmd("CHANGE_CATALOG_PAGE", {
+          newPage: `plano_${service}`,
+          oldPage: "root",
+        });
+      }, 50);
+    },
+    [setActiveMain]
+  );
 
   const isCatalogOpen = engineMode === "MODE_VIEWING_CATALOG";
 
-  const statusText = useMemo(() => {
+  const currentServiceDraftCount = useMemo(() => {
+    if (
+      activeMain === "painting" ||
+      activeMain === "flooring" ||
+      activeMain === "plastering" ||
+      activeMain === "boards"
+    ) {
+      return areaServiceDraft[activeMain].size;
+    }
+    return 0;
+  }, [activeMain, areaServiceDraft]);
+
+  const statusBox = useMemo(() => {
     if (!activeAreaSubService || !activeAreaMaterialLabel) return null;
-    return `${activeAreaSubService} → ${activeAreaMaterialLabel}`;
-  }, [activeAreaSubService, activeAreaMaterialLabel]);
+
+    return {
+      service: activeMain,
+      subService: activeAreaSubService,
+      material: activeAreaMaterialLabel,
+      draftFaces: currentServiceDraftCount,
+      liveFaces: selectedSurfaces.size,
+    };
+  }, [
+    activeMain,
+    activeAreaSubService,
+    activeAreaMaterialLabel,
+    currentServiceDraftCount,
+    selectedSurfaces,
+  ]);
 
   return (
     <div
@@ -180,6 +252,7 @@ export default function Planner() {
         onApi={handleApi}
         onModeChange={setEngineMode}
         onSurfaceSelected={handleSurfaceSelected}
+        onSurfacesCleared={handleSurfacesCleared}
         onCatalogServiceSelected={handleCatalogServiceSelected}
       />
 
@@ -286,7 +359,9 @@ export default function Planner() {
 
                 <button
                   type="button"
-                  onClick={() => apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")}
+                  onClick={() =>
+                    apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")
+                  }
                   className="plano-glass-btn h-10 w-10 grid place-items-center"
                 >
                   <Settings className="h-5 w-5" />
@@ -308,10 +383,42 @@ export default function Planner() {
         </div>
       </div>
 
-      {!isCatalogOpen && statusText ? (
-        <div className="absolute left-4 top-20 z-40 rounded-xl bg-white/95 px-4 py-3 shadow-lg">
-          <div className="text-sm font-semibold">Selected service</div>
-          <div className="text-sm">{statusText}</div>
+      {!isCatalogOpen && liveSurfaceGeo ? (
+        <div className="absolute left-4 top-20 z-40 rounded-xl bg-white/95 px-4 py-3 shadow-lg min-w-[220px]">
+          <div className="text-sm font-semibold">PlanO selection</div>
+
+          <div className="text-sm mt-1">Wall: {liveSurfaceGeo.wallId}</div>
+          <div className="text-sm">Face: {liveSurfaceGeo.surfaceType}</div>
+          <div className="text-sm">
+            Length: {liveSurfaceGeo.lengthM ?? "-"} m
+          </div>
+          <div className="text-sm">
+            Height: {liveSurfaceGeo.heightM ?? "-"} m
+          </div>
+          <div className="text-sm font-semibold">
+            Area: {liveSurfaceGeo.areaM2 ?? "-"} m²
+          </div>
+
+          <div className="text-sm mt-2">
+            Selected: {surfaceGeoMap.size} faces
+          </div>
+          <div className="text-sm font-semibold">
+            Total: {selectedSurfaceTotalM2} m²
+          </div>
+
+          {statusBox && (
+            <>
+              <div className="text-sm mt-2">Service: {statusBox.service}</div>
+              <div className="text-sm">Mode: {statusBox.subService}</div>
+              <div className="text-sm">Material: {statusBox.material}</div>
+              <div className="text-sm mt-2">
+                Draft faces: {statusBox.draftFaces}
+              </div>
+              <div className="text-sm">
+                Live clicked faces: {statusBox.liveFaces}
+              </div>
+            </>
+          )}
         </div>
       ) : null}
     </div>

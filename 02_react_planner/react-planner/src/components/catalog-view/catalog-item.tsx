@@ -129,30 +129,37 @@ export default class CatalogItem extends Component<
     this.state = { hover: false };
   }
 
-  isPaintSelector(element: CatalogElement) {
+  isAreaServiceSelector(element: CatalogElement) {
+    const tags = element.info?.tag as string[] | undefined;
+    const info = element.info as any;
+
     return (
       element.prototype === 'items' &&
-      Array.isArray(element.info?.tag) &&
-      element.info.tag.includes('painting') &&
+      Array.isArray(tags) &&
       (
-        element.name === 'paint-white' ||
-        element.name === 'paint-grey' ||
-        element.name === 'paint-beige'
-      )
+        tags.includes('painting') ||
+        tags.includes('flooring') ||
+        tags.includes('plastering') ||
+        tags.includes('boards')
+      ) &&
+      !!info?.mainService &&
+      !!info?.subService
     );
   }
 
   select() {
     const element = this.props.element;
 
-    if (this.isPaintSelector(element)) {
+    if (this.isAreaServiceSelector(element)) {
+      const info = element.info as any;
+
       window.parent?.postMessage(
         {
           protocolVersion: 1,
           type: 'CATALOG_SERVICE_SELECTED',
           payload: {
-            mainService: 'painting',
-            subService: 'Internal paint',
+            mainService: info.mainService,
+            subService: info.subService,
             materialKey: element.name,
             materialLabel: element.info.title,
             color: element.properties?.color?.defaultValue || null

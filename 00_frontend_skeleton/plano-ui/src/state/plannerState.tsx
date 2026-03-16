@@ -70,6 +70,23 @@ type AreaServiceDraft = {
   boards: Set<string>;
 };
 
+type LiveSurfaceGeo = {
+  surfaceId: string;
+  wallId: string;
+  surfaceType: "front" | "back" | "floor";
+  lengthM: number | null;
+  heightM: number | null;
+  areaM2: number | null;
+} | null;
+
+type SurfaceGeoEntry = {
+  wallId: string;
+  surfaceType: "front" | "back" | "floor";
+  lengthM: number | null;
+  heightM: number | null;
+  areaM2: number | null;
+};
+
 type State = {
   activeMain: MainService;
   setActiveMain: (s: MainService) => void;
@@ -82,11 +99,16 @@ type State = {
   selectedCount: number;
 
   selectedSurfaces: Set<string>;
-  toggleSurface: (surfaceId: string) => void;
+  surfaceGeoMap: Map<string, SurfaceGeoEntry>;
+  selectedSurfaceTotalM2: number;
+  toggleSurface: (surfaceId: string, geo?: SurfaceGeoEntry) => void;
   clearSelectedSurfaces: () => void;
 
+  liveSurfaceGeo: LiveSurfaceGeo;
+  setLiveSurfaceGeo: (value: LiveSurfaceGeo) => void;
+
   areaServiceDraft: AreaServiceDraft;
-  applyAreaService: (service: AreaService) => void;
+  applyAreaService: (service: AreaService, surfaceId: string) => void;
   removeSurfaceFromAreaService: (service: AreaService, surfaceId: string) => void;
 
   activeAreaSubService: string | null;
@@ -162,6 +184,8 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
   }));
 
   const [selectedSurfaces, setSelectedSurfaces] = useState<Set<string>>(new Set());
+  const [surfaceGeoMap, setSurfaceGeoMap] = useState<Map<string, SurfaceGeoEntry>>(new Map());
+  const [liveSurfaceGeo, setLiveSurfaceGeo] = useState<LiveSurfaceGeo>(null);
 
   const [areaServiceDraft, setAreaServiceDraft] = useState<AreaServiceDraft>({
     painting: new Set(),
@@ -175,27 +199,29 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
   const [activeAreaMaterialLabel, setActiveAreaMaterialLabel] = useState<string | null>(null);
   const [activeAreaMaterialColor, setActiveAreaMaterialColor] = useState<string | null>(null);
 
-  const toggleSurface = (surfaceId: string) => {
+  const toggleSurface = (surfaceId: string, geo?: SurfaceGeoEntry) => {
     setSelectedSurfaces((prev) => {
       const next = new Set(prev);
+      if (next.has(surfaceId)) next.delete(surfaceId);
+      else next.add(surfaceId);
+      return next;
+    });
 
-      if (next.has(surfaceId)) {
-        next.delete(surfaceId);
-      } else {
-        next.add(surfaceId);
-      }
-
-      console.log("Selected surfaces:", Array.from(next));
-
+    setSurfaceGeoMap((prev) => {
+      const next = new Map(prev);
+      if (next.has(surfaceId)) next.delete(surfaceId);
+      else if (geo) next.set(surfaceId, geo);
       return next;
     });
   };
 
   const clearSelectedSurfaces = () => {
     setSelectedSurfaces(new Set());
+    setSurfaceGeoMap(new Map());
+    setLiveSurfaceGeo(null);
   };
 
-  const applyAreaService = (service: AreaService) => {
+  const applyAreaService = (service: AreaService, surfaceId: string) => {
     setAreaServiceDraft((prev) => {
       const next: AreaServiceDraft = {
         painting: new Set(prev.painting),
@@ -204,19 +230,7 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
         boards: new Set(prev.boards),
       };
 
-      selectedSurfaces.forEach((surfaceId) => {
-        next[service].add(surfaceId);
-      });
-
-      console.log("Area service draft:", {
-        service,
-        surfaces: Array.from(next[service]),
-        subService: activeAreaSubService,
-        materialKey: activeAreaMaterialKey,
-        materialLabel: activeAreaMaterialLabel,
-        color: activeAreaMaterialColor,
-      });
-
+      next[service].add(surfaceId);
       return next;
     });
   };
@@ -231,7 +245,6 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
       };
 
       next[service].delete(surfaceId);
-
       return next;
     });
   };
@@ -285,6 +298,14 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
     );
   }, [selected]);
 
+  const selectedSurfaceTotalM2 = useMemo(() => {
+    let sum = 0;
+    surfaceGeoMap.forEach((entry) => {
+      if (entry.areaM2 !== null) sum += entry.areaM2;
+    });
+    return Math.round(sum * 100) / 100;
+  }, [surfaceGeoMap]);
+
   const hasAnySelection = selectedCount > 0;
 
   const value: State = {
@@ -296,8 +317,12 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
     hasAnySelection,
     selectedCount,
     selectedSurfaces,
+    surfaceGeoMap,
+    selectedSurfaceTotalM2,
     toggleSurface,
     clearSelectedSurfaces,
+    liveSurfaceGeo,
+    setLiveSurfaceGeo,
     areaServiceDraft,
     applyAreaService,
     removeSurfaceFromAreaService,

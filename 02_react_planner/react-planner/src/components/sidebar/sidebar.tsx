@@ -1,6 +1,10 @@
 import React from 'react';
 
-import { MODE_VIEWING_CATALOG } from '../../constants';
+import {
+  MODE_VIEWING_CATALOG,
+  MODE_3D_VIEW,
+  MODE_3D_FIRST_PERSON
+} from '../../constants';
 import { State } from '../../models';
 import * as SharedStyle from '../../shared-style';
 import { ComponentType } from '../../types';
@@ -34,12 +38,17 @@ interface SidebarProps {
   state: State;
   width: number;
   height: number;
-  sidebarComponents: ComponentType[]; // kept for API compatibility; not used in "properties-only" mode
+  sidebarComponents: ComponentType[];
 }
 
 export default function Sidebar({ state, width, height }: SidebarProps) {
-  // ✅ Hide the floating info/editor box during Catalog view
-  if (state.mode === MODE_VIEWING_CATALOG) return null;
+  if (
+    state.mode === MODE_VIEWING_CATALOG ||
+    state.mode === MODE_3D_VIEW ||
+    state.mode === MODE_3D_FIRST_PERSON
+  ) {
+    return null;
+  }
 
   const selectedLayer = state.scene.selectedLayer;
   if (!selectedLayer) return null;
@@ -51,7 +60,11 @@ export default function Sidebar({ state, width, height }: SidebarProps) {
     selected.items.length > 1 ||
     selected.holes.length > 1 ||
     selected.areas.length > 1 ||
-    selected.lines.length + selected.items.length + selected.holes.length + selected.areas.length > 1;
+    selected.lines.length +
+      selected.items.length +
+      selected.holes.length +
+      selected.areas.length >
+      1;
 
   const selectedGroup = Object.values(state.scene.groups).find((g) => g.selected);
 

@@ -1,7 +1,9 @@
 import React from 'react';
-import { BoxGeometry, MeshBasicMaterial, Mesh, BoxHelper } from 'three';
 
-export default {
+import { defineCatalogElement } from '@archef2000/react-planner';
+import { BoxGeometry, BoxHelper, Mesh, MeshBasicMaterial } from 'three';
+
+export default defineCatalogElement({
   name: 'paint-beige',
   prototype: 'items',
 
@@ -9,8 +11,10 @@ export default {
     title: 'Beige Paint',
     tag: ['painting'],
     description: 'Internal beige paint',
-    image: ''
-  },
+    image: '',
+    mainService: 'painting',
+    subService: 'Internal paint'
+  } as any,
 
   properties: {
     color: {
@@ -20,12 +24,12 @@ export default {
     }
   },
 
-  render2D: (element: any) => {
+  render2D: (element) => {
     const style = {
       stroke: '#000',
-      strokeWidth: element.selected ? '2px' : '0px',
-      fill: element.properties.get('color')
-    };
+      strokeWidth: 2,
+      fill: element.properties.color
+    } as const;
 
     return (
       <g transform="translate(-50, -50)">
@@ -34,24 +38,22 @@ export default {
     );
   },
 
-  render3D: (element: any) => {
+  async render3D(element) {
     const geometry = new BoxGeometry(100, 100, 100);
     const material = new MeshBasicMaterial({
-      color: element.properties.get('color')
+      color: element.properties.color
     });
 
     const mesh = new Mesh(geometry, material);
 
-    if (element.selected) {
-      const box = new BoxHelper(mesh, '#000');
-      box.material.linewidth = 1;
-      box.material.depthTest = false;
-      box.renderOrder = 1000;
-      mesh.add(box);
-    }
+    const box = new BoxHelper(mesh, '#000');
+    box.material.linewidth = 1;
+    box.material.depthTest = false;
+    box.renderOrder = 1000;
+    mesh.add(box);
 
     mesh.position.y = 50;
 
-    return Promise.resolve(mesh);
+    return mesh;
   }
-};
+});

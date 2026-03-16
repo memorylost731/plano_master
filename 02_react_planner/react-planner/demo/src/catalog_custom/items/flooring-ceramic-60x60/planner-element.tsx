@@ -4,23 +4,23 @@ import { defineCatalogElement } from '@archef2000/react-planner';
 import { BoxGeometry, BoxHelper, Mesh, MeshBasicMaterial } from 'three';
 
 export default defineCatalogElement({
-  name: 'paint-grey',
+  name: 'flooring-ceramic-60x60',
   prototype: 'items',
 
   info: {
-    title: 'Grey Paint',
-    tag: ['painting'],
-    description: 'Internal grey paint',
+    title: 'Ceramic Tiles 60×60',
+    tag: ['flooring'],
+    description: 'Ceramic tiles 60×60 cm',
     image: '',
-    mainService: 'painting',
-    subService: 'Internal paint'
+    mainService: 'flooring',
+    subService: 'Ceramic tiles 60×60'
   } as any,
 
   properties: {
     color: {
       label: 'Color',
       type: 'color',
-      defaultValue: '#cccccc'
+      defaultValue: '#d8d8d8'
     }
   },
 

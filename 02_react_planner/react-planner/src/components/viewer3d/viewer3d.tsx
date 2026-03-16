@@ -23,21 +23,6 @@ type HighlightEntry = {
   originalMaterial: Three.Material;
 };
 
-const hudStyle: React.CSSProperties = {
-  position: 'absolute',
-  left: 12,
-  bottom: 12,
-  zIndex: 10000,
-  background: 'rgba(0,0,0,0.65)',
-  color: '#fff',
-  padding: '8px 10px',
-  borderRadius: 8,
-  fontSize: 13,
-  lineHeight: 1.2,
-  pointerEvents: 'none',
-  userSelect: 'none'
-};
-
 export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
   static contextType = ReactPlannerContext;
   declare context: React.ContextType<typeof ReactPlannerContext>;
@@ -81,17 +66,21 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
   private isSelectableFace(mesh: Three.Object3D): mesh is Three.Mesh {
     return (
       mesh instanceof Three.Mesh &&
-      (mesh.name === 'frontFace' || mesh.name === 'backFace') &&
+      (
+        mesh.name === 'frontFace' ||
+        mesh.name === 'backFace' ||
+        mesh.name === 'floor'
+      ) &&
       !Array.isArray((mesh as Three.Mesh).material)
     );
   }
 
   private clearAllHighlights() {
-  this.highlightedMeshes.forEach((entry) => {
-    entry.mesh.material = entry.originalMaterial;
-  });
-  this.highlightedMeshes.clear();
- }
+    this.highlightedMeshes.forEach((entry) => {
+      entry.mesh.material = entry.originalMaterial;
+    });
+    this.highlightedMeshes.clear();
+  }
 
   private removeHighlight(mesh: Three.Mesh) {
     const key = this.getMeshKey(mesh);
@@ -109,10 +98,9 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
     const baseMaterial = mesh.material;
     if (Array.isArray(baseMaterial) || !baseMaterial) return;
 
-    const highlightMaterial = (baseMaterial as Three.Material).clone();
-    highlightMaterial.transparent = true;
-    highlightMaterial.opacity = 0.35;
-    highlightMaterial.depthWrite = false;
+    const highlightMaterial = (baseMaterial as Three.MeshPhongMaterial).clone();
+    highlightMaterial.emissive = new Three.Color(0x2196f3);
+    highlightMaterial.emissiveIntensity = 0.4;
 
     this.highlightedMeshes.set(key, {
       mesh,
@@ -130,52 +118,6 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
     } else {
       this.addHighlight(mesh);
     }
-  }
-
-  private computeSelectedAreaM2(): number | null {
-    const { state } = this.props;
-    const unit = this.context.catalog.unit;
-    const selectedLayerID = state.scene.selectedLayer;
-    if (!selectedLayerID) return null;
-
-    const layer: any = state.scene.layers[selectedLayerID];
-    if (!layer) return null;
-
-    const selectedAreaIDs: string[] = layer.selected?.areas || [];
-    if (!selectedAreaIDs.length) return null;
-
-    const metersPerUnit = convert(1).from(unit).to('m');
-
-    let totalM2 = 0;
-
-    for (const areaID of selectedAreaIDs) {
-      const area: any = layer.areas?.[areaID];
-      if (!area) continue;
-
-      const verts: string[] = area.vertices;
-      if (!Array.isArray(verts) || verts.length < 3) continue;
-
-      const pts = verts
-        .map((vid) => layer.vertices?.[vid])
-        .filter(Boolean)
-        .map((v: any) => ({ x: v.x, y: v.y }));
-
-      if (pts.length < 3) continue;
-
-      let sum = 0;
-      for (let i = 0; i < pts.length; i++) {
-        const j = (i + 1) % pts.length;
-        sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
-      }
-
-      const areaUnit2 = Math.abs(sum) / 2;
-      const areaM2 = areaUnit2 * metersPerUnit * metersPerUnit;
-
-      totalM2 += areaM2;
-    }
-
-    if (!isFinite(totalM2) || totalM2 <= 0) return null;
-    return Math.round(totalM2 * 100) / 100;
   }
 
   componentDidMount() {
@@ -228,6 +170,17 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
     const mouse = new Three.Vector2();
     const raycaster = new Three.Raycaster();
 
+    const notifySurfacesCleared = () => {
+      window.parent?.postMessage(
+        {
+          protocolVersion: 1,
+          type: 'SURFACES_CLEARED',
+          payload: {}
+        },
+        '*'
+      );
+    };
+
     this.mouseDownEvent = (event: MouseEvent) => {
       this.lastMousePosition.x = (event.offsetX / this.width) * 2 - 1;
       this.lastMousePosition.y = (-event.offsetY / this.height) * 2 + 1;
@@ -251,42 +204,87 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
           const object = intersects[0].object as any;
 
           if (this.isSelectableFace(object)) {
-
             this.toggleHighlight(object);
 
             const mesh = object as Three.Mesh;
+            const unit = this.context.catalog.unit;
+            const metersPerUnit = convert(1).from(unit).to('m');
+
+            if (mesh.name === 'floor') {
+              const areaId = mesh.userData?.areaId;
+              const sceneArea = mesh.userData?.sceneArea;
+
+              if (areaId && typeof sceneArea === 'number') {
+                const areaM2 =
+                  Math.round(sceneArea * metersPerUnit * metersPerUnit * 100) /
+                  100;
+
+                window.parent?.postMessage(
+                  {
+                    protocolVersion: 1,
+                    type: 'SURFACE_SELECTED',
+                    payload: {
+                      surfaceId: `area::${areaId}`,
+                      wallId: areaId,
+                      surfaceType: 'floor',
+                      areaM2
+                    }
+                  },
+                  '*'
+                );
+              }
+
+              return;
+            }
 
             const wallId = mesh.userData?.wallId;
             const surfaceType = mesh.userData?.surfaceType;
+            const wallLength = mesh.userData?.wallLength;
+            const wallHeight = mesh.userData?.wallHeight;
 
             if (wallId && surfaceType) {
-
               const surfaceId = `${wallId}:${surfaceType}`;
 
-              console.log("Surface selected:", surfaceId);
+              let lengthM: number | undefined;
+              let heightM: number | undefined;
+              let areaM2: number | undefined;
+
+              if (
+                typeof wallLength === 'number' &&
+                typeof wallHeight === 'number'
+              ) {
+                lengthM = Math.round(wallLength * metersPerUnit * 100) / 100;
+                heightM = Math.round(wallHeight * metersPerUnit * 100) / 100;
+                areaM2 = Math.round(lengthM * heightM * 100) / 100;
+              }
 
               window.parent?.postMessage(
                 {
                   protocolVersion: 1,
-                  type: "SURFACE_SELECTED",
+                  type: 'SURFACE_SELECTED',
                   payload: {
                     surfaceId,
                     wallId,
-                    surfaceType
+                    surfaceType,
+                    lengthM,
+                    heightM,
+                    areaM2
                   }
                 },
-                "*"
+                '*'
               );
             }
 
-            const interactable = mesh as Three.Mesh & { interact?: () => void };
-            interactable.interact?.();
+            //const interactable = mesh as Three.Mesh & { interact?: () => void };
+            //interactable.interact?.();
           } else {
             this.clearAllHighlights();
+            notifySurfacesCleared();
             this.context.projectActions.unselectAll();
           }
         } else {
           this.clearAllHighlights();
+          notifySurfacesCleared();
           this.context.projectActions.unselectAll();
         }
       }
@@ -427,14 +425,8 @@ export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
   }
 
   render() {
-    const areaM2 = this.computeSelectedAreaM2();
-
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-        {areaM2 !== null ? (
-          <div style={hudStyle}>Selected area: {areaM2} m²</div>
-        ) : null}
-
         <div ref={this.canvasWrapper} />
       </div>
     );

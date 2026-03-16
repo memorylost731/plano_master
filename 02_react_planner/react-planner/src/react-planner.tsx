@@ -159,7 +159,7 @@ function ReactPlanner(props: InternalReactPlannerProps) {
           height={20} // keep original internal height
           state={extractedState}
         />
-      </div>
+    </div>
 
     </div>
   );

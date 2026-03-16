@@ -93,15 +93,7 @@ export default function LineAttributesEditor({
           <tr>
             <td style={firstTdStyle}>{translator.t('Surface')}</td>
             <td>
-              <div style={measureRowWrapStyle}>
-                <FormTextInput
-                  value={wallSurfaceDisplay}
-                  onChange={() => {}}
-                  style={readOnlyInputStyle}
-                  readOnly
-                />
-                <div style={unitBoxStyle}>m²</div>
-              </div>
+              
             </td>
           </tr>
         </tbody>

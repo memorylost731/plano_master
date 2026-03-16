@@ -4,23 +4,23 @@ import { defineCatalogElement } from '@archef2000/react-planner';
 import { BoxGeometry, BoxHelper, Mesh, MeshBasicMaterial } from 'three';
 
 export default defineCatalogElement({
-  name: 'paint-grey',
+  name: 'boards-flat-ceiling',
   prototype: 'items',
 
   info: {
-    title: 'Grey Paint',
-    tag: ['painting'],
-    description: 'Internal grey paint',
+    title: 'Flat Gypsum Ceiling',
+    tag: ['boards'],
+    description: 'Flat gypsum board ceiling',
     image: '',
-    mainService: 'painting',
-    subService: 'Internal paint'
+    mainService: 'boards',
+    subService: 'Flat ceiling'
   } as any,
 
   properties: {
     color: {
       label: 'Color',
       type: 'color',
-      defaultValue: '#cccccc'
+      defaultValue: '#f5f5f5'
     }
   },
 

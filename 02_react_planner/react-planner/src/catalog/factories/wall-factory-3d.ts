@@ -541,14 +541,19 @@ export function buildWall(
 
   frontFace.name = 'frontFace';
   backFace.name = 'backFace';
+
   (frontFace as any).userData = {
-  surfaceType: 'front',
-  wallId: element.id
+    surfaceType: 'front',
+    wallId: element.id,
+    wallLength: distance,
+    wallHeight: height,
   };
 
   (backFace as any).userData = {
-  surfaceType: 'back',
-  wallId: element.id
+    surfaceType: 'back',
+    wallId: element.id,
+    wallLength: distance,
+    wallHeight: height,
   };
 
 

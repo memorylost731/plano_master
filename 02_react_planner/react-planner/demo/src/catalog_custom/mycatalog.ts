@@ -112,6 +112,11 @@ export function createCatalog() {
   const paintGrey = Items.find((el) => el?.name === 'paint-grey');
   const paintBeige = Items.find((el) => el?.name === 'paint-beige');
 
+  const flooringCeramic60 = Items.find((el) => el?.name === 'flooring-ceramic-60x60');
+  const flooringLaminate = Items.find((el) => el?.name === 'flooring-laminate');
+  const plasteringMonacote = Items.find((el) => el?.name === 'plastering-monacote');
+  const boardsFlatCeiling = Items.find((el) => el?.name === 'boards-flat-ceiling');
+
   for (const svc of PLANO_MAIN_SERVICES) {
     if (svc.key === 'other') continue;
 
@@ -141,6 +146,42 @@ export function createCatalog() {
         }
         if (paintBeige && !subCat.elements.find((el: any) => el.name === paintBeige.name)) {
           subCat.elements.push(paintBeige);
+        }
+      }
+
+      if (svc.key === 'flooring' && subLabel === 'Ceramic tiles 60×60') {
+        if (
+          flooringCeramic60 &&
+          !subCat.elements.find((el: any) => el.name === flooringCeramic60.name)
+        ) {
+          subCat.elements.push(flooringCeramic60);
+        }
+      }
+
+      if (svc.key === 'flooring' && subLabel === 'Laminate') {
+        if (
+          flooringLaminate &&
+          !subCat.elements.find((el: any) => el.name === flooringLaminate.name)
+        ) {
+          subCat.elements.push(flooringLaminate);
+        }
+      }
+
+      if (svc.key === 'plastering' && subLabel === 'Internal (monacote+finittura)') {
+        if (
+          plasteringMonacote &&
+          !subCat.elements.find((el: any) => el.name === plasteringMonacote.name)
+        ) {
+          subCat.elements.push(plasteringMonacote);
+        }
+      }
+
+      if (svc.key === 'boards' && subLabel === 'Flat ceiling') {
+        if (
+          boardsFlatCeiling &&
+          !subCat.elements.find((el: any) => el.name === boardsFlatCeiling.name)
+        ) {
+          subCat.elements.push(boardsFlatCeiling);
         }
       }
     }
