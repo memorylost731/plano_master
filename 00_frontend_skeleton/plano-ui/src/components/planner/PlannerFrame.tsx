@@ -23,7 +23,8 @@ export type PlannerCmd =
   | "UNSELECT_ALL"
   | "LOAD_PROJECT_JSON"
   | "LOAD_RASTER_JSON"
-  | "REQUEST_SCENE_JSON";
+  | "REQUEST_SCENE_JSON"
+  | "RESTORE_SURFACE_HIGHLIGHTS";
 
 export type SurfaceSelectedPayload = {
   surfaceId: string;
@@ -194,7 +195,11 @@ export default function PlannerFrame({
 
       if (data.type === "SCENE_JSON") {
         const scene = data?.payload?.scene;
-        if (scene) downloadJson("plano_scene.json", scene);
+        if (scene) {
+          window.dispatchEvent(
+            new CustomEvent("PLANO_SCENE_SAVED", { detail: scene })
+          );
+        }
       }
     };
 

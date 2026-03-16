@@ -61,7 +61,7 @@ export const SUBSERVICES: Record<MainService, string[]> = {
   other: ["To be defined", "Custom request", "Special works"],
 };
 
-type AreaService = "painting" | "flooring" | "plastering" | "boards";
+export type AreaService = "painting" | "flooring" | "plastering" | "boards";
 
 type AreaServiceDraft = {
   painting: Set<string>;
@@ -79,12 +79,23 @@ type LiveSurfaceGeo = {
   areaM2: number | null;
 } | null;
 
-type SurfaceGeoEntry = {
+export type SurfaceGeoEntry = {
   wallId: string;
   surfaceType: "front" | "back" | "floor";
   lengthM: number | null;
   heightM: number | null;
   areaM2: number | null;
+};
+
+export type CommittedServiceEntry = {
+  ledgerId: string;
+  service: AreaService;
+  subService: string;
+  materialKey: string;
+  materialLabel: string;
+  color: string | null;
+  surfaces: Map<string, SurfaceGeoEntry>;
+  totalM2: number;
 };
 
 type State = {
@@ -103,6 +114,7 @@ type State = {
   selectedSurfaceTotalM2: number;
   toggleSurface: (surfaceId: string, geo?: SurfaceGeoEntry) => void;
   clearSelectedSurfaces: () => void;
+  restoreFromLedgerEntry: (entry: CommittedServiceEntry) => void;
 
   liveSurfaceGeo: LiveSurfaceGeo;
   setLiveSurfaceGeo: (value: LiveSurfaceGeo) => void;
@@ -119,6 +131,10 @@ type State = {
   setActiveAreaMaterialLabel: (value: string | null) => void;
   activeAreaMaterialColor: string | null;
   setActiveAreaMaterialColor: (value: string | null) => void;
+
+  committedLedger: CommittedServiceEntry[];
+  commitCurrentService: () => void;
+  projectTotalM2: number;
 };
 
 const KEY = "plano:plannerSelections:v1";
@@ -199,6 +215,8 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
   const [activeAreaMaterialLabel, setActiveAreaMaterialLabel] = useState<string | null>(null);
   const [activeAreaMaterialColor, setActiveAreaMaterialColor] = useState<string | null>(null);
 
+  const [committedLedger, setCommittedLedger] = useState<CommittedServiceEntry[]>([]);
+
   const toggleSurface = (surfaceId: string, geo?: SurfaceGeoEntry) => {
     setSelectedSurfaces((prev) => {
       const next = new Set(prev);
@@ -218,6 +236,12 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
   const clearSelectedSurfaces = () => {
     setSelectedSurfaces(new Set());
     setSurfaceGeoMap(new Map());
+    setLiveSurfaceGeo(null);
+  };
+
+  const restoreFromLedgerEntry = (entry: CommittedServiceEntry) => {
+    setSelectedSurfaces(new Set(entry.surfaces.keys()));
+    setSurfaceGeoMap(new Map(entry.surfaces));
     setLiveSurfaceGeo(null);
   };
 
@@ -247,6 +271,58 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
       next[service].delete(surfaceId);
       return next;
     });
+  };
+
+  const commitCurrentService = () => {
+    const isAreaService =
+      activeMain === "painting" ||
+      activeMain === "flooring" ||
+      activeMain === "plastering" ||
+      activeMain === "boards";
+
+    if (!isAreaService) return;
+    if (!activeAreaSubService || !activeAreaMaterialKey || !activeAreaMaterialLabel) return;
+    if (surfaceGeoMap.size === 0) return;
+
+    const committedSurfaces = new Map(surfaceGeoMap);
+
+    let totalM2 = 0;
+    committedSurfaces.forEach((entry) => {
+      if (entry.areaM2 !== null) totalM2 += entry.areaM2;
+    });
+    totalM2 = Math.round(totalM2 * 100) / 100;
+
+    setCommittedLedger((prev) => {
+      const existingIndex = prev.findIndex(
+        (entry) =>
+          entry.service === activeMain &&
+          entry.subService === activeAreaSubService &&
+          entry.materialKey === activeAreaMaterialKey
+      );
+
+      const nextEntry: CommittedServiceEntry = {
+        ledgerId: existingIndex >= 0 ? prev[existingIndex].ledgerId : crypto.randomUUID(),
+        service: activeMain,
+        subService: activeAreaSubService,
+        materialKey: activeAreaMaterialKey,
+        materialLabel: activeAreaMaterialLabel,
+        color: activeAreaMaterialColor,
+        surfaces: committedSurfaces,
+        totalM2,
+      };
+
+      if (existingIndex >= 0) {
+        return prev.map((entry, index) => (index === existingIndex ? nextEntry : entry));
+      }
+
+      return [...prev, nextEntry];
+    });
+
+    clearSelectedSurfaces();
+    setActiveAreaSubService(null);
+    setActiveAreaMaterialKey(null);
+    setActiveAreaMaterialLabel(null);
+    setActiveAreaMaterialColor(null);
   };
 
   useEffect(() => {
@@ -306,6 +382,11 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
     return Math.round(sum * 100) / 100;
   }, [surfaceGeoMap]);
 
+  const projectTotalM2 = useMemo(() => {
+    const total = committedLedger.reduce((sum, entry) => sum + entry.totalM2, 0);
+    return Math.round(total * 100) / 100;
+  }, [committedLedger]);
+
   const hasAnySelection = selectedCount > 0;
 
   const value: State = {
@@ -321,6 +402,7 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
     selectedSurfaceTotalM2,
     toggleSurface,
     clearSelectedSurfaces,
+    restoreFromLedgerEntry,
     liveSurfaceGeo,
     setLiveSurfaceGeo,
     areaServiceDraft,
@@ -334,6 +416,9 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
     setActiveAreaMaterialLabel,
     activeAreaMaterialColor,
     setActiveAreaMaterialColor,
+    committedLedger,
+    commitCurrentService,
+    projectTotalM2,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

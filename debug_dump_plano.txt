@@ -1,0 +1,1217 @@
+===== FILE: /home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx =====
+import { useMemo, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bolt,
+  Wrench,
+  Paintbrush,
+  Grid3X3,
+  Layers,
+  Boxes,
+  MoreHorizontal,
+  FilePlus,
+  FolderOpen,
+  Save,
+  Plus,
+  Undo2,
+  Settings,
+  FileText,
+} from "lucide-react";
+
+import PlannerFrame, {
+  type PlannerApi,
+  type CatalogServiceSelectedPayload,
+  type SurfaceSelectedPayload,
+} from "../../components/planner/PlannerFrame";
+
+import {
+  MAIN_SERVICES,
+  usePlannerState,
+  type MainService,
+} from "../../state/plannerState";
+
+type ViewMode = "2D" | "3D";
+
+const ICONS: Record<MainService, LucideIcon> = {
+  electricity: Bolt,
+  plumbing: Wrench,
+  painting: Paintbrush,
+  flooring: Grid3X3,
+  plastering: Layers,
+  boards: Boxes,
+  other: MoreHorizontal,
+};
+
+export default function Planner() {
+  const navigate = useNavigate();
+
+  const apiRef = useRef<PlannerApi | null>(null);
+  const didInitRef = useRef(false);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("2D");
+  const [engineMode, setEngineMode] = useState<string>("");
+
+  const selectedSurfacesRef = useRef<Set<string>>(new Set());
+
+  const {
+    activeMain,
+    setActiveMain,
+    hasAnySelection,
+    selectedSurfaces,
+    areaServiceDraft,
+    toggleSurface,
+    clearSelectedSurfaces,
+    liveSurfaceGeo,
+    setLiveSurfaceGeo,
+    applyAreaService,
+    removeSurfaceFromAreaService,
+    activeAreaSubService,
+    setActiveAreaSubService,
+    activeAreaMaterialKey,
+    setActiveAreaMaterialKey,
+    activeAreaMaterialLabel,
+    setActiveAreaMaterialLabel,
+    activeAreaMaterialColor,
+    setActiveAreaMaterialColor,
+  } = usePlannerState();
+
+  selectedSurfacesRef.current = selectedSurfaces;
+
+  const handleApi = useCallback((api: PlannerApi) => {
+    apiRef.current = api;
+
+    if (!didInitRef.current) {
+      didInitRef.current = true;
+      api.cmd("VIEW_2D");
+      api.cmd("SELECT_TOOL_EDIT");
+      setViewMode("2D");
+    }
+  }, []);
+
+  const handleCatalogServiceSelected = useCallback(
+    (payload: CatalogServiceSelectedPayload) => {
+      if (payload.mainService === "painting") {
+        setActiveMain("painting");
+        setActiveAreaSubService(payload.subService);
+        setActiveAreaMaterialKey(payload.materialKey);
+        setActiveAreaMaterialLabel(payload.materialLabel);
+        setActiveAreaMaterialColor(payload.color || null);
+        setViewMode("3D");
+        apiRef.current?.cmd("VIEW_3D");
+      }
+    },
+    [
+      setActiveMain,
+      setActiveAreaSubService,
+      setActiveAreaMaterialKey,
+      setActiveAreaMaterialLabel,
+      setActiveAreaMaterialColor,
+    ]
+  );
+
+  const handleSurfaceSelected = useCallback(
+    (payload: SurfaceSelectedPayload) => {
+      const surfaceId = payload?.surfaceId;
+      if (!surfaceId) return;
+
+      setLiveSurfaceGeo({
+        surfaceId,
+        wallId: payload.wallId,
+        surfaceType: payload.surfaceType,
+        lengthM: payload.lengthM ?? null,
+        heightM: payload.heightM ?? null,
+        areaM2: payload.areaM2 ?? null,
+      });
+
+      const isAreaService =
+        !!activeAreaSubService &&
+        !!activeAreaMaterialKey &&
+        (activeMain === "painting" ||
+          activeMain === "flooring" ||
+          activeMain === "plastering" ||
+          activeMain === "boards");
+
+      if (isAreaService) {
+        const wasSelected = selectedSurfacesRef.current.has(surfaceId);
+
+        toggleSurface(surfaceId);
+
+        const next = new Set(selectedSurfacesRef.current);
+
+        if (wasSelected) {
+          next.delete(surfaceId);
+          selectedSurfacesRef.current = next;
+          removeSurfaceFromAreaService(activeMain, surfaceId);
+        } else {
+          next.add(surfaceId);
+          selectedSurfacesRef.current = next;
+          applyAreaService(activeMain, surfaceId);
+        }
+      } else {
+        toggleSurface(surfaceId);
+      }
+    },
+    [
+      toggleSurface,
+      applyAreaService,
+      removeSurfaceFromAreaService,
+      activeMain,
+      activeAreaSubService,
+      activeAreaMaterialKey,
+      setLiveSurfaceGeo,
+    ]
+  );
+
+  const handleSurfacesCleared = useCallback(() => {
+    clearSelectedSurfaces();
+    selectedSurfacesRef.current = new Set();
+  }, [clearSelectedSurfaces]);
+
+  const go2D = useCallback(() => {
+    setViewMode("2D");
+    apiRef.current?.cmd("VIEW_2D");
+    apiRef.current?.cmd("SELECT_TOOL_EDIT");
+  }, []);
+
+  const go3D = useCallback(() => {
+    setViewMode("3D");
+    apiRef.current?.cmd("VIEW_3D");
+  }, []);
+
+  const openServiceCatalog = useCallback(
+    (service: MainService) => {
+      setActiveMain(service);
+      apiRef.current?.cmd("OPEN_CATALOG");
+
+      setTimeout(() => {
+        apiRef.current?.cmd("CHANGE_CATALOG_PAGE", {
+          newPage: `plano_${service}`,
+          oldPage: "root",
+        });
+      }, 50);
+    },
+    [setActiveMain]
+  );
+
+  const isCatalogOpen = engineMode === "MODE_VIEWING_CATALOG";
+
+  const currentServiceDraftCount = useMemo(() => {
+    if (
+      activeMain === "painting" ||
+      activeMain === "flooring" ||
+      activeMain === "plastering" ||
+      activeMain === "boards"
+    ) {
+      return areaServiceDraft[activeMain].size;
+    }
+    return 0;
+  }, [activeMain, areaServiceDraft]);
+
+  const statusBox = useMemo(() => {
+    if (!activeAreaSubService || !activeAreaMaterialLabel) return null;
+
+    return {
+      service: activeMain,
+      subService: activeAreaSubService,
+      material: activeAreaMaterialLabel,
+      draftFaces: currentServiceDraftCount,
+      liveFaces: selectedSurfaces.size,
+    };
+  }, [
+    activeMain,
+    activeAreaSubService,
+    activeAreaMaterialLabel,
+    currentServiceDraftCount,
+    selectedSurfaces,
+  ]);
+
+  return (
+    <div
+      className={`${
+        viewMode === "2D" ? "planner2d-bg" : "planner3d-bg"
+      } fixed inset-0 text-zinc-900`}
+    >
+      <PlannerFrame
+        onApi={handleApi}
+        onModeChange={setEngineMode}
+        onSurfaceSelected={handleSurfaceSelected}
+        onSurfacesCleared={handleSurfacesCleared}
+        onCatalogServiceSelected={handleCatalogServiceSelected}
+      />
+
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex justify-center p-2">
+        <div className="pointer-events-auto glass-panel w-[calc(100vw-24px)] px-4 py-1">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 font-semibold"
+            >
+              <span className="text-base">PlanO</span>
+            </button>
+
+            {viewMode === "3D" && !isCatalogOpen ? (
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 justify-center px-1">
+                  {MAIN_SERVICES.map((s) => {
+                    const Icon = ICONS[s.key];
+                    const isActive = activeMain === s.key;
+
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => openServiceCatalog(s.key)}
+                        className={`plano-dock-item flex items-center gap-2 px-2 py-1 text-xs ${
+                          isActive ? "ring-2 ring-white/70" : ""
+                        }`}
+                        title={s.label}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="hidden lg:inline">{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            {!isCatalogOpen && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("NEW_PROJECT")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <FilePlus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.saveProjectDownload()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Save className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.loadProjectPicker()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <FolderOpen className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_CATALOG")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go3D}
+                  className={`plano-glass-btn px-4 py-2 text-sm ${
+                    viewMode === "3D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                >
+                  3D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go2D}
+                  className={`plano-glass-btn px-4 py-2 text-sm ${
+                    viewMode === "2D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                >
+                  2D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("UNDO")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Undo2 className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")
+                  }
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/estimate")}
+                  disabled={!hasAnySelection}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    hasAnySelection ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                >
+                  <FileText className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {!isCatalogOpen && statusBox ? (
+        <div className="absolute left-4 top-20 z-40 rounded-xl bg-white/95 px-4 py-3 shadow-lg min-w-[220px]">
+          <div className="text-sm font-semibold">PlanO selection</div>
+          <div className="text-sm mt-1">Service: {statusBox.service}</div>
+          <div className="text-sm">Mode: {statusBox.subService}</div>
+          <div className="text-sm">Material: {statusBox.material}</div>
+
+          <div className="text-sm mt-2">Draft faces: {statusBox.draftFaces}</div>
+          <div className="text-sm">Live clicked faces: {statusBox.liveFaces}</div>
+
+          {liveSurfaceGeo && (
+            <>
+              <div className="text-sm mt-2">Wall: {liveSurfaceGeo.wallId}</div>
+              <div className="text-sm">Face: {liveSurfaceGeo.surfaceType}</div>
+              <div className="text-sm">
+                Length: {liveSurfaceGeo.lengthM ?? "-"} m
+              </div>
+              <div className="text-sm">
+                Height: {liveSurfaceGeo.heightM ?? "-"} m
+              </div>
+              <div className="text-sm font-semibold">
+                Area: {liveSurfaceGeo.areaM2 ?? "-"} m²
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+===== FILE: /home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx =====
+import { useEffect, useRef } from "react";
+
+const ENGINE_URL = import.meta.env.VITE_ENGINE_URL || "http://localhost:5173";
+const ENGINE_ORIGIN = new URL(ENGINE_URL).origin;
+const PROTOCOL_VERSION = 1;
+
+const RASTER_URL =
+  import.meta.env.VITE_RASTER_URL || "http://localhost:8000/upload-plan";
+
+export type PlannerCmd =
+  | "NEW_PROJECT"
+  | "OPEN_CATALOG"
+  | "CHANGE_CATALOG_PAGE"
+  | "VIEW_2D"
+  | "VIEW_3D"
+  | "VIEW_3D_FIRST_PERSON"
+  | "UNDO"
+  | "OPEN_PROJECT_CONFIGURATOR"
+  | "TOOL_PAN"
+  | "TOOL_ZOOM_IN"
+  | "TOOL_ZOOM_OUT"
+  | "SELECT_TOOL_EDIT"
+  | "UNSELECT_ALL"
+  | "LOAD_PROJECT_JSON"
+  | "LOAD_RASTER_JSON"
+  | "REQUEST_SCENE_JSON";
+
+export type SurfaceSelectedPayload = {
+  surfaceId: string;
+  wallId: string;
+  surfaceType: "front" | "back";
+  lengthM?: number;
+  heightM?: number;
+  areaM2?: number;
+};
+
+export type CatalogServiceSelectedPayload = {
+  mainService: string;
+  subService: string;
+  materialKey: string;
+  materialLabel: string;
+  color: string | null;
+};
+
+export type PlannerApi = {
+  cmd: (c: PlannerCmd, payload?: any) => void;
+  loadProjectPicker: () => void;
+  saveProjectDownload: () => void;
+};
+
+type Props = {
+  onApi?: (api: PlannerApi) => void;
+  onModeChange?: (mode: string) => void;
+  onSurfaceSelected?: (payload: SurfaceSelectedPayload) => void;
+  onSurfacesCleared?: () => void;
+  onCatalogServiceSelected?: (payload: CatalogServiceSelectedPayload) => void;
+};
+
+function downloadJson(filename: string, data: any) {
+  const dataStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+export default function PlannerFrame({
+  onApi,
+  onModeChange,
+  onSurfaceSelected,
+  onSurfacesCleared,
+  onCatalogServiceSelected,
+}: Props) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  const postToEngine = (msg: any) => {
+    const w = iframeRef.current?.contentWindow;
+    if (!w) return;
+    w.postMessage(msg, "*");
+  };
+
+  const cmd = (c: PlannerCmd, payload?: any) => {
+    postToEngine({
+      protocolVersion: PROTOCOL_VERSION,
+      type: "CMD",
+      cmd: c,
+      payload,
+    });
+  };
+
+  const loadProjectPicker = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json,.png,.jpg,.jpeg,application/pdf";
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      try {
+        if (file.name.toLowerCase().endsWith(".json")) {
+          const text = await file.text();
+          const scene = JSON.parse(text);
+          cmd("LOAD_PROJECT_JSON", { scene });
+          return;
+        }
+
+        const form = new FormData();
+        form.append("file", file);
+
+        const resp = await fetch(RASTER_URL, { method: "POST", body: form });
+        if (!resp.ok) {
+          const msg = await resp.text();
+          throw new Error(`Raster upload failed (${resp.status}): ${msg}`);
+        }
+
+        const raw = await resp.json();
+        cmd("LOAD_RASTER_JSON", { raw });
+      } catch (e: any) {
+        alert(e?.message || String(e));
+        console.error(e);
+      }
+    };
+
+    input.click();
+  };
+
+  const saveProjectDownload = () => {
+    cmd("REQUEST_SCENE_JSON");
+  };
+
+  useEffect(() => {
+    onApi?.({ cmd, loadProjectPicker, saveProjectDownload });
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== ENGINE_ORIGIN) return;
+
+      const data: any = event.data;
+      if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
+
+      if (data.type === "ERROR") {
+        console.error("[ENGINE ERROR]", data.message);
+        return;
+      }
+
+      if (data.type === "MODE_CHANGED") {
+        const mode = data?.payload?.mode;
+        if (typeof mode === "string") onModeChange?.(mode);
+        return;
+      }
+
+      if (data.type === "SURFACE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.surfaceId === "string" &&
+          typeof payload.wallId === "string" &&
+          (payload.surfaceType === "front" || payload.surfaceType === "back")
+        ) {
+          onSurfaceSelected?.(payload);
+        }
+        return;
+      }
+
+      if (data.type === "SURFACES_CLEARED") {
+        onSurfacesCleared?.();
+        return;
+      }
+
+      if (data.type === "CATALOG_SERVICE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.mainService === "string" &&
+          typeof payload.subService === "string" &&
+          typeof payload.materialKey === "string" &&
+          typeof payload.materialLabel === "string"
+        ) {
+          onCatalogServiceSelected?.(payload);
+        }
+        return;
+      }
+
+      if (data.type === "SCENE_JSON") {
+        const scene = data?.payload?.scene;
+        if (scene) downloadJson("plano_scene.json", scene);
+      }
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [
+    onApi,
+    onModeChange,
+    onSurfaceSelected,
+    onSurfacesCleared,
+    onCatalogServiceSelected,
+  ]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      src={ENGINE_URL}
+      title="React Planner Engine"
+      allow="clipboard-read; clipboard-write"
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100vh",
+        border: 0,
+        zIndex: 1,
+        background: "#fff",
+      }}
+      onLoad={() =>
+        postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "PING" })
+      }
+    />
+  );
+}
+===== FILE: /home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx =====
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+export type MainService =
+  | "electricity"
+  | "plumbing"
+  | "painting"
+  | "flooring"
+  | "plastering"
+  | "boards"
+  | "other";
+
+export const MAIN_SERVICES: Array<{ key: MainService; label: string }> = [
+  { key: "electricity", label: "Electricity" },
+  { key: "plumbing", label: "Plumbing" },
+  { key: "painting", label: "Painting" },
+  { key: "flooring", label: "Flooring" },
+  { key: "plastering", label: "Plastering" },
+  { key: "boards", label: "Boards" },
+  { key: "other", label: "Other" },
+];
+
+export const SUBSERVICES: Record<MainService, string[]> = {
+  electricity: [
+    "Switches & plugs",
+    "Overlaps with plumbing",
+    "Oven",
+    "Hob",
+    "Fridge freezer",
+    "Microwave",
+    "AC",
+  ],
+  plumbing: [
+    "Floor drain",
+    "Shower cubical",
+    "Bathroom sink",
+    "Mixers",
+    "Kitchen sink",
+    "Water heater",
+    "Washing machine",
+    "Dishwasher",
+    "Tap for water",
+  ],
+  painting: ["Internal paint", "External paint"],
+  flooring: [
+    "Ceramic tiles 60×60",
+    "Ceramic tiles 120×60",
+    "Ceramic tiles custom",
+    "Laminate",
+    "Microcement",
+    "Polished concrete",
+    "Parquet",
+  ],
+  plastering: [
+    "Internal (monacote+finittura)",
+    "Internal (microcement)",
+    "External (GR1000)",
+    "External (silicato)",
+    "Stone restoration",
+  ],
+  boards: ["Flat ceiling", "L-shape bulkhead", "U-shape bulkhead", "Custom shapes"],
+  other: ["To be defined", "Custom request", "Special works"],
+};
+
+type AreaService = "painting" | "flooring" | "plastering" | "boards";
+
+type AreaServiceDraft = {
+  painting: Set<string>;
+  flooring: Set<string>;
+  plastering: Set<string>;
+  boards: Set<string>;
+};
+
+type LiveSurfaceGeo = {
+  surfaceId: string;
+  wallId: string;
+  surfaceType: "front" | "back";
+  lengthM: number | null;
+  heightM: number | null;
+  areaM2: number | null;
+} | null;
+
+type State = {
+  activeMain: MainService;
+  setActiveMain: (s: MainService) => void;
+
+  selected: Record<MainService, Set<string>>;
+  toggleSub: (main: MainService, sub: string) => void;
+  clearAll: () => void;
+
+  hasAnySelection: boolean;
+  selectedCount: number;
+
+  selectedSurfaces: Set<string>;
+  toggleSurface: (surfaceId: string) => void;
+  clearSelectedSurfaces: () => void;
+
+  liveSurfaceGeo: LiveSurfaceGeo;
+  setLiveSurfaceGeo: (value: LiveSurfaceGeo) => void;
+
+  areaServiceDraft: AreaServiceDraft;
+  applyAreaService: (service: AreaService, surfaceId: string) => void;
+  removeSurfaceFromAreaService: (service: AreaService, surfaceId: string) => void;
+
+  activeAreaSubService: string | null;
+  setActiveAreaSubService: (value: string | null) => void;
+  activeAreaMaterialKey: string | null;
+  setActiveAreaMaterialKey: (value: string | null) => void;
+  activeAreaMaterialLabel: string | null;
+  setActiveAreaMaterialLabel: (value: string | null) => void;
+  activeAreaMaterialColor: string | null;
+  setActiveAreaMaterialColor: (value: string | null) => void;
+};
+
+const KEY = "plano:plannerSelections:v1";
+const Ctx = createContext<State | null>(null);
+
+function load(): { activeMain: MainService; selected: Record<MainService, string[]> } | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const activeMain = (parsed.activeMain as MainService) || "electricity";
+    const sel = (parsed.selected as Record<string, string[]>) || {};
+
+    const out: Record<MainService, string[]> = {
+      electricity: sel.electricity || [],
+      plumbing: sel.plumbing || [],
+      painting: sel.painting || [],
+      flooring: sel.flooring || [],
+      plastering: sel.plastering || [],
+      boards: sel.boards || [],
+      other: sel.other || [],
+    };
+
+    return { activeMain, selected: out };
+  } catch {
+    return null;
+  }
+}
+
+function save(activeMain: MainService, selected: Record<MainService, Set<string>>) {
+  const payload = {
+    activeMain,
+    selected: {
+      electricity: Array.from(selected.electricity),
+      plumbing: Array.from(selected.plumbing),
+      painting: Array.from(selected.painting),
+      flooring: Array.from(selected.flooring),
+      plastering: Array.from(selected.plastering),
+      boards: Array.from(selected.boards),
+      other: Array.from(selected.other),
+    },
+  };
+
+  localStorage.setItem(KEY, JSON.stringify(payload));
+}
+
+export function PlannerStateProvider({ children }: { children: React.ReactNode }) {
+  const initial = load();
+
+  const [activeMain, setActiveMain] = useState<MainService>(initial?.activeMain || "electricity");
+
+  const [selected, setSelected] = useState<Record<MainService, Set<string>>>(() => ({
+    electricity: new Set(initial?.selected.electricity || []),
+    plumbing: new Set(initial?.selected.plumbing || []),
+    painting: new Set(initial?.selected.painting || []),
+    flooring: new Set(initial?.selected.flooring || []),
+    plastering: new Set(initial?.selected.plastering || []),
+    boards: new Set(initial?.selected.boards || []),
+    other: new Set(initial?.selected.other || []),
+  }));
+
+  const [selectedSurfaces, setSelectedSurfaces] = useState<Set<string>>(new Set());
+  const [liveSurfaceGeo, setLiveSurfaceGeo] = useState<LiveSurfaceGeo>(null);
+
+  const [areaServiceDraft, setAreaServiceDraft] = useState<AreaServiceDraft>({
+    painting: new Set(),
+    flooring: new Set(),
+    plastering: new Set(),
+    boards: new Set(),
+  });
+
+  const [activeAreaSubService, setActiveAreaSubService] = useState<string | null>(null);
+  const [activeAreaMaterialKey, setActiveAreaMaterialKey] = useState<string | null>(null);
+  const [activeAreaMaterialLabel, setActiveAreaMaterialLabel] = useState<string | null>(null);
+  const [activeAreaMaterialColor, setActiveAreaMaterialColor] = useState<string | null>(null);
+
+  const toggleSurface = (surfaceId: string) => {
+    setSelectedSurfaces((prev) => {
+      const next = new Set(prev);
+      if (next.has(surfaceId)) next.delete(surfaceId);
+      else next.add(surfaceId);
+      return next;
+    });
+  };
+
+  const clearSelectedSurfaces = () => {
+    setSelectedSurfaces(new Set());
+    setLiveSurfaceGeo(null);
+  };
+
+  const applyAreaService = (service: AreaService, surfaceId: string) => {
+    setAreaServiceDraft((prev) => {
+      const next: AreaServiceDraft = {
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+      };
+
+      next[service].add(surfaceId);
+      return next;
+    });
+  };
+
+  const removeSurfaceFromAreaService = (service: AreaService, surfaceId: string) => {
+    setAreaServiceDraft((prev) => {
+      const next: AreaServiceDraft = {
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+      };
+
+      next[service].delete(surfaceId);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    save(activeMain, selected);
+  }, [activeMain, selected]);
+
+  const toggleSub = (main: MainService, sub: string) => {
+    setSelected((prev) => {
+      const next: Record<MainService, Set<string>> = {
+        electricity: new Set(prev.electricity),
+        plumbing: new Set(prev.plumbing),
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+        other: new Set(prev.other),
+      };
+
+      if (next[main].has(sub)) next[main].delete(sub);
+      else next[main].add(sub);
+
+      return next;
+    });
+  };
+
+  const clearAll = () => {
+    setSelected({
+      electricity: new Set(),
+      plumbing: new Set(),
+      painting: new Set(),
+      flooring: new Set(),
+      plastering: new Set(),
+      boards: new Set(),
+      other: new Set(),
+    });
+
+    clearSelectedSurfaces();
+  };
+
+  const selectedCount = useMemo(() => {
+    return (
+      selected.electricity.size +
+      selected.plumbing.size +
+      selected.painting.size +
+      selected.flooring.size +
+      selected.plastering.size +
+      selected.boards.size +
+      selected.other.size
+    );
+  }, [selected]);
+
+  const hasAnySelection = selectedCount > 0;
+
+  const value: State = {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    clearAll,
+    hasAnySelection,
+    selectedCount,
+    selectedSurfaces,
+    toggleSurface,
+    clearSelectedSurfaces,
+    liveSurfaceGeo,
+    setLiveSurfaceGeo,
+    areaServiceDraft,
+    applyAreaService,
+    removeSurfaceFromAreaService,
+    activeAreaSubService,
+    setActiveAreaSubService,
+    activeAreaMaterialKey,
+    setActiveAreaMaterialKey,
+    activeAreaMaterialLabel,
+    setActiveAreaMaterialLabel,
+    activeAreaMaterialColor,
+    setActiveAreaMaterialColor,
+  };
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function usePlannerState() {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("usePlannerState must be used inside PlannerStateProvider");
+  return ctx;
+}
+===== FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx =====
+    dirLight.position.set(
+      cameraPositionX + 300,
+      cameraPositionY + 400,
+      cameraPositionZ + 300
+    );
+    scene3D.add(dirLight);
+
+    const toIntersect = [planData.plan];
+    const mouse = new Three.Vector2();
+    const raycaster = new Three.Raycaster();
+
+    const notifySurfacesCleared = () => {
+      window.parent?.postMessage(
+        {
+          protocolVersion: 1,
+          type: 'SURFACES_CLEARED',
+          payload: {}
+        },
+        '*'
+      );
+    };
+
+    this.mouseDownEvent = (event: MouseEvent) => {
+      this.lastMousePosition.x = (event.offsetX / this.width) * 2 - 1;
+      this.lastMousePosition.y = (-event.offsetY / this.height) * 2 + 1;
+    };
+
+    this.mouseUpEvent = (event: MouseEvent) => {
+      event.preventDefault();
+
+      mouse.x = (event.offsetX / this.width) * 2 - 1;
+      mouse.y = -(event.offsetY / this.height) * 2 + 1;
+
+      if (
+        Math.abs(mouse.x - this.lastMousePosition.x) <= 0.02 &&
+        Math.abs(mouse.y - this.lastMousePosition.y) <= 0.02
+      ) {
+        raycaster.setFromCamera(mouse, camera);
+
+        const intersects = raycaster.intersectObjects(toIntersect, true);
+
+        if (intersects.length > 0 && !isNaN(intersects[0].distance)) {
+          const object = intersects[0].object as any;
+
+          if (this.isSelectableFace(object)) {
+            this.toggleHighlight(object);
+
+            const mesh = object as Three.Mesh;
+
+            
+            const wallId = mesh.userData?.wallId;
+            const surfaceType = mesh.userData?.surfaceType;
+            const wallLength = mesh.userData?.wallLength;
+            const wallHeight = mesh.userData?.wallHeight;
+
+            if (wallId && surfaceType) {
+              const surfaceId = `${wallId}:${surfaceType}`;
+              const unit = this.context.catalog.unit;
+
+              let lengthM: number | undefined;
+              let heightM: number | undefined;
+              let areaM2: number | undefined;
+
+              if (
+                typeof wallLength === 'number' &&
+                typeof wallHeight === 'number'
+              ) {
+                const metersPerUnit = convert(1).from(unit).to('m');
+                lengthM = Math.round(wallLength * metersPerUnit * 100) / 100;
+                heightM = Math.round(wallHeight * metersPerUnit * 100) / 100;
+                areaM2 = Math.round(lengthM * heightM * 100) / 100;
+              }
+
+              console.log('Surface selected:', surfaceId, {
+                lengthM,
+                heightM,
+                areaM2
+              });
+
+              window.parent?.postMessage(
+                {
+                  protocolVersion: 1,
+                  type: 'SURFACE_SELECTED',
+                  payload: {
+                    surfaceId,
+                    wallId,
+                    surfaceType,
+                    lengthM,
+                    heightM,
+                    areaM2
+                  }
+                },
+                '*'
+              );
+            }
+
+            //const interactable = mesh as Three.Mesh & { interact?: () => void };
+            //interactable.interact?.();
+          } else {
+            this.clearAllHighlights();
+            notifySurfacesCleared();
+            this.context.projectActions.unselectAll();
+          }
+        } else {
+          this.clearAllHighlights();
+          notifySurfacesCleared();
+          this.context.projectActions.unselectAll();
+        }
+      }
+    };
+
+    if (this.mouseDownEvent) {
+      this.renderer.domElement.addEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    }
+
+    if (this.mouseUpEvent) {
+      this.renderer.domElement.addEventListener(
+        'mouseup',
+        this.mouseUpEvent
+      );
+    }
+
+    this.renderer.domElement.style.display = 'block';
+
+    if (this.canvasWrapper.current) {
+      this.canvasWrapper.current.appendChild(this.renderer.domElement);
+    }
+
+    const orbitController = new OrbitControls(camera, this.renderer.domElement);
+
+    const spotLightTarget = new Three.Object3D();
+    spotLightTarget.name = 'spotLightTarget';
+
+    spotLightTarget.position.set(
+      orbitController.target.x,
+      orbitController.target.y,
+      orbitController.target.z
+    );
+
+===== FILE: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts =====
+  element.holes.forEach((holeID) => {
+    const holeData = layer.holes[holeID];
+
+    const holeWidth = holeData.properties.width.length;
+    const holeHeight = holeData.properties.height.length;
+    const holeAltitude = holeData.properties.altitude.length;
+    const offset = inverted ? 1 - holeData.offset : holeData.offset;
+    const holeDistance = offset * distance;
+
+    const holeGeometry = new BoxGeometry(
+      holeWidth,
+      holeHeight,
+      thickness + faceThickness * 2 + faceDistance * 2
+    );
+    const holeMesh = new Mesh(holeGeometry);
+
+    holeMesh.position.set(
+      holeDistance - distance / 2,
+      -(height / 2) + holeAltitude + holeHeight / 2,
+      0
+    );
+
+    holeMesh.updateMatrix();
+
+    // Front face
+    frontFace = CSG.subtract(frontFace, holeMesh);
+
+    // Back face
+    backFace = CSG.subtract(backFace, holeMesh);
+  });
+
+  // Position/rotate like soul
+  [frontFace, backFace].forEach((face) => {
+    face.position.y += height / 2;
+    face.position.x += halfDistance * cosAlpha;
+    face.position.z -= halfDistance * sinAlpha;
+    face.rotation.y = alpha;
+  });
+
+  frontFace.translateOnAxis(frontOutward, inwardShift);
+  backFace.translateOnAxis(backOutward, outwardShift);
+
+  frontFace.name = 'frontFace';
+  backFace.name = 'backFace';
+
+  (frontFace as any).userData = {
+    surfaceType: 'front',
+    wallId: element.id,
+    wallLength: distance,
+    wallHeight: height,
+  };
+
+  (backFace as any).userData = {
+    surfaceType: 'back',
+    wallId: element.id,
+    wallLength: distance,
+    wallHeight: height,
+  };
+
+
+  const merged = new Group();
+  merged.add(soul, frontFace, backFace);
+
+  return merged;
+}
+
+export function updatedWall(
+  element: Line,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures,
+  mesh: Object3D<Object3DEventMap>,
+  oldElement: Line,
+  differences: string[],
+  selfDestroy: () => void,
+  selfBuild: () => void
+) {
+  const noPerf = () => {
+    selfDestroy();
+    return selfBuild();
+  };
+
+  const soul = mesh.getObjectByName('soul') as Mesh;
+  const frontFace = mesh.getObjectByName('frontFace') as Mesh;
+  const backFace = mesh.getObjectByName('backFace') as Mesh;
+
+  if (differences[0] == 'selected') {
+    const soulMesh = soul as Mesh;
+    if (Array.isArray(soulMesh.material)) {
+      const sideMat = soulMesh.material[2] as MeshBasicMaterial;
+      sideMat.color.set(
+
+===== GREP CHECK =====
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:64:    liveSurfaceGeo,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:210:  const statusBox = useMemo(() => {
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:237:        onSurfaceSelected={handleSurfaceSelected}
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:369:      {!isCatalogOpen && statusBox ? (
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:371:          <div className="text-sm font-semibold">PlanO selection</div>
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:372:          <div className="text-sm mt-1">Service: {statusBox.service}</div>
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:373:          <div className="text-sm">Mode: {statusBox.subService}</div>
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:374:          <div className="text-sm">Material: {statusBox.material}</div>
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:376:          <div className="text-sm mt-2">Draft faces: {statusBox.draftFaces}</div>
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:377:          <div className="text-sm">Live clicked faces: {statusBox.liveFaces}</div>
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:379:          {liveSurfaceGeo && (
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:381:              <div className="text-sm mt-2">Wall: {liveSurfaceGeo.wallId}</div>
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:382:              <div className="text-sm">Face: {liveSurfaceGeo.surfaceType}</div>
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:384:                Length: {liveSurfaceGeo.lengthM ?? "-"} m
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:387:                Height: {liveSurfaceGeo.heightM ?? "-"} m
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:390:                Area: {liveSurfaceGeo.areaM2 ?? "-"} m²
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx:54:  onSurfaceSelected?: (payload: SurfaceSelectedPayload) => void;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx:77:  onSurfaceSelected,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx:159:      if (data.type === "SURFACE_SELECTED") {
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx:167:          onSurfaceSelected?.(payload);
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx:202:    onSurfaceSelected,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:97:  liveSurfaceGeo: LiveSurfaceGeo;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:177:  const [liveSurfaceGeo, setLiveSurfaceGeo] = useState<LiveSurfaceGeo>(null);
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:295:    liveSurfaceGeo,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:272:            const wallLength = mesh.userData?.wallLength;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:273:            const wallHeight = mesh.userData?.wallHeight;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:284:                typeof wallLength === 'number' &&
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:285:                typeof wallHeight === 'number'
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:288:                lengthM = Math.round(wallLength * metersPerUnit * 100) / 100;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:289:                heightM = Math.round(wallHeight * metersPerUnit * 100) / 100;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:302:                  type: 'SURFACE_SELECTED',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:548:    wallLength: distance,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:549:    wallHeight: height,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:555:    wallLength: distance,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:556:    wallHeight: height,

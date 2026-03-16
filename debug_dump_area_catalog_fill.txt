@@ -1,0 +1,1023 @@
+===== FILE 1: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/mycatalog.ts =====
+declare let require: {
+  context(directory: string, useSubdirectories?: boolean, regExp?: RegExp): any;
+};
+
+import { CatalogFactory, CatalogFn } from '@archef2000/react-planner';
+
+import Area from './areas/area/planner-element';
+import Wall from './lines/wall/planner-element';
+
+const PLANO_MAIN_SERVICES = [
+  { key: 'electricity', label: 'Electricity' },
+  { key: 'plumbing', label: 'Plumbing' },
+  { key: 'painting', label: 'Painting' },
+  { key: 'flooring', label: 'Flooring' },
+  { key: 'plastering', label: 'Plastering' },
+  { key: 'boards', label: 'Boards' },
+  { key: 'other', label: 'Other' }
+] as const;
+
+const PLANO_SUBSERVICES: Record<(typeof PLANO_MAIN_SERVICES)[number]['key'], string[]> = {
+  electricity: [
+    'Switches & plugs',
+    'Overlaps with plumbing',
+    'Oven',
+    'Hob',
+    'Fridge freezer',
+    'Microwave',
+    'AC'
+  ],
+  plumbing: [
+    'Floor drain',
+    'Shower cubical',
+    'Bathroom sink',
+    'Mixers',
+    'Kitchen sink',
+    'Water heater',
+    'Washing machine',
+    'Dishwasher',
+    'Tap for water'
+  ],
+  painting: ['Internal paint', 'External paint'],
+  flooring: [
+    'Ceramic tiles 60×60',
+    'Ceramic tiles 120×60',
+    'Ceramic tiles custom',
+    'Laminate',
+    'Microcement',
+    'Polished concrete',
+    'Parquet'
+  ],
+  plastering: [
+    'Internal (monacote+finittura)',
+    'Internal (microcement)',
+    'External (GR1000)',
+    'External (silicato)',
+    'Stone restoration'
+  ],
+  boards: ['Flat ceiling', 'L-shape bulkhead', 'U-shape bulkhead', 'Custom shapes'],
+  other: ['To be defined', 'Custom request', 'Special works']
+};
+
+function safeSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+export function createCatalog() {
+  const catalog: any = CatalogFactory();
+
+  CatalogFn.registerElement(catalog, Area as any);
+  CatalogFn.registerElement(catalog, Wall as any);
+
+  const Holes: any[] = [];
+  const holesContext = require.context('./holes/', true, /planner-element\.[tj]sx$/);
+  holesContext.keys().forEach((key: string) => {
+    const el = holesContext(key).default;
+    Holes.push(el);
+    CatalogFn.registerElement(catalog, el as any);
+  });
+
+  const Items: any[] = [];
+  const itemsContext = require.context('./items/', true, /planner-element\.[tj]sx$/);
+  itemsContext.keys().forEach((key: string) => {
+    const el = itemsContext(key).default;
+    Items.push(el);
+    if (!catalog.elements[el.name]) {
+      CatalogFn.registerElement(catalog, el as any);
+    }
+  });
+
+  CatalogFn.registerCategory(
+    catalog,
+    'windows',
+    'Windows',
+    Holes.filter((h) => h?.info?.tag?.includes('window'))
+  );
+
+  CatalogFn.registerCategory(
+    catalog,
+    'doors',
+    'Doors',
+    Holes.filter((h) => h?.info?.tag?.includes('door'))
+  );
+
+  const ensureHiddenSubCategory = (name: string, label: string) => {
+    if (!catalog.categories[name]) {
+      catalog.categories[name] = { name, label, categories: [], elements: [] };
+    }
+    return catalog.categories[name];
+  };
+
+  const paintWhite = Items.find((el) => el?.name === 'paint-white');
+  const paintGrey = Items.find((el) => el?.name === 'paint-grey');
+  const paintBeige = Items.find((el) => el?.name === 'paint-beige');
+
+  for (const svc of PLANO_MAIN_SERVICES) {
+    if (svc.key === 'other') continue;
+
+    const mainName = `plano_${svc.key}`;
+
+    if (!catalog.categories[mainName]) {
+      CatalogFn.registerCategory(catalog, mainName, svc.label, []);
+    }
+
+    const mainCat = catalog.categories[mainName];
+    const subs = PLANO_SUBSERVICES[svc.key] || [];
+
+    for (const subLabel of subs) {
+      const subName = `plano_${svc.key}__${safeSlug(subLabel)}`;
+      const subCat = ensureHiddenSubCategory(subName, subLabel);
+
+      if (!mainCat.categories.some((c: any) => c.name === subCat.name)) {
+        mainCat.categories.push(subCat);
+      }
+
+      if (svc.key === 'painting' && subLabel === 'Internal paint') {
+        if (paintWhite && !subCat.elements.find((el: any) => el.name === paintWhite.name)) {
+          subCat.elements.push(paintWhite);
+        }
+        if (paintGrey && !subCat.elements.find((el: any) => el.name === paintGrey.name)) {
+          subCat.elements.push(paintGrey);
+        }
+        if (paintBeige && !subCat.elements.find((el: any) => el.name === paintBeige.name)) {
+          subCat.elements.push(paintBeige);
+        }
+      }
+    }
+  }
+
+  return catalog;
+}
+
+export default createCatalog();
+===== FILE 2: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx =====
+import React, { Component } from 'react';
+
+import { FaPlusCircle as IconAdd } from 'react-icons/fa';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElement } from '../../types';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .15s ease-in-out',
+  WebkitTransition: 'all .15s ease-in-out',
+  alignSelf: 'center',
+  justifySelf: 'center'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_TITLE = {
+  width: '100%',
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '.5em',
+  textTransform: 'capitalize'
+} as const;
+
+const STYLE_TITLE_HOVER = {
+  ...STYLE_TITLE,
+  color: SharedStyle.COLORS.white
+} as const;
+
+const STYLE_IMAGE_CONTAINER = {
+  width: '100%',
+  height: '8em',
+  position: 'relative',
+  overflow: 'hidden',
+  border: 'solid 1px #e6e6e6',
+  padding: 0,
+  margin: 0,
+  marginBottom: '5px'
+} as const;
+
+const STYLE_IMAGE = {
+  position: 'absolute',
+  background: '#222',
+  width: '100%',
+  height: '100%',
+  backgroundSize: 'contain',
+  backgroundPosition: '50% 50%',
+  backgroundColor: SharedStyle.COLORS.white,
+  backgroundRepeat: 'no-repeat',
+  transition: 'all .2s ease-in-out'
+} as const;
+
+const STYLE_IMAGE_HOVER = {
+  ...STYLE_IMAGE,
+  transform: 'scale(1.2)'
+} as const;
+
+const STYLE_PLUS_HOVER = {
+  marginTop: '1.5em',
+  color: SharedStyle.SECONDARY_COLOR.main,
+  fontSize: '2em',
+  opacity: '0.7',
+  width: '100%'
+} as const;
+
+const STYLE_DESCRIPTION = {
+  display: 'block',
+  height: '2em',
+  margin: '0 auto',
+  fontSize: '0.75em',
+  fontStyle: 'italic',
+  lineHeight: '1em',
+  WebkitLineClamp: '2',
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
+} as const;
+
+const STYLE_TAGS = {
+  listStyle: 'none',
+  margin: '0px',
+  padding: '0px',
+  fontSize: '11px',
+  marginBottom: '3px'
+} as const;
+
+const STYLE_TAG = {
+  display: 'inline-block',
+  background: '#337ab7',
+  color: SharedStyle.COLORS.white,
+  padding: '1px 4px',
+  marginRight: '3px',
+  borderRadius: '3px'
+} as const;
+
+interface CatalogItemProps {
+  element: CatalogElement;
+}
+
+interface CatalogItemState {
+  hover: boolean;
+}
+
+export default class CatalogItem extends Component<
+  CatalogItemProps,
+  CatalogItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogItemProps,
+    context: React.ContextType<typeof ReactPlannerContext>
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  isPaintSelector(element: CatalogElement) {
+    return (
+      element.prototype === 'items' &&
+      Array.isArray(element.info?.tag) &&
+      element.info.tag.includes('painting') &&
+      (
+        element.name === 'paint-white' ||
+        element.name === 'paint-grey' ||
+        element.name === 'paint-beige'
+      )
+    );
+  }
+
+  select() {
+    const element = this.props.element;
+
+    if (this.isPaintSelector(element)) {
+      window.parent?.postMessage(
+        {
+          protocolVersion: 1,
+          type: 'CATALOG_SERVICE_SELECTED',
+          payload: {
+            mainService: 'painting',
+            subService: 'Internal paint',
+            materialKey: element.name,
+            materialLabel: element.info.title,
+            color: element.properties?.color?.defaultValue || null
+          }
+        },
+        '*'
+      );
+
+      this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+        element
+      );
+
+      this.context.projectActions.setMode('MODE_IDLE');
+      return;
+    }
+
+    switch (element.prototype) {
+      case 'lines':
+        this.context.linesActions.selectToolDrawingLine(element.name);
+        break;
+      case 'items':
+        this.context.itemsActions.selectToolDrawingItem(element.name);
+        break;
+      case 'holes':
+        this.context.holesActions.selectToolDrawingHole(element.name);
+        break;
+    }
+
+    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+      element
+    );
+  }
+
+  render() {
+    const element = this.props.element;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={() => this.select()}
+        onMouseEnter={() => this.setState({ hover: true })}
+        onMouseLeave={() => this.setState({ hover: false })}
+      >
+        <b style={!hover ? STYLE_TITLE : STYLE_TITLE_HOVER}>
+          {element.info.title}
+        </b>
+        <div style={STYLE_IMAGE_CONTAINER}>
+          <div
+            style={{
+              ...(!hover ? STYLE_IMAGE : STYLE_IMAGE_HOVER),
+              backgroundImage: 'url(' + element.info.image + ')'
+            }}
+          >
+            {hover ? <IconAdd style={STYLE_PLUS_HOVER} /> : null}
+          </div>
+        </div>
+        <ul style={STYLE_TAGS}>
+          {element.info.tag.map((tag, index) => (
+            <li style={STYLE_TAG} key={index}>
+              {tag}
+            </li>
+          ))}
+        </ul>
+        <div style={STYLE_DESCRIPTION}>{element.info.description}</div>
+      </div>
+    );
+  }
+}
+===== FILE 3: /home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx =====
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+export type MainService =
+  | "electricity"
+  | "plumbing"
+  | "painting"
+  | "flooring"
+  | "plastering"
+  | "boards"
+  | "other";
+
+export const MAIN_SERVICES: Array<{ key: MainService; label: string }> = [
+  { key: "electricity", label: "Electricity" },
+  { key: "plumbing", label: "Plumbing" },
+  { key: "painting", label: "Painting" },
+  { key: "flooring", label: "Flooring" },
+  { key: "plastering", label: "Plastering" },
+  { key: "boards", label: "Boards" },
+  { key: "other", label: "Other" },
+];
+
+export const SUBSERVICES: Record<MainService, string[]> = {
+  electricity: [
+    "Switches & plugs",
+    "Overlaps with plumbing",
+    "Oven",
+    "Hob",
+    "Fridge freezer",
+    "Microwave",
+    "AC",
+  ],
+  plumbing: [
+    "Floor drain",
+    "Shower cubical",
+    "Bathroom sink",
+    "Mixers",
+    "Kitchen sink",
+    "Water heater",
+    "Washing machine",
+    "Dishwasher",
+    "Tap for water",
+  ],
+  painting: ["Internal paint", "External paint"],
+  flooring: [
+    "Ceramic tiles 60×60",
+    "Ceramic tiles 120×60",
+    "Ceramic tiles custom",
+    "Laminate",
+    "Microcement",
+    "Polished concrete",
+    "Parquet",
+  ],
+  plastering: [
+    "Internal (monacote+finittura)",
+    "Internal (microcement)",
+    "External (GR1000)",
+    "External (silicato)",
+    "Stone restoration",
+  ],
+  boards: ["Flat ceiling", "L-shape bulkhead", "U-shape bulkhead", "Custom shapes"],
+  other: ["To be defined", "Custom request", "Special works"],
+};
+
+type AreaService = "painting" | "flooring" | "plastering" | "boards";
+
+type AreaServiceDraft = {
+  painting: Set<string>;
+  flooring: Set<string>;
+  plastering: Set<string>;
+  boards: Set<string>;
+};
+
+type LiveSurfaceGeo = {
+  surfaceId: string;
+  wallId: string;
+  surfaceType: "front" | "back" | "floor";
+  lengthM: number | null;
+  heightM: number | null;
+  areaM2: number | null;
+} | null;
+
+type SurfaceGeoEntry = {
+  wallId: string;
+  surfaceType: "front" | "back" | "floor";
+  lengthM: number | null;
+  heightM: number | null;
+  areaM2: number | null;
+};
+
+type State = {
+  activeMain: MainService;
+  setActiveMain: (s: MainService) => void;
+
+  selected: Record<MainService, Set<string>>;
+  toggleSub: (main: MainService, sub: string) => void;
+  clearAll: () => void;
+
+  hasAnySelection: boolean;
+  selectedCount: number;
+
+  selectedSurfaces: Set<string>;
+  surfaceGeoMap: Map<string, SurfaceGeoEntry>;
+  selectedSurfaceTotalM2: number;
+  toggleSurface: (surfaceId: string, geo?: SurfaceGeoEntry) => void;
+  clearSelectedSurfaces: () => void;
+
+  liveSurfaceGeo: LiveSurfaceGeo;
+  setLiveSurfaceGeo: (value: LiveSurfaceGeo) => void;
+
+  areaServiceDraft: AreaServiceDraft;
+  applyAreaService: (service: AreaService, surfaceId: string) => void;
+  removeSurfaceFromAreaService: (service: AreaService, surfaceId: string) => void;
+
+  activeAreaSubService: string | null;
+  setActiveAreaSubService: (value: string | null) => void;
+  activeAreaMaterialKey: string | null;
+  setActiveAreaMaterialKey: (value: string | null) => void;
+  activeAreaMaterialLabel: string | null;
+  setActiveAreaMaterialLabel: (value: string | null) => void;
+  activeAreaMaterialColor: string | null;
+  setActiveAreaMaterialColor: (value: string | null) => void;
+};
+
+const KEY = "plano:plannerSelections:v1";
+const Ctx = createContext<State | null>(null);
+
+function load(): { activeMain: MainService; selected: Record<MainService, string[]> } | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const activeMain = (parsed.activeMain as MainService) || "electricity";
+    const sel = (parsed.selected as Record<string, string[]>) || {};
+
+    const out: Record<MainService, string[]> = {
+      electricity: sel.electricity || [],
+      plumbing: sel.plumbing || [],
+      painting: sel.painting || [],
+      flooring: sel.flooring || [],
+      plastering: sel.plastering || [],
+      boards: sel.boards || [],
+      other: sel.other || [],
+    };
+
+    return { activeMain, selected: out };
+  } catch {
+    return null;
+  }
+}
+
+function save(activeMain: MainService, selected: Record<MainService, Set<string>>) {
+  const payload = {
+    activeMain,
+    selected: {
+      electricity: Array.from(selected.electricity),
+      plumbing: Array.from(selected.plumbing),
+      painting: Array.from(selected.painting),
+      flooring: Array.from(selected.flooring),
+      plastering: Array.from(selected.plastering),
+      boards: Array.from(selected.boards),
+      other: Array.from(selected.other),
+    },
+  };
+
+  localStorage.setItem(KEY, JSON.stringify(payload));
+}
+
+export function PlannerStateProvider({ children }: { children: React.ReactNode }) {
+  const initial = load();
+
+  const [activeMain, setActiveMain] = useState<MainService>(initial?.activeMain || "electricity");
+
+  const [selected, setSelected] = useState<Record<MainService, Set<string>>>(() => ({
+    electricity: new Set(initial?.selected.electricity || []),
+    plumbing: new Set(initial?.selected.plumbing || []),
+    painting: new Set(initial?.selected.painting || []),
+    flooring: new Set(initial?.selected.flooring || []),
+    plastering: new Set(initial?.selected.plastering || []),
+    boards: new Set(initial?.selected.boards || []),
+    other: new Set(initial?.selected.other || []),
+  }));
+
+  const [selectedSurfaces, setSelectedSurfaces] = useState<Set<string>>(new Set());
+  const [surfaceGeoMap, setSurfaceGeoMap] = useState<Map<string, SurfaceGeoEntry>>(new Map());
+  const [liveSurfaceGeo, setLiveSurfaceGeo] = useState<LiveSurfaceGeo>(null);
+
+  const [areaServiceDraft, setAreaServiceDraft] = useState<AreaServiceDraft>({
+    painting: new Set(),
+    flooring: new Set(),
+    plastering: new Set(),
+    boards: new Set(),
+  });
+
+  const [activeAreaSubService, setActiveAreaSubService] = useState<string | null>(null);
+  const [activeAreaMaterialKey, setActiveAreaMaterialKey] = useState<string | null>(null);
+  const [activeAreaMaterialLabel, setActiveAreaMaterialLabel] = useState<string | null>(null);
+  const [activeAreaMaterialColor, setActiveAreaMaterialColor] = useState<string | null>(null);
+
+  const toggleSurface = (surfaceId: string, geo?: SurfaceGeoEntry) => {
+    setSelectedSurfaces((prev) => {
+      const next = new Set(prev);
+      if (next.has(surfaceId)) next.delete(surfaceId);
+      else next.add(surfaceId);
+      return next;
+    });
+
+    setSurfaceGeoMap((prev) => {
+      const next = new Map(prev);
+      if (next.has(surfaceId)) next.delete(surfaceId);
+      else if (geo) next.set(surfaceId, geo);
+      return next;
+    });
+  };
+
+  const clearSelectedSurfaces = () => {
+    setSelectedSurfaces(new Set());
+    setSurfaceGeoMap(new Map());
+    setLiveSurfaceGeo(null);
+  };
+
+  const applyAreaService = (service: AreaService, surfaceId: string) => {
+    setAreaServiceDraft((prev) => {
+      const next: AreaServiceDraft = {
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+      };
+
+      next[service].add(surfaceId);
+      return next;
+    });
+  };
+
+  const removeSurfaceFromAreaService = (service: AreaService, surfaceId: string) => {
+    setAreaServiceDraft((prev) => {
+      const next: AreaServiceDraft = {
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+      };
+
+      next[service].delete(surfaceId);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    save(activeMain, selected);
+  }, [activeMain, selected]);
+
+  const toggleSub = (main: MainService, sub: string) => {
+    setSelected((prev) => {
+      const next: Record<MainService, Set<string>> = {
+        electricity: new Set(prev.electricity),
+        plumbing: new Set(prev.plumbing),
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+        other: new Set(prev.other),
+      };
+
+      if (next[main].has(sub)) next[main].delete(sub);
+      else next[main].add(sub);
+
+      return next;
+    });
+  };
+
+  const clearAll = () => {
+    setSelected({
+      electricity: new Set(),
+      plumbing: new Set(),
+      painting: new Set(),
+      flooring: new Set(),
+      plastering: new Set(),
+      boards: new Set(),
+      other: new Set(),
+    });
+
+    clearSelectedSurfaces();
+  };
+
+  const selectedCount = useMemo(() => {
+    return (
+      selected.electricity.size +
+      selected.plumbing.size +
+      selected.painting.size +
+      selected.flooring.size +
+      selected.plastering.size +
+      selected.boards.size +
+      selected.other.size
+    );
+  }, [selected]);
+
+  const selectedSurfaceTotalM2 = useMemo(() => {
+    let sum = 0;
+    surfaceGeoMap.forEach((entry) => {
+      if (entry.areaM2 !== null) sum += entry.areaM2;
+    });
+    return Math.round(sum * 100) / 100;
+  }, [surfaceGeoMap]);
+
+  const hasAnySelection = selectedCount > 0;
+
+  const value: State = {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    clearAll,
+    hasAnySelection,
+    selectedCount,
+    selectedSurfaces,
+    surfaceGeoMap,
+    selectedSurfaceTotalM2,
+    toggleSurface,
+    clearSelectedSurfaces,
+    liveSurfaceGeo,
+    setLiveSurfaceGeo,
+    areaServiceDraft,
+    applyAreaService,
+    removeSurfaceFromAreaService,
+    activeAreaSubService,
+    setActiveAreaSubService,
+    activeAreaMaterialKey,
+    setActiveAreaMaterialKey,
+    activeAreaMaterialLabel,
+    setActiveAreaMaterialLabel,
+    activeAreaMaterialColor,
+    setActiveAreaMaterialColor,
+  };
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function usePlannerState() {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("usePlannerState must be used inside PlannerStateProvider");
+  return ctx;
+}
+===== GREP CHECK =====
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/door-double/planner-element.tsx:6:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/door-double/planner-element.tsx:7:const metalBlue = new Three.MeshLambertMaterial({ color: 0xb7ceec });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/door-double/planner-element.tsx:8:const grey = new Three.MeshLambertMaterial({ color: 0xd2b06a });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/door-double/planner-element.tsx:9:const darkGrey = new Three.MeshLambertMaterial({ color: 0xffefce });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door-double/planner-element.tsx:6:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door-double/planner-element.tsx:7:const green = new Three.MeshLambertMaterial({ color: 0x348781 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door-double/planner-element.tsx:8:const red = new Three.MeshLambertMaterial({ color: 0xff0000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door-double/planner-element.tsx:10:  color: 0x43c6db,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door-double/planner-element.tsx:14:const metalBlue = new Three.MeshLambertMaterial({ color: 0xb7ceec });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door-double/planner-element.tsx:15:// const darkGrey = new Three.MeshLambertMaterial({ color: 0x313131 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door-double/planner-element.tsx:16:// const darkGrey2 = new Three.MeshLambertMaterial({ color: 0x212121 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door-double/planner-element.tsx:17:const metalBlueGrey = new Three.MeshLambertMaterial({ color: 0x566d7e });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door/planner-element.tsx:8:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door/planner-element.tsx:9:const green = new Three.MeshLambertMaterial({ color: 0x348781 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door/planner-element.tsx:10:const red = new Three.MeshLambertMaterial({ color: 0xff0000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door/planner-element.tsx:12:  color: 0x43c6db,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door/planner-element.tsx:16:const metalBlue = new Three.MeshLambertMaterial({ color: 0xb7ceec });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door/planner-element.tsx:17:const metalBlueGrey = new Three.MeshLambertMaterial({ color: 0x566d7e });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/sliding-door/planner-element.tsx:6:const grey = new Three.MeshLambertMaterial({ color: 0x3f3f3f });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/sliding-door/planner-element.tsx:8:  color: 0xffffff,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/sliding-door/planner-element.tsx:12:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/venetian-blind-window/planner-element.tsx:147:      //colors
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/venetian-blind-window/planner-element.tsx:149:        color: 0xffffff,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/venetian-blind-window/planner-element.tsx:153:      const grey = new Three.MeshLambertMaterial({ color: 0xcccccc });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/window-curtain/planner-element.tsx:154:      //color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/window-curtain/planner-element.tsx:155:      const white = new Three.MeshLambertMaterial({ color: 0xeae6ca });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/window-curtain/planner-element.tsx:220:        color: 0xffffff,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/window-curtain/planner-element.tsx:282:        color: 0xffffff,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/air-conditioner/planner-element.tsx:10:const grey = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/air-conditioner/planner-element.tsx:12:const darkGrey = new Three.MeshLambertMaterial({ color: 0x808287 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/air-conditioner/planner-element.tsx:14:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/armchairs/planner-element.tsx:10:const greyMaterial = new Three.MeshLambertMaterial({ color: 0xc0c0c0 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/armchairs/planner-element.tsx:12:const greenMaterial = new Three.MeshLambertMaterial({ color: 0x008250 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/balcony/planner-element.tsx:173:    patternColor: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/balcony/planner-element.tsx:174:      label: '2D color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/balcony/planner-element.tsx:175:      type: 'color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/balcony/planner-element.tsx:184:      : element.properties.patternColor;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/bench/planner-element.tsx:10:const grey = new Three.MeshLambertMaterial({ color: 0xc0c0c0 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/bench/planner-element.tsx:11:const black = new Three.MeshLambertMaterial({ color: 0x00000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/blackboard/planner-element.tsx:100:    //colors
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/blackboard/planner-element.tsx:101:    const grey = new Three.MeshLambertMaterial({ color: 0xcccccc });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/blackboard/planner-element.tsx:102:    const grey2 = new Three.MeshLambertMaterial({ color: 0x414449 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/camera/planner-element.tsx:10:const grey = new Three.MeshLambertMaterial({ color: 0xaaaaaa });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/camera/planner-element.tsx:11:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/camera/planner-element.tsx:12:const white = new Three.MeshLambertMaterial({ color: 0xffffff });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/camera/planner-element.tsx:14:  color: 0xffffff,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/canteen-table/planner-element.tsx:10:const brown = new Three.MeshLambertMaterial({ color: 0xac6c25 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/canteen-table/planner-element.tsx:11:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/canteen-table/planner-element.tsx:12:const grey = new Three.MeshLambertMaterial({ color: 0xc0c0c0 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/canteencart/planner-element.tsx:10:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/canteencart/planner-element.tsx:11:const grey = new Three.MeshLambertMaterial({ color: 0xc0c0c0 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chair/planner-element.tsx:17:  const LegMaterial = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chair/planner-element.tsx:48:  const WoodMaterial = new Three.MeshLambertMaterial({ color: 0x9b8c75 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chair/planner-element.tsx:160:  const LegMaterial = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chair/planner-element.tsx:191:  const WoodMaterial = new Three.MeshLambertMaterial({ color: 0x9b8c75 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chairdesk/planner-element.tsx:10:const grey = new Three.MeshBasicMaterial({ color: 0xd3d3d3 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chairdesk/planner-element.tsx:11:const metalGrey = new Three.MeshBasicMaterial({ color: 0x808080 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chairdesk/planner-element.tsx:12:const white = new Three.MeshBasicMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chairdesk/planner-element.tsx:13:const black = new Three.MeshBasicMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/child-chair-desk/planner-element.tsx:67:    const grey = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/child-chair-desk/planner-element.tsx:68:    const red = new Three.MeshPhongMaterial({ color: 0xff0000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/child-chair-desk/planner-element.tsx:69:    const black = new Three.MeshPhongMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:10:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:11:const grey = new Three.MeshLambertMaterial({ color: 0xc0c0c0 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:12:const red = new Three.MeshLambertMaterial({ color: 0xcc0000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:13:const blue = new Three.MeshLambertMaterial({ color: 0x000066 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:14:const yellow = new Three.MeshLambertMaterial({ color: 0xf7da00 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:15:const green = new Three.MeshLambertMaterial({ color: 0x006633 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:258:  let color1: Three.MeshLambertMaterial;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:263:    sty === -0.3 ? (color1 = red) : (color1 = blue);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:268:      color1
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:275:      color1
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:283:      color1
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:291:      color1
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:299:      color1
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:306:  let color2: Three.MeshLambertMaterial;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:311:    sty === -0.3 ? (color2 = yellow) : (color2 = green);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:316:      color2
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:323:      color2
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:331:      color2
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:339:      color2
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:347:      color2
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:354:  let color: Three.MeshLambertMaterial;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:359:    sdy === -0.3 ? (color = red) : (color = blue);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:364:      color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:371:      color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:379:      color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:387:      color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:395:      color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:718:  let color1: Three.MeshLambertMaterial;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:723:    sty === -0.3 ? (color1 = red) : (color1 = blue);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:728:      color1
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:735:      color1
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:743:      color1
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:751:      color1
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:759:      color1
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:766:  let color2: Three.MeshLambertMaterial;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:771:    sty === -0.3 ? (color2 = yellow) : (color2 = green);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:776:      color2
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:783:      color2
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:791:      color2
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:799:      color2
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:807:      color2
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:814:  let color: Three.MeshLambertMaterial;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:819:    sdy === -0.3 ? (color = red) : (color = blue);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:824:      color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:831:      color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:839:      color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:847:      color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:855:      color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/coat-hook/planner-element.tsx:111:    //let material = new Three.MeshLambertMaterial( {color: 0x9b8c75} );
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/coat-hook/planner-element.tsx:122:    const material_legs = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/column-square/planner-element.tsx:6:const material = new Three.MeshLambertMaterial({ color: 0xf5f4f4 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cube/planner-element.tsx:21:    color: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cube/planner-element.tsx:22:      label: 'Color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cube/planner-element.tsx:23:      type: 'color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cube/planner-element.tsx:24:      defaultValue: ReactPlannerSharedStyle.AREA_MESH_COLOR.unselected
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cube/planner-element.tsx:52:        ? ReactPlannerSharedStyle.LINE_MESH_COLOR.unselected
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cube/planner-element.tsx:55:      fill: element.properties.color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cube/planner-element.tsx:76:      color: element.properties.color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cube/planner-element.tsx:84:        ? ReactPlannerSharedStyle.LINE_MESH_COLOR.unselected
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/desk/planner-element.tsx:10:const brown = new Three.MeshLambertMaterial({ color: 0x9b8c75 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/desk/planner-element.tsx:11:const grey = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/desk/planner-element.tsx:12:const green = new Three.MeshBasicMaterial({ color: 0x669966 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/deskdouble/planner-element.tsx:10:const brown = new Three.MeshLambertMaterial({ color: 0x9b8c75 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/deskdouble/planner-element.tsx:11:const grey = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/deskdouble/planner-element.tsx:12:const green = new Three.MeshBasicMaterial({ color: 0x669966 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/deskoffice/planner-element.tsx:9:const whiteMaterial = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/deskoffice/planner-element.tsx:13:  color: 0xc6c6c6,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/deskoffice/planner-element.tsx:482:    color: 0xc6c6c6,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/electrical-panel/planner-element.tsx:6:const cubeMaterial = new Three.MeshLambertMaterial({ color: 0xf5f4f4 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/planner-element.tsx:9://colors
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/planner-element.tsx:10:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/planner-element.tsx:11:const red = new Three.MeshLambertMaterial({ color: 0xff0000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/planner-element.tsx:12:const grey = new Three.MeshLambertMaterial({ color: 0xcccccc });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/planner-element.tsx:13:const yellow = new Three.MeshLambertMaterial({ color: 0xffff00 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/planner-element.tsx:132:  const material4 = new Three.MeshLambertMaterial({ color: 0xff0000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hanger/planner-element.tsx:10:const blackMaterial = new Three.MeshLambertMaterial({ color: 0x4b4b4b });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hanger/planner-element.tsx:11:const greyMaterial = new Three.MeshLambertMaterial({ color: 0xc0c0c0 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hanger/planner-element.tsx:13:  color: 0x3399ff,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hanger/planner-element.tsx:121:    color: 0x3399ff,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hiroos/planner-element.tsx:6:const cubeMaterial = new Three.MeshLambertMaterial({ color: 0x65696c });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hiroos/planner-element.tsx:88:    patternColor: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hiroos/planner-element.tsx:89:      label: 'pattern colori',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hiroos/planner-element.tsx:90:      type: 'color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hiroos/planner-element.tsx:105:      : element.properties.patternColor;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hub/planner-element.tsx:9:const blackMaterial = new Three.MeshLambertMaterial({ color: 0x3d3d3d });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/image/imageful.tsx:11:const rulerColor = '#f45c42';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/image/imageful.tsx:12:const hoverColor = '#ff9900';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/image/imageful.tsx:16:  fill: rulerColor,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/image/imageful.tsx:22:  fill: hoverColor,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/image/imageful.tsx:214:          stroke={rulerColor}
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/lim/planner-element.tsx:10://colors
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/lim/planner-element.tsx:11:const white = new Three.MeshLambertMaterial({ color: 0xffffff });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/lim/planner-element.tsx:12:const grey = new Three.MeshLambertMaterial({ color: 0xdddddd });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/lim/planner-element.tsx:13:const grey2 = new Three.MeshLambertMaterial({ color: 0x414449 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/metal-detector/planner-element.tsx:10:const grey = new Three.MeshLambertMaterial({ color: 0xa6a9ad });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/metal-detector/planner-element.tsx:11:const darkGrey = new Three.MeshLambertMaterial({ color: 0x3f454f });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/metal-detector/planner-element.tsx:12:const red = new Three.MeshLambertMaterial({ color: 0xff0000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/planner-element.tsx:81:    new Three.MeshBasicMaterial({ color: 0x000000 }),
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/planner-element.tsx:82:    new Three.MeshBasicMaterial({ color: 0x000000 }),
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/planner-element.tsx:84:    new Three.MeshBasicMaterial({ color: 0x000000 }),
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/planner-element.tsx:85:    new Three.MeshBasicMaterial({ color: 0x000000 }),
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/planner-element.tsx:86:    new Three.MeshBasicMaterial({ color: 0x000000 })
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/naspo/planner-element.tsx:10:const red = new Three.MeshPhongMaterial({ color: 0xaa0000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/naspo/planner-element.tsx:11:const grey = new Three.MeshLambertMaterial({ color: 0xaaaaaa });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/naspo/planner-element.tsx:12:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/projector/planner-element.tsx:6:const white = new Three.MeshLambertMaterial({ color: 0xffffff });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/projector/planner-element.tsx:7:const grey = new Three.MeshLambertMaterial({ color: 0xcccccc });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-modern-style/planner-element.tsx:8:const grey = new Three.MeshLambertMaterial({ color: 0xeae6ca });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-modern-style/planner-element.tsx:333:    // let pivot = new Three.Mesh(new Three.SphereGeometry(10), new Three.MeshBasicMaterial({color:0xff0000}));
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-old-style/planner-element.tsx:8://colors
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-old-style/planner-element.tsx:9:const grey = new Three.MeshLambertMaterial({ color: 0xeae6ca });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/recycling-bins/planner-element.tsx:130:    const makeBin = (color: number) => {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/recycling-bins/planner-element.tsx:137:      const grey = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/recycling-bins/planner-element.tsx:139:      const coloredMaterial = new Three.MeshLambertMaterial({ color: color });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/recycling-bins/planner-element.tsx:146:      const plane1 = new Three.Mesh(plane1Geometry, coloredMaterial);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/recycling-bins/planner-element.tsx:156:      const p1 = new Three.Mesh(geometry_legs, coloredMaterial);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/router-wifi/planner-element.tsx:11:const grey = new Three.MeshLambertMaterial({ color: 0x6b6b6b });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/router-wifi/planner-element.tsx:12:const grey2 = new Three.MeshLambertMaterial({ color: 0x939393 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/router-wifi/planner-element.tsx:13:const greenMaterial = new Three.MeshLambertMaterial({ color: 0x00ff00 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx:6://color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx:7:const grey = new Three.MeshLambertMaterial({ color: 0xd3d3d3 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx:8:const white = new Three.MeshLambertMaterial({ color: 0xf5f5f5 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx:9:const darkGrey = new Three.MeshLambertMaterial({ color: 0x3d3d3d });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx:10:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx:314:    patternColor: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx:315:      label: 'pattern colori',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx:316:      type: 'color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx:331:      : element.properties.patternColor;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk-double/planner-element.tsx:114:      const material = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk-double/planner-element.tsx:145:      //      material = new Three.MeshLambertMaterial({color: 0x9b8c75});
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk-double/planner-element.tsx:284:    const grey = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk-double/planner-element.tsx:305:      new Three.MeshBasicMaterial({ color: 0x669966 }), //top
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk/planner-element.tsx:114:      const material = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk/planner-element.tsx:145:      // material = new Three.MeshLambertMaterial({color: 0x9b8c75});
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk/planner-element.tsx:284:    const grey = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk/planner-element.tsx:305:      new Three.MeshBasicMaterial({ color: 0x669966 }), //top
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sink/planner-element.tsx:8:const steel = new Three.MeshLambertMaterial({ color: 0xffffff });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sink/planner-element.tsx:9:const grey = new Three.MeshLambertMaterial({ color: 0xaaaaaa });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sink/planner-element.tsx:10:const yellow = new Three.MeshLambertMaterial({ color: 0xff9933 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sink/planner-element.tsx:11:const blue = new Three.MeshLambertMaterial({ color: 0x0000ff });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sink/planner-element.tsx:171:  const blackMaterial = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sink/planner-element.tsx:186:  const whiteMaterial = new Three.MeshLambertMaterial({ color: 0xffffff });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/smoke-detector/planner-element.tsx:10:const red = new Three.MeshLambertMaterial({ color: 0xff0000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/smoke-detector/planner-element.tsx:11:const grey = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/smoke-detector/planner-element.tsx:12:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/table/planner-element.tsx:8:const PlaneMaterial = new Three.MeshLambertMaterial({ color: 0x9b8c75 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/table/planner-element.tsx:9:const material_legs = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/teaching-post/planner-element.tsx:114:      const material = new Three.MeshLambertMaterial({ color: 0xd9d7d7 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/teaching-post/planner-element.tsx:277:    const green = new Three.MeshBasicMaterial({ color: 0x669966 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx:14:const defaultColor = '#000000';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx:38:    color: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx:39:      label: 'text color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx:40:      type: 'color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx:41:      defaultValue: defaultColor
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx:53:    const color = element.properties.color || defaultColor;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx:79:          fill={color}
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx:94:    const color = element.properties.color || defaultColor;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx:98:      new MeshBasicMaterial({ color })
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/three-phase-panel/planner-element.tsx:10:const grey = new Three.MeshLambertMaterial({ color: 0xaaaaaa });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/three-phase-panel/planner-element.tsx:12:const red = new Three.MeshPhongMaterial({ color: 0xaa0000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/three-phase-panel/planner-element.tsx:13:const blue = new Three.MeshPhongMaterial({ color: 0x0000aa });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/three-phase-panel/planner-element.tsx:14:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:12:  color: string,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:27:  const mainColor = new Three.Color(color || '#ffffff');
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:28:  const porcelain = new Three.MeshLambertMaterial({ color: mainColor });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:29:  const dark = new Three.MeshLambertMaterial({ color: 0x333333 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:294:      'Adjustable toilet (width, depth, seat height, tank body height, color, show/hide tank)',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:359:    color: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:360:      label: 'color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:361:      type: 'color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:424:    const fill = selected ? '#99c3fb' : element.properties.color;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:520:    const color = element.properties.color;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:542:        color,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:564:        color,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/trash/planner-element.tsx:92:    const grey = new Three.MeshLambertMaterial({ color: 0xdddddd });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/wardrobe/planner-element.tsx:10:const blue = new Three.MeshLambertMaterial({ color: 0x0000cc });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/wardrobe/planner-element.tsx:11:const grey = new Three.MeshLambertMaterial({ color: 0xc0c0c0 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/wardrobe/planner-element.tsx:12:const black = new Three.MeshLambertMaterial({ color: 0x000000 });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-white/planner-element.tsx:18:    color: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-white/planner-element.tsx:19:      label: 'Color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-white/planner-element.tsx:20:      type: 'color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-white/planner-element.tsx:29:      fill: element.properties.color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-white/planner-element.tsx:42:      color: element.properties.color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-grey/planner-element.tsx:18:    color: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-grey/planner-element.tsx:19:      label: 'Color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-grey/planner-element.tsx:20:      type: 'color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-grey/planner-element.tsx:29:      fill: element.properties.color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-grey/planner-element.tsx:42:      color: element.properties.color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-beige/planner-element.tsx:18:    color: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-beige/planner-element.tsx:19:      label: 'Color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-beige/planner-element.tsx:20:      type: 'color',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-beige/planner-element.tsx:29:      fill: element.properties.color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-beige/planner-element.tsx:42:      color: element.properties.color
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/mycatalog.ts:106:      catalog.categories[name] = { name, label, categories: [], elements: [] };
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-breadcrumb.tsx:20:  color: SharedStyle.SECONDARY_COLOR.main
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-breadcrumb.tsx:24:  fill: SharedStyle.COLORS.black,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:27:  background: SharedStyle.SECONDARY_COLOR.main
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:40:  color: SharedStyle.COLORS.white
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:61:  backgroundColor: SharedStyle.COLORS.white,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:73:  color: SharedStyle.SECONDARY_COLOR.main,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:103:  color: SharedStyle.COLORS.white,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:156:            materialKey: element.name,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:157:            materialLabel: element.info.title,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:158:            color: element.properties?.color?.defaultValue || null
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:23:  backgroundColor: '#FFF',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:89:  backgroundColor: SharedStyle.PRIMARY_COLOR.alt,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:90:  color: SharedStyle.PRIMARY_COLOR.text_main,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:105:  elements: CatalogElement[];
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:107:  matchedElements: CatalogElement[];
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:128:      elements: elementsToDisplay,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:130:      matchedElements: []
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:165:      matchedElements: filtered
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-page-item.tsx:26:  background: SharedStyle.SECONDARY_COLOR.main
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-page-item.tsx:44:  color: 'rgb(28, 166, 252)',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-page-item.tsx:50:  color: SharedStyle.SECONDARY_COLOR.main,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-page-item.tsx:56:  background: SharedStyle.COLORS.white,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-turn-back-page-item.tsx:25:  background: SharedStyle.SECONDARY_COLOR.main
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-turn-back-page-item.tsx:30:  color: SharedStyle.COLORS.black,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-turn-back-page-item.tsx:37:  color: SharedStyle.SECONDARY_COLOR.main
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-turn-back-page-item.tsx:41:  background: SharedStyle.COLORS.white,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:116:  activeAreaMaterialKey: string | null;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:117:  setActiveAreaMaterialKey: (value: string | null) => void;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:118:  activeAreaMaterialLabel: string | null;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:119:  setActiveAreaMaterialLabel: (value: string | null) => void;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:120:  activeAreaMaterialColor: string | null;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:121:  setActiveAreaMaterialColor: (value: string | null) => void;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:198:  const [activeAreaMaterialKey, setActiveAreaMaterialKey] = useState<string | null>(null);
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:199:  const [activeAreaMaterialLabel, setActiveAreaMaterialLabel] = useState<string | null>(null);
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:200:  const [activeAreaMaterialColor, setActiveAreaMaterialColor] = useState<string | null>(null);
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:331:    activeAreaMaterialKey,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:332:    setActiveAreaMaterialKey,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:333:    activeAreaMaterialLabel,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:334:    setActiveAreaMaterialLabel,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:335:    activeAreaMaterialColor,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:336:    setActiveAreaMaterialColor,

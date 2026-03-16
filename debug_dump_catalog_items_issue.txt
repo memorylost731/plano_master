@@ -1,0 +1,945 @@
+===== FILE 1: boards-flat-ceiling planner-element.tsx =====
+import { CatalogElement } from "@archef2000/react-planner";
+
+const element: CatalogElement = {
+  name: "boards-flat-ceiling",
+  prototype: "items",
+
+  info: {
+    title: "Flat gypsum ceiling",
+    tag: ["boards"],
+    description: "Flat gypsum board ceiling",
+    image: "/catalog/boards/flat.png",
+
+    mainService: "boards",
+    subService: "Flat ceiling"
+  },
+
+  properties: {
+    color: {
+      label: "Color",
+      type: "color",
+      defaultValue: "#f5f5f5"
+    }
+  }
+};
+
+export default element;
+===== FILE 2: flooring-ceramic-60x60 planner-element.tsx =====
+import { CatalogElement } from "@archef2000/react-planner";
+
+const element: CatalogElement = {
+  name: "flooring-ceramic-60x60",
+  prototype: "items",
+
+  info: {
+    title: "Ceramic tiles 60×60",
+    tag: ["flooring"],
+    description: "Ceramic tiles flooring",
+    image: "/catalog/flooring/ceramic60.png",
+
+    mainService: "flooring",
+    subService: "Ceramic tiles 60×60"
+  },
+
+  properties: {
+    color: {
+      label: "Color",
+      type: "color",
+      defaultValue: "#d8d8d8"
+    }
+  }
+};
+
+export default element;
+===== FILE 3: flooring-laminate planner-element.tsx =====
+import { CatalogElement } from "@archef2000/react-planner";
+
+const element: CatalogElement = {
+  name: "flooring-laminate",
+  prototype: "items",
+
+  info: {
+    title: "Laminate flooring",
+    tag: ["flooring"],
+    description: "Laminate floor boards",
+    image: "/catalog/flooring/laminate.png",
+
+    mainService: "flooring",
+    subService: "Laminate"
+  },
+
+  properties: {
+    color: {
+      label: "Color",
+      type: "color",
+      defaultValue: "#b68b5c"
+    }
+  }
+};
+
+export default element;
+===== FILE 4: plastering-monacote planner-element.tsx =====
+import { CatalogElement } from "@archef2000/react-planner";
+
+const element: CatalogElement = {
+  name: "plastering-monacote",
+  prototype: "items",
+
+  info: {
+    title: "Internal plaster (monacote)",
+    tag: ["plastering"],
+    description: "Internal wall plaster",
+    image: "/catalog/plastering/monacote.png",
+
+    mainService: "plastering",
+    subService: "Internal (monacote+finittura)"
+  },
+
+  properties: {
+    color: {
+      label: "Color",
+      type: "color",
+      defaultValue: "#eaeaea"
+    }
+  }
+};
+
+export default element;
+===== FILE 5: catalog-item.tsx =====
+import React, { Component } from 'react';
+
+import { FaPlusCircle as IconAdd } from 'react-icons/fa';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElement } from '../../types';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .15s ease-in-out',
+  WebkitTransition: 'all .15s ease-in-out',
+  alignSelf: 'center',
+  justifySelf: 'center'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_TITLE = {
+  width: '100%',
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '.5em',
+  textTransform: 'capitalize'
+} as const;
+
+const STYLE_TITLE_HOVER = {
+  ...STYLE_TITLE,
+  color: SharedStyle.COLORS.white
+} as const;
+
+const STYLE_IMAGE_CONTAINER = {
+  width: '100%',
+  height: '8em',
+  position: 'relative',
+  overflow: 'hidden',
+  border: 'solid 1px #e6e6e6',
+  padding: 0,
+  margin: 0,
+  marginBottom: '5px'
+} as const;
+
+const STYLE_IMAGE = {
+  position: 'absolute',
+  background: '#222',
+  width: '100%',
+  height: '100%',
+  backgroundSize: 'contain',
+  backgroundPosition: '50% 50%',
+  backgroundColor: SharedStyle.COLORS.white,
+  backgroundRepeat: 'no-repeat',
+  transition: 'all .2s ease-in-out'
+} as const;
+
+const STYLE_IMAGE_HOVER = {
+  ...STYLE_IMAGE,
+  transform: 'scale(1.2)'
+} as const;
+
+const STYLE_PLUS_HOVER = {
+  marginTop: '1.5em',
+  color: SharedStyle.SECONDARY_COLOR.main,
+  fontSize: '2em',
+  opacity: '0.7',
+  width: '100%'
+} as const;
+
+const STYLE_DESCRIPTION = {
+  display: 'block',
+  height: '2em',
+  margin: '0 auto',
+  fontSize: '0.75em',
+  fontStyle: 'italic',
+  lineHeight: '1em',
+  WebkitLineClamp: '2',
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
+} as const;
+
+const STYLE_TAGS = {
+  listStyle: 'none',
+  margin: '0px',
+  padding: '0px',
+  fontSize: '11px',
+  marginBottom: '3px'
+} as const;
+
+const STYLE_TAG = {
+  display: 'inline-block',
+  background: '#337ab7',
+  color: SharedStyle.COLORS.white,
+  padding: '1px 4px',
+  marginRight: '3px',
+  borderRadius: '3px'
+} as const;
+
+interface CatalogItemProps {
+  element: CatalogElement;
+}
+
+interface CatalogItemState {
+  hover: boolean;
+}
+
+export default class CatalogItem extends Component<
+  CatalogItemProps,
+  CatalogItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogItemProps,
+    context: React.ContextType<typeof ReactPlannerContext>
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  isAreaServiceSelector(element: CatalogElement) {
+    const tags = element.info?.tag as string[] | undefined;
+    const info = element.info as any;
+
+    return (
+      element.prototype === 'items' &&
+      Array.isArray(tags) &&
+      (
+        tags.includes('painting') ||
+        tags.includes('flooring') ||
+        tags.includes('plastering') ||
+        tags.includes('boards')
+      ) &&
+      !!info?.mainService &&
+      !!info?.subService
+    );
+  }
+
+  select() {
+    const element = this.props.element;
+
+    if (this.isAreaServiceSelector(element)) {
+      const info = element.info as any;
+
+      window.parent?.postMessage(
+        {
+          protocolVersion: 1,
+          type: 'CATALOG_SERVICE_SELECTED',
+          payload: {
+            mainService: info.mainService,
+            subService: info.subService,
+            materialKey: element.name,
+            materialLabel: element.info.title,
+            color: element.properties?.color?.defaultValue || null
+          }
+        },
+        '*'
+      );
+
+      this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+        element
+      );
+
+      this.context.projectActions.setMode('MODE_IDLE');
+      return;
+    }
+
+    switch (element.prototype) {
+      case 'lines':
+        this.context.linesActions.selectToolDrawingLine(element.name);
+        break;
+      case 'items':
+        this.context.itemsActions.selectToolDrawingItem(element.name);
+        break;
+      case 'holes':
+        this.context.holesActions.selectToolDrawingHole(element.name);
+        break;
+    }
+
+    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+      element
+    );
+  }
+
+  render() {
+    const element = this.props.element;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={() => this.select()}
+        onMouseEnter={() => this.setState({ hover: true })}
+        onMouseLeave={() => this.setState({ hover: false })}
+      >
+        <b style={!hover ? STYLE_TITLE : STYLE_TITLE_HOVER}>
+          {element.info.title}
+        </b>
+        <div style={STYLE_IMAGE_CONTAINER}>
+          <div
+            style={{
+              ...(!hover ? STYLE_IMAGE : STYLE_IMAGE_HOVER),
+              backgroundImage: 'url(' + element.info.image + ')'
+            }}
+          >
+            {hover ? <IconAdd style={STYLE_PLUS_HOVER} /> : null}
+          </div>
+        </div>
+        <ul style={STYLE_TAGS}>
+          {element.info.tag.map((tag, index) => (
+            <li style={STYLE_TAG} key={index}>
+              {tag}
+            </li>
+          ))}
+        </ul>
+        <div style={STYLE_DESCRIPTION}>{element.info.description}</div>
+      </div>
+    );
+  }
+}
+===== FILE 6: types.ts =====
+import { ReactNode } from 'react';
+
+import { Unit } from 'convert-units';
+import { Store, UnknownAction } from 'redux';
+import { Object3D, Object3DEventMap } from 'three';
+
+import {
+  Area,
+  Hole,
+  Item,
+  Layer,
+  Line,
+  Scene,
+  State,
+  StateProps,
+  Vertex
+} from './models';
+import { SNAP_MASK } from './utils/snap';
+
+export type FooterBarComponentProps = {
+  state: State;
+};
+
+export type LineAttributes = {
+  vertexOne: Vertex;
+  vertexTwo: Vertex;
+  lineLength: { length: number; _length: number; _unit: Unit };
+  name: string;
+};
+
+export type HoleAttributes = {
+  offset: number;
+  offsetA: { length: number; _length: number; _unit: Unit };
+  offsetB: { length: number; _length: number; _unit: Unit };
+};
+
+export type CatalogPropertyType =
+  | 'color'
+  | 'enum'
+  | 'string'
+  | 'number'
+  | 'length-measure'
+  | 'toggle'
+  | 'checkbox'
+  | 'hidden'
+  | 'read-only';
+
+interface CatalogPropertyBase {
+  label?: string;
+  hook?: (...args: any[]) => any;
+  // Additional arbitrary custom extensions are permitted
+  [extra: string]: any; // keep backward compatibility / extensibility
+}
+
+export interface ColorProperty extends CatalogPropertyBase {
+  type: 'color';
+  /** hex / css color */
+  defaultValue: string;
+}
+
+export interface EnumProperty extends CatalogPropertyBase {
+  type: 'enum';
+  defaultValue: string; // TODO: key of values map
+  values: Record<string, string | number | boolean>;
+}
+
+export interface StringProperty extends CatalogPropertyBase {
+  type: 'string';
+  defaultValue: string;
+}
+
+export type NumberProperty = CatalogPropertyBase & {
+  type: 'number';
+  defaultValue: number;
+  min?: number;
+  max?: number;
+  step?: number;
+};
+
+export type LengthMeasureValue = {
+  /** canonical length in catalog unit (cm) */
+  length: number;
+  /** raw value in selected unit */
+  _length?: number;
+  /** selected unit (e.g., 'cm') */
+  _unit?: Unit;
+};
+
+export type LengthMeasureProperty = CatalogPropertyBase & {
+  type: 'length-measure';
+  defaultValue: LengthMeasureValue;
+  min?: number;
+  max?: number;
+};
+
+export type ToggleProperty = CatalogPropertyBase & {
+  type: 'toggle';
+  defaultValue: boolean;
+  /** label on the toggle button */
+  actionName?: string;
+};
+
+export type CheckboxProperty = CatalogPropertyBase & {
+  type: 'checkbox';
+  defaultValue: boolean;
+  values?: Record<string, boolean>;
+};
+
+export type HiddenProperty = CatalogPropertyBase & {
+  type: 'hidden';
+  defaultValue: any;
+};
+
+export type ReadOnlyProperty = CatalogPropertyBase & {
+  type: 'read-only';
+  defaultValue: any;
+};
+
+export type CatalogProperty =
+  | ColorProperty
+  | EnumProperty
+  | StringProperty
+  | NumberProperty
+  | LengthMeasureProperty
+  | ToggleProperty
+  | CheckboxProperty
+  | HiddenProperty
+  | ReadOnlyProperty;
+
+export type CatalogElementProperty = CatalogProperty; //TODO: remove {}
+export type CatalogElementPropertyWithDefault = CatalogElementProperty & {
+  defaultValue?: any;
+};
+
+export type CatalogElementProperties = Record<string, CatalogElementProperty>;
+
+// ============================================================================
+// Property value inference helpers
+// Map a catalog property config to the runtime value type used in element.properties
+// ============================================================================
+
+export type PropertyValue<T extends CatalogElementProperty> =
+  T extends LengthMeasureProperty
+  ? LengthMeasureValue
+  : T extends ColorProperty
+  ? string
+  : T extends EnumProperty
+  ? string
+  : T extends StringProperty
+  ? string
+  : T extends NumberProperty
+  ? number
+  : T extends ToggleProperty
+  ? boolean
+  : T extends CheckboxProperty
+  ? boolean
+  : T extends HiddenProperty
+  ? any
+  : T extends ReadOnlyProperty
+  ? any
+  : any;
+
+export type ElementPropertiesValues<P extends CatalogElementProperties> = {
+  [K in keyof P]: PropertyValue<P[K]>;
+};
+
+// Map each property key to its catalog property 'type' literal (e.g. 'width' -> 'length-measure').
+export type PropertyTypeMap<P extends CatalogElementProperties> = {
+  [K in keyof P]: P[K]['type'];
+};
+
+// Convenience extractor: given a CatalogElementBase, get its PropertyTypeMap
+export type ExtractPropertyTypeMap<E> =
+  E extends CatalogElementBase<any, infer P> ? PropertyTypeMap<P> : never;
+
+// Map each prototype string to its concrete element type
+export type PrototypeToElement = {
+  lines: Omit<Line, 'properties'>;
+  holes: Omit<Hole, 'properties'>;
+  areas: Omit<Area, 'properties'>;
+  items: Omit<Item, 'properties'>;
+};
+
+// Base catalog element type parameterized by its prototype kind and its properties definition object.
+// The render/update handlers receive an element whose "properties" field is strongly typed with
+// the value types derived from the element's own property config (length-measure -> LengthMeasureValue, etc.).
+export type CatalogElementBase<
+  P extends keyof PrototypeToElement,
+  Props extends CatalogElementProperties = CatalogElementProperties
+> = {
+  name: string;
+  prototype: P;
+  info: CatalogElementInfo;
+  properties: Props;
+  render2D: (
+    element: PrototypeToElement[P] & {
+      properties: { [K in keyof Props]: PropertyValue<Props[K]> };
+    },
+    layer: Layer,
+    scene: Scene
+  ) => ReactNode;
+  render3D: (
+    element: PrototypeToElement[P] & {
+      properties: ElementPropertiesValues<Props>;
+    },
+    layer: Layer,
+    scene: Scene
+  ) => Promise<Object3D<Object3DEventMap>>;
+  updateRender3D?: (
+    element: PrototypeToElement[P] & {
+      properties: ElementPropertiesValues<Props>;
+    },
+    layer: Layer,
+    scene: Scene,
+    mesh: Object3D<Object3DEventMap>,
+    oldElement: PrototypeToElement[P] & {
+      properties: ElementPropertiesValues<Props>;
+    },
+    differences: string[],
+    selfDestroy: () => void,
+    selfBuild: () => void
+  ) => Promise<any>;
+};
+
+export type AnyCatalogElement =
+  | CatalogElementBase<'lines', CatalogElementProperties>
+  | CatalogElementBase<'holes', CatalogElementProperties>
+  | CatalogElementBase<'areas', CatalogElementProperties>
+  | CatalogElementBase<'items', CatalogElementProperties>;
+
+export type CatalogElement<
+  P extends keyof PrototypeToElement = keyof PrototypeToElement,
+  Props extends CatalogElementProperties = CatalogElementProperties
+> = CatalogElementBase<P, Props>;
+
+export type CatalogElementInfo = {
+  title: string;
+  description: string;
+  image: string | { uri: string; width?: number; height?: number };
+  tag: string[];
+  visibility?: { catalog?: boolean; layerElementsVisible?: boolean };
+};
+
+export type CatalogElementTextures = {
+  [key: string]: {
+    name: string;
+    uri: string;
+    lengthRepeatScale: number;
+    heightRepeatScale: number;
+    normal?: {
+      uri: string;
+      lengthRepeatScale: number;
+      heightRepeatScale: number;
+      normalScaleX: number;
+      normalScaleY: number;
+    };
+  };
+};
+
+export type ElementType = Line | Hole | Area | Item;
+
+===== GREP CHECK =====
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/area/textures/planner-element.tsx:2:  CatalogElementInfo,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/area/textures/planner-element.tsx:3:  CatalogElementTextures,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/area/textures/planner-element.tsx:7:const info: CatalogElementInfo = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/area/textures/planner-element.tsx:14:const textures: CatalogElementTextures = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/area/planner-element.tsx:2:  CatalogElementInfo,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/area/planner-element.tsx:3:  CatalogElementTextures,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/area/planner-element.tsx:7:const info: CatalogElementInfo = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/area/planner-element.tsx:14:const textures: CatalogElementTextures = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/internal-paint/planner-element.tsx:2:  CatalogElementInfo,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/internal-paint/planner-element.tsx:3:  CatalogElementTextures,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/internal-paint/planner-element.tsx:7:const info: CatalogElementInfo = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/internal-paint/planner-element.tsx:14:const textures: CatalogElementTextures = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/door-double/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/door-double/planner-element.tsx:134:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/door-double/planner-element.tsx:138:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/door/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/door/planner-element.tsx:37:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/door/planner-element.tsx:41:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/gate/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/gate/planner-element.tsx:6:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/gate/planner-element.tsx:10:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door-double/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door-double/planner-element.tsx:318:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door-double/planner-element.tsx:322:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door/planner-element.tsx:318:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/panic-door/planner-element.tsx:322:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/sash-window/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/sash-window/planner-element.tsx:11:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/sash-window/planner-element.tsx:15:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/sliding-door/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/sliding-door/planner-element.tsx:94:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/sliding-door/planner-element.tsx:98:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/venetian-blind-window/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/venetian-blind-window/planner-element.tsx:11:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/venetian-blind-window/planner-element.tsx:15:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/window-curtain/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/window-curtain/planner-element.tsx:20:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/window-curtain/planner-element.tsx:24:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/window/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/window/planner-element.tsx:11:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/holes/window/planner-element.tsx:15:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/air-conditioner/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/air-conditioner/planner-element.tsx:296:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/air-conditioner/planner-element.tsx:300:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/armchairs/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/armchairs/planner-element.tsx:247:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/armchairs/planner-element.tsx:251:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/balcony/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/balcony/planner-element.tsx:143:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/balcony/planner-element.tsx:146:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/bench/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/bench/planner-element.tsx:119:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/bench/planner-element.tsx:123:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/blackboard/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/blackboard/planner-element.tsx:10:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/blackboard/planner-element.tsx:14:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/bookcase/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/bookcase/planner-element.tsx:136:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/bookcase/planner-element.tsx:140:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/camera/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/camera/planner-element.tsx:472:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/camera/planner-element.tsx:476:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/canteen-table/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/canteen-table/planner-element.tsx:350:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/canteen-table/planner-element.tsx:354:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/canteencart/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/canteencart/planner-element.tsx:379:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/canteencart/planner-element.tsx:383:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chair/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chair/planner-element.tsx:299:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chair/planner-element.tsx:303:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chairdesk/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chairdesk/planner-element.tsx:632:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/chairdesk/planner-element.tsx:636:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/child-chair-desk/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/child-chair-desk/planner-element.tsx:10:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/child-chair-desk/planner-element.tsx:14:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:940:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cleaningcart/planner-element.tsx:944:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/coat-hook/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/coat-hook/planner-element.tsx:10:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/coat-hook/planner-element.tsx:14:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/column-square/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/column-square/planner-element.tsx:8:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/column-square/planner-element.tsx:12:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/column/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/column/planner-element.tsx:99:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/column/planner-element.tsx:103:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cube/planner-element.tsx:4:  defineCatalogElement,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cube/planner-element.tsx:9:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/cube/planner-element.tsx:13:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/desk/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/desk/planner-element.tsx:157:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/desk/planner-element.tsx:161:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/deskdouble/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/deskdouble/planner-element.tsx:157:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/deskdouble/planner-element.tsx:161:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/deskoffice/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/deskoffice/planner-element.tsx:567:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/deskoffice/planner-element.tsx:571:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/electrical-panel/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/electrical-panel/planner-element.tsx:49:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/electrical-panel/planner-element.tsx:53:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/planner-element.tsx:229:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/fire-extinguisher/planner-element.tsx:233:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/fridge/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/fridge/planner-element.tsx:243:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/fridge/planner-element.tsx:247:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hanger/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hanger/planner-element.tsx:184:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hanger/planner-element.tsx:188:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hiroos/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hiroos/planner-element.tsx:76:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hiroos/planner-element.tsx:80:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hub/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hub/planner-element.tsx:52:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/hub/planner-element.tsx:56:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/image/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/image/planner-element.tsx:8:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/image/planner-element.tsx:12:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/kitchen/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/kitchen/planner-element.tsx:478:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/kitchen/planner-element.tsx:482:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/lim/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/lim/planner-element.tsx:15:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/lim/planner-element.tsx:19:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/metal-detector/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/metal-detector/planner-element.tsx:159:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/metal-detector/planner-element.tsx:163:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/planner-element.tsx:151:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/monitor-pc/planner-element.tsx:155:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/naspo/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/naspo/planner-element.tsx:278:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/naspo/planner-element.tsx:282:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/projector/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/projector/planner-element.tsx:152:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/projector/planner-element.tsx:156:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-modern-style/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-modern-style/planner-element.tsx:229:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-modern-style/planner-element.tsx:233:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-old-style/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-old-style/planner-element.tsx:240:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/radiator-old-style/planner-element.tsx:244:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/recycling-bins/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/recycling-bins/planner-element.tsx:10:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/recycling-bins/planner-element.tsx:14:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/router-wifi/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/router-wifi/planner-element.tsx:136:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/router-wifi/planner-element.tsx:140:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx:303:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/schneider/planner-element.tsx:307:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk-double/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk-double/planner-element.tsx:19:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk-double/planner-element.tsx:23:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk/planner-element.tsx:19:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/school-desk/planner-element.tsx:23:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/simple-stair/planner-element.tsx:4:  defineCatalogElement,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/simple-stair/planner-element.tsx:11:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/simple-stair/planner-element.tsx:15:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sink/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sink/planner-element.tsx:338:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sink/planner-element.tsx:342:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/smoke-detector/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/smoke-detector/planner-element.tsx:112:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/smoke-detector/planner-element.tsx:116:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sofa-single/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sofa-single/planner-element.tsx:28:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sofa-single/planner-element.tsx:32:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sofa/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sofa/planner-element.tsx:28:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/sofa/planner-element.tsx:32:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/table/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/table/planner-element.tsx:113:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/table/planner-element.tsx:117:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/teaching-post/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/teaching-post/planner-element.tsx:19:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/teaching-post/planner-element.tsx:23:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx:16:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/text-3d/planner-element.tsx:20:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/three-phase-panel/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/three-phase-panel/planner-element.tsx:634:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/three-phase-panel/planner-element.tsx:638:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:3:import { defineCatalogElement, Models } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:287:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/toilet/planner-element.tsx:290:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/trash/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/trash/planner-element.tsx:9:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/trash/planner-element.tsx:13:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/tv/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/tv/planner-element.tsx:11:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/tv/planner-element.tsx:15:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/umbrella-stand/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/umbrella-stand/planner-element.tsx:143:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/umbrella-stand/planner-element.tsx:147:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/wardrobe/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/wardrobe/planner-element.tsx:229:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/wardrobe/planner-element.tsx:233:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-white/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-white/planner-element.tsx:6:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-white/planner-element.tsx:10:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-grey/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-grey/planner-element.tsx:6:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-grey/planner-element.tsx:10:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-beige/planner-element.tsx:3:import { defineCatalogElement } from '@archef2000/react-planner';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-beige/planner-element.tsx:6:export default defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-beige/planner-element.tsx:10:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/flooring-ceramic-60x60/planner-element.tsx:1:import { CatalogElement } from "@archef2000/react-planner";
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/flooring-ceramic-60x60/planner-element.tsx:3:const element: CatalogElement = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/flooring-ceramic-60x60/planner-element.tsx:7:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/flooring-ceramic-60x60/planner-element.tsx:13:    mainService: "flooring",
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/flooring-ceramic-60x60/planner-element.tsx:14:    subService: "Ceramic tiles 60×60"
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/flooring-laminate/planner-element.tsx:1:import { CatalogElement } from "@archef2000/react-planner";
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/flooring-laminate/planner-element.tsx:3:const element: CatalogElement = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/flooring-laminate/planner-element.tsx:7:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/flooring-laminate/planner-element.tsx:13:    mainService: "flooring",
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/flooring-laminate/planner-element.tsx:14:    subService: "Laminate"
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/plastering-monacote/planner-element.tsx:1:import { CatalogElement } from "@archef2000/react-planner";
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/plastering-monacote/planner-element.tsx:3:const element: CatalogElement = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/plastering-monacote/planner-element.tsx:7:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/plastering-monacote/planner-element.tsx:13:    mainService: "plastering",
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/plastering-monacote/planner-element.tsx:14:    subService: "Internal (monacote+finittura)"
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/boards-flat-ceiling/planner-element.tsx:1:import { CatalogElement } from "@archef2000/react-planner";
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/boards-flat-ceiling/planner-element.tsx:3:const element: CatalogElement = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/boards-flat-ceiling/planner-element.tsx:7:  info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/boards-flat-ceiling/planner-element.tsx:13:    mainService: "boards",
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/boards-flat-ceiling/planner-element.tsx:14:    subService: "Flat ceiling"
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/lines/wall/planner-element.tsx:2:  CatalogElementInfo,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/lines/wall/planner-element.tsx:3:  CatalogElementTextures,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/lines/wall/planner-element.tsx:7:const info: CatalogElementInfo = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/lines/wall/planner-element.tsx:18:const textures: CatalogElementTextures = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/mycatalog.ts:20:const PLANO_SUBSERVICES: Record<(typeof PLANO_MAIN_SERVICES)[number]['key'], string[]> = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/mycatalog.ts:125:    const subs = PLANO_SUBSERVICES[svc.key] || [];
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/actions/project-actions.ts:46:  CatalogElement,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/actions/project-actions.ts:240:export function pushLastSelectedCatalogElementToHistory(
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/actions/project-actions.ts:241:  element: CatalogElement
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/catalog.ts:3:  CatalogElement,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/catalog.ts:4:  CatalogElementBase,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/catalog.ts:24:  elements: CatalogElement[];
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/catalog.ts:28:  elements: Record<string, CatalogElement>;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/catalog.ts:46:  ): CatalogElementBase<keyof PrototypeToElement> => {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/catalog.ts:83:  registerElement: (catalog: CatalogJson, json: CatalogElement): void => {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/catalog.ts:98:    elementArray: Array<CatalogElement>
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/catalog.ts:140:    json: CatalogElement
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts:18:import { CatalogElementTextures } from '../../types';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts:29:  texture: CatalogElementTextures[string],
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts:96:  textures: CatalogElementTextures
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts:171:  textures: CatalogElementTextures,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory.tsx:9:  CatalogElement,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory.tsx:10:  CatalogElementInfo,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory.tsx:11:  CatalogElementTextures,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory.tsx:12:  defineCatalogElement
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory.tsx:21:  info: CatalogElementInfo,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory.tsx:22:  textures: CatalogElementTextures
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory.tsx:29:  const areaElement = defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory.tsx:32:    info: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory.tsx:113:  return areaElement as unknown as CatalogElement;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:25:import { CatalogElementTextures } from '../../types';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:45:  texture: CatalogElementTextures[string],
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:117:  textures: CatalogElementTextures
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:570:  textures: CatalogElementTextures,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx:9:  CatalogElement,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx:10:  CatalogElementInfo,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx:11:  CatalogElementTextures,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx:12:  defineCatalogElement
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx:54:  info: CatalogElementInfo,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx:55:  textures: CatalogElementTextures
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx:64:  const wallElement = defineCatalogElement({
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx:217:  return wallElement as unknown as CatalogElement;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/area.ts:3:import { catalogElementFactory, CatalogState, State } from '../models';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/area.ts:30:    const area = catalogElementFactory(catalog, type, {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/hole.ts:4:import { catalogElementFactory, Hole as HoleModel, State } from '../models';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/hole.ts:21:    const hole = catalogElementFactory(
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/item.ts:9:import { catalogElementFactory, Item as ItemModel, State } from '../models';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/item.ts:27:    const item = catalogElementFactory(state.catalog, type, {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/project.ts:21:import { CatalogElement, SnapMaskType } from '../types';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/project.ts:239:  static pushLastSelectedCatalogElementToHistory(
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/project.ts:241:    element: CatalogElement
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/line.ts.bak:10:  catalogElementFactory,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/line.ts.bak:62:    const line = catalogElementFactory(
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/line.ts:10:  catalogElementFactory,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/class/line.ts:62:    const line = catalogElementFactory(
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:7:import { CatalogElement } from '../../types';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:110:  element: CatalogElement;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:132:  isAreaServiceSelector(element: CatalogElement) {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:145:      !!info?.mainService &&
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:146:      !!info?.subService
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:161:            mainService: info.mainService,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:162:            subService: info.subService,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:171:      this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:191:    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:10:import { CatalogElement } from '../../types';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:105:  elements: CatalogElement[];
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:107:  matchedElements: CatalogElement[];
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:135:    let toRet: CatalogElement[] = [];
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:169:  select(element: CatalogElement) {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-list.tsx:182:    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/element-editor.tsx:13:  CatalogElementProperty,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/element-editor.tsx:265:    const catalogElement = CatalogFn.getElement(catalog, (element as any).type);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/element-editor.tsx:269:      { currentValue: any; configs: CatalogElementProperty }
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/element-editor.tsx:273:    for (const name in catalogElement.properties) {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/sidebar/panel-element-editor/element-editor.tsx:274:      const propDef = catalogElement.properties[name];
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/models.ts:4:import { CatalogElement, SnapMaskType } from './types';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/models.ts:276:  elements: Record<string, CatalogElement>;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/models.ts:282:  elements: Record<string, CatalogElement>;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/models.ts:299:export function catalogElementFactory(
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/models.ts:420:  selectedElementsHistory: CatalogElement[];
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/reducers/project-reducer.ts:46:  CatalogElement,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/reducers/project-reducer.ts:170:export type PushLastSelectedCatalogElementToHistoryAction = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/reducers/project-reducer.ts:172:  element: CatalogElement;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/reducers/project-reducer.ts:243:  | PushLastSelectedCatalogElementToHistoryAction
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/reducers/project-reducer.ts:392:      return Project.pushLastSelectedCatalogElementToHistory(
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:130:export type CatalogElementProperty = CatalogProperty; //TODO: remove {}
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:131:export type CatalogElementPropertyWithDefault = CatalogElementProperty & {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:135:export type CatalogElementProperties = Record<string, CatalogElementProperty>;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:142:export type PropertyValue<T extends CatalogElementProperty> =
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:163:export type ElementPropertiesValues<P extends CatalogElementProperties> = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:168:export type PropertyTypeMap<P extends CatalogElementProperties> = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:172:// Convenience extractor: given a CatalogElementBase, get its PropertyTypeMap
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:174:  E extends CatalogElementBase<any, infer P> ? PropertyTypeMap<P> : never;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:187:export type CatalogElementBase<
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:189:  Props extends CatalogElementProperties = CatalogElementProperties
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:193:  info: CatalogElementInfo;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:225:export type AnyCatalogElement =
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:226:  | CatalogElementBase<'lines', CatalogElementProperties>
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:227:  | CatalogElementBase<'holes', CatalogElementProperties>
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:228:  | CatalogElementBase<'areas', CatalogElementProperties>
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:229:  | CatalogElementBase<'items', CatalogElementProperties>;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:231:export type CatalogElement<
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:233:  Props extends CatalogElementProperties = CatalogElementProperties
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:234:> = CatalogElementBase<P, Props>;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:236:export type CatalogElementInfo = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:244:export type CatalogElementTextures = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:308:export function defineCatalogElement<
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:310:  Props extends CatalogElementProperties
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts:311:>(el: CatalogElementBase<P, Props>): CatalogElementBase<P, Props> {

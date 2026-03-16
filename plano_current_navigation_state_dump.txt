@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState, useCallback, useEffect } from "react";
+===== /home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx =====
+import { useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -42,15 +43,11 @@ const ICONS: Record<MainService, LucideIcon> = {
   other: MoreHorizontal,
 };
 
-const SCENE_BACKUP_KEY = "plano_scene_backup";
-
 export default function Planner() {
   const navigate = useNavigate();
 
   const apiRef = useRef<PlannerApi | null>(null);
   const didInitRef = useRef(false);
-  const pendingEstimateNavRef = useRef(false);
-  const restoreAttemptedRef = useRef(false);
 
   const [viewMode, setViewMode] = useState<ViewMode>("2D");
   const [engineMode, setEngineMode] = useState<string>("");
@@ -62,13 +59,13 @@ export default function Planner() {
     setActiveMain,
     committedLedger,
     commitCurrentService,
+    hasAnySelection,
     selectedSurfaces,
     surfaceGeoMap,
     selectedSurfaceTotalM2,
     areaServiceDraft,
     toggleSurface,
     clearSelectedSurfaces,
-    restoreFromLedgerEntry,
     liveSurfaceGeo,
     setLiveSurfaceGeo,
     applyAreaService,
@@ -96,51 +93,6 @@ export default function Planner() {
     }
   }, []);
 
-  useEffect(() => {
-    const handleSceneSaved = (e: Event) => {
-      const customEvent = e as CustomEvent<any>;
-      const scene = customEvent.detail;
-
-      if (!scene) return;
-
-      sessionStorage.setItem(SCENE_BACKUP_KEY, JSON.stringify(scene));
-
-      if (pendingEstimateNavRef.current) {
-        pendingEstimateNavRef.current = false;
-        navigate("/estimate");
-      }
-    };
-
-    window.addEventListener("PLANO_SCENE_SAVED", handleSceneSaved as EventListener);
-
-    return () => {
-      window.removeEventListener("PLANO_SCENE_SAVED", handleSceneSaved as EventListener);
-    };
-  }, [navigate]);
-
-  useEffect(() => {
-    if (restoreAttemptedRef.current) return;
-    if (!apiRef.current) return;
-    if (!engineMode) return;
-
-    const storedScene = sessionStorage.getItem(SCENE_BACKUP_KEY);
-    if (!storedScene) {
-      restoreAttemptedRef.current = true;
-      return;
-    }
-
-    try {
-      const scene = JSON.parse(storedScene);
-      apiRef.current.cmd("LOAD_PROJECT_JSON", { scene });
-      sessionStorage.removeItem(SCENE_BACKUP_KEY);
-    } catch (error) {
-      console.error("Failed to restore saved planner scene", error);
-      sessionStorage.removeItem(SCENE_BACKUP_KEY);
-    } finally {
-      restoreAttemptedRef.current = true;
-    }
-  }, [engineMode]);
-
   const handleCatalogServiceSelected = useCallback(
     (payload: CatalogServiceSelectedPayload) => {
       const areaServices: MainService[] = [
@@ -151,48 +103,16 @@ export default function Planner() {
       ];
 
       if (areaServices.includes(payload.mainService as MainService)) {
-        const nextMain = payload.mainService as MainService;
-
-        setActiveMain(nextMain);
+        setActiveMain(payload.mainService as MainService);
         setActiveAreaSubService(payload.subService);
         setActiveAreaMaterialKey(payload.materialKey);
         setActiveAreaMaterialLabel(payload.materialLabel);
         setActiveAreaMaterialColor(payload.color || null);
-
-        const existingEntry = committedLedger.find(
-          (entry) =>
-            entry.service === nextMain &&
-            entry.subService === payload.subService &&
-            entry.materialKey === payload.materialKey
-        );
-
-        if (existingEntry) {
-          restoreFromLedgerEntry(existingEntry);
-
-          setViewMode("3D");
-          apiRef.current?.cmd("VIEW_3D");
-
-          const surfaceIds = Array.from(existingEntry.surfaces.keys());
-
-          setTimeout(() => {
-            apiRef.current?.cmd("RESTORE_SURFACE_HIGHLIGHTS", { surfaceIds });
-          }, 120);
-        } else {
-          clearSelectedSurfaces();
-
-          setViewMode("3D");
-          apiRef.current?.cmd("VIEW_3D");
-
-          setTimeout(() => {
-            apiRef.current?.cmd("RESTORE_SURFACE_HIGHLIGHTS", { surfaceIds: [] });
-          }, 120);
-        }
+        setViewMode("3D");
+        apiRef.current?.cmd("VIEW_3D");
       }
     },
     [
-      committedLedger,
-      restoreFromLedgerEntry,
-      clearSelectedSurfaces,
       setActiveMain,
       setActiveAreaSubService,
       setActiveAreaMaterialKey,
@@ -479,8 +399,8 @@ export default function Planner() {
                 <button
                   type="button"
                   onClick={() => {
-                    pendingEstimateNavRef.current = true;
                     apiRef.current?.cmd("REQUEST_SCENE_JSON");
+                    setTimeout(() => navigate("/estimate"), 50);
                   }}
                   disabled={committedLedger.length === 0}
                   className={`plano-glass-btn h-10 w-10 grid place-items-center ${
@@ -547,5 +467,383 @@ export default function Planner() {
         </div>
       ) : null}
     </div>
+  );
+}
+===== /home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Estimate.tsx =====
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
+import { FileText } from "lucide-react";
+
+import {
+  MAIN_SERVICES,
+  usePlannerState,
+} from "../../state/plannerState";
+
+type EstimateRow = {
+  key: string;
+  description: string;
+  unit: string;
+  qty: number;
+  rate: number;
+  amount: number;
+};
+
+function formatNumber(value: number) {
+  return (Math.round(value * 100) / 100).toFixed(2);
+}
+
+export default function Estimate() {
+  const { committedLedger, projectTotalM2 } = usePlannerState();
+
+  const rows = useMemo<EstimateRow[]>(() => {
+    return committedLedger.map((entry) => {
+      const serviceLabel =
+        MAIN_SERVICES.find((service) => service.key === entry.service)?.label ||
+        entry.service;
+
+      const rate = 0;
+      const amount = entry.totalM2 * rate;
+
+      return {
+        key: entry.ledgerId,
+        description: `${serviceLabel} — ${entry.subService} — ${entry.materialLabel}`,
+        unit: "m²",
+        qty: entry.totalM2,
+        rate,
+        amount,
+      };
+    });
+  }, [committedLedger]);
+
+  const totalAmount = useMemo(() => {
+    const sum = rows.reduce((acc, row) => acc + row.amount, 0);
+    return Math.round(sum * 100) / 100;
+  }, [rows]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="rounded-xl border bg-white p-2">
+          <FileText className="h-5 w-5" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold">Estimate</h1>
+          <div className="text-sm text-zinc-600">
+            Ledger-driven BOQ / cost breakdown
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+        <div className="border-b px-4 py-3 text-sm font-semibold">
+          Items
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-zinc-50 text-xs text-zinc-600">
+              <tr>
+                <th className="px-3 py-2 text-left">Description</th>
+                <th className="px-3 py-2 text-center">Unit</th>
+                <th className="px-3 py-2 text-center">Qty</th>
+                <th className="px-3 py-2 text-center">Rate</th>
+                <th className="px-3 py-2 text-right">Amount</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {rows.length === 0 ? (
+                <tr className="border-t">
+                  <td className="px-3 py-4 text-zinc-500" colSpan={5}>
+                    No committed services yet.
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {rows.map((row) => (
+                    <tr key={row.key} className="border-t">
+                      <td className="px-3 py-2">{row.description}</td>
+                      <td className="px-3 py-2 text-center">{row.unit}</td>
+                      <td className="px-3 py-2 text-center">
+                        {formatNumber(row.qty)}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        {formatNumber(row.rate)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {formatNumber(row.amount)}
+                      </td>
+                    </tr>
+                  ))}
+
+                  <tr className="border-t bg-zinc-50/60">
+                    <td className="px-3 py-2 font-semibold">Total m²</td>
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2 text-center font-semibold">
+                      {formatNumber(projectTotalM2)}
+                    </td>
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2" />
+                  </tr>
+
+                  <tr className="border-t">
+                    <td className="px-3 py-2 font-semibold">Grand Total</td>
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2 text-right font-semibold">
+                      {formatNumber(totalAmount)}
+                    </td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <Link
+        to="/planner/3d"
+        className="inline-flex items-center rounded-lg border bg-white px-3 py-2 text-sm hover:bg-zinc-50"
+      >
+        Back to Planner
+      </Link>
+    </div>
+  );
+}
+===== /home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx =====
+import { useEffect, useRef } from "react";
+
+const ENGINE_URL = import.meta.env.VITE_ENGINE_URL || "http://localhost:5173";
+const ENGINE_ORIGIN = new URL(ENGINE_URL).origin;
+const PROTOCOL_VERSION = 1;
+
+const RASTER_URL =
+  import.meta.env.VITE_RASTER_URL || "http://localhost:8000/upload-plan";
+
+export type PlannerCmd =
+  | "NEW_PROJECT"
+  | "OPEN_CATALOG"
+  | "CHANGE_CATALOG_PAGE"
+  | "VIEW_2D"
+  | "VIEW_3D"
+  | "VIEW_3D_FIRST_PERSON"
+  | "UNDO"
+  | "OPEN_PROJECT_CONFIGURATOR"
+  | "TOOL_PAN"
+  | "TOOL_ZOOM_IN"
+  | "TOOL_ZOOM_OUT"
+  | "SELECT_TOOL_EDIT"
+  | "UNSELECT_ALL"
+  | "LOAD_PROJECT_JSON"
+  | "LOAD_RASTER_JSON"
+  | "REQUEST_SCENE_JSON";
+
+export type SurfaceSelectedPayload = {
+  surfaceId: string;
+  wallId: string;
+  surfaceType: "front" | "back" | "floor";
+  lengthM?: number;
+  heightM?: number;
+  areaM2?: number;
+};
+
+export type CatalogServiceSelectedPayload = {
+  mainService: string;
+  subService: string;
+  materialKey: string;
+  materialLabel: string;
+  color: string | null;
+};
+
+export type PlannerApi = {
+  cmd: (c: PlannerCmd, payload?: any) => void;
+  loadProjectPicker: () => void;
+  saveProjectDownload: () => void;
+};
+
+type Props = {
+  onApi?: (api: PlannerApi) => void;
+  onModeChange?: (mode: string) => void;
+  onSurfaceSelected?: (payload: SurfaceSelectedPayload) => void;
+  onSurfacesCleared?: () => void;
+  onCatalogServiceSelected?: (payload: CatalogServiceSelectedPayload) => void;
+};
+
+function downloadJson(filename: string, data: any) {
+  const dataStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+export default function PlannerFrame({
+  onApi,
+  onModeChange,
+  onSurfaceSelected,
+  onSurfacesCleared,
+  onCatalogServiceSelected,
+}: Props) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  const postToEngine = (msg: any) => {
+    const w = iframeRef.current?.contentWindow;
+    if (!w) return;
+    w.postMessage(msg, "*");
+  };
+
+  const cmd = (c: PlannerCmd, payload?: any) => {
+    postToEngine({
+      protocolVersion: PROTOCOL_VERSION,
+      type: "CMD",
+      cmd: c,
+      payload,
+    });
+  };
+
+  const loadProjectPicker = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json,.png,.jpg,.jpeg,application/pdf";
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      try {
+        if (file.name.toLowerCase().endsWith(".json")) {
+          const text = await file.text();
+          const scene = JSON.parse(text);
+          cmd("LOAD_PROJECT_JSON", { scene });
+          return;
+        }
+
+        const form = new FormData();
+        form.append("file", file);
+
+        const resp = await fetch(RASTER_URL, { method: "POST", body: form });
+        if (!resp.ok) {
+          const msg = await resp.text();
+          throw new Error(`Raster upload failed (${resp.status}): ${msg}`);
+        }
+
+        const raw = await resp.json();
+        cmd("LOAD_RASTER_JSON", { raw });
+      } catch (e: any) {
+        alert(e?.message || String(e));
+        console.error(e);
+      }
+    };
+
+    input.click();
+  };
+
+  const saveProjectDownload = () => {
+    cmd("REQUEST_SCENE_JSON");
+  };
+
+  useEffect(() => {
+    onApi?.({ cmd, loadProjectPicker, saveProjectDownload });
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== ENGINE_ORIGIN) return;
+
+      const data: any = event.data;
+      if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
+
+      if (data.type === "ERROR") {
+        console.error("[ENGINE ERROR]", data.message);
+        return;
+      }
+
+      if (data.type === "MODE_CHANGED") {
+        const mode = data?.payload?.mode;
+        if (typeof mode === "string") onModeChange?.(mode);
+        return;
+      }
+
+      if (data.type === "SURFACE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.surfaceId === "string" &&
+          typeof payload.wallId === "string" &&
+          (
+            payload.surfaceType === "front" ||
+            payload.surfaceType === "back" ||
+            payload.surfaceType === "floor"
+          )
+        ) {
+          onSurfaceSelected?.(payload);
+        }
+        return;
+      }
+
+      if (data.type === "SURFACES_CLEARED") {
+        onSurfacesCleared?.();
+        return;
+      }
+
+      if (data.type === "CATALOG_SERVICE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.mainService === "string" &&
+          typeof payload.subService === "string" &&
+          typeof payload.materialKey === "string" &&
+          typeof payload.materialLabel === "string"
+        ) {
+          onCatalogServiceSelected?.(payload);
+        }
+        return;
+      }
+
+      if (data.type === "SCENE_JSON") {
+        const scene = data?.payload?.scene;
+        if (scene) {
+          window.dispatchEvent(
+            new CustomEvent("PLANO_SCENE_SAVED", { detail: scene })
+          );
+        }
+      }
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [
+    onApi,
+    onModeChange,
+    onSurfaceSelected,
+    onSurfacesCleared,
+    onCatalogServiceSelected,
+  ]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      src={ENGINE_URL}
+      title="React Planner Engine"
+      allow="clipboard-read; clipboard-write"
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100vh",
+        border: 0,
+        zIndex: 1,
+        background: "#fff",
+      }}
+      onLoad={() =>
+        postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "PING" })
+      }
+    />
   );
 }
