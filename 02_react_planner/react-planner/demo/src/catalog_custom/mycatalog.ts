@@ -1,52 +1,192 @@
 declare let require: {
   context(directory: string, useSubdirectories?: boolean, regExp?: RegExp): any;
 };
+
 import { CatalogFactory, CatalogFn } from '@archef2000/react-planner';
 
 import Area from './areas/area/planner-element';
 import Wall from './lines/wall/planner-element';
 
-export function createCatalog() {
-  const catalog = CatalogFactory();
+const PLANO_MAIN_SERVICES = [
+  { key: 'electricity', label: 'Electricity' },
+  { key: 'plumbing', label: 'Plumbing' },
+  { key: 'painting', label: 'Painting' },
+  { key: 'flooring', label: 'Flooring' },
+  { key: 'plastering', label: 'Plastering' },
+  { key: 'boards', label: 'Boards' },
+  { key: 'other', label: 'Other' }
+] as const;
 
-  CatalogFn.registerElement(catalog, Area);
-  CatalogFn.registerElement(catalog, Wall);
+const PLANO_SUBSERVICES: Record<(typeof PLANO_MAIN_SERVICES)[number]['key'], string[]> = {
+  electricity: [
+    'Switches & plugs',
+    'Overlaps with plumbing',
+    'Oven',
+    'Hob',
+    'Fridge freezer',
+    'Microwave',
+    'AC'
+  ],
+  plumbing: [
+    'Floor drain',
+    'Shower cubical',
+    'Bathroom sink',
+    'Mixers',
+    'Kitchen sink',
+    'Water heater',
+    'Washing machine',
+    'Dishwasher',
+    'Tap for water'
+  ],
+  painting: ['Internal paint', 'External paint'],
+  flooring: [
+    'Ceramic tiles 60×60',
+    'Ceramic tiles 120×60',
+    'Ceramic tiles custom',
+    'Laminate',
+    'Microcement',
+    'Polished concrete',
+    'Parquet'
+  ],
+  plastering: [
+    'Internal (monacote+finittura)',
+    'Internal (microcement)',
+    'External (GR1000)',
+    'External (silicato)',
+    'Stone restoration'
+  ],
+  boards: ['Flat ceiling', 'L-shape bulkhead', 'U-shape bulkhead', 'Custom shapes'],
+  other: ['To be defined', 'Custom request', 'Special works']
+};
+
+function safeSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+export function createCatalog() {
+  const catalog: any = CatalogFactory();
+
+  CatalogFn.registerElement(catalog, Area as any);
+  CatalogFn.registerElement(catalog, Wall as any);
 
   const Holes: any[] = [];
-  const holesContext = require.context(
-    './holes/',
-    true,
-    /planner-element\.[tj]sx$/
-  );
+  const holesContext = require.context('./holes/', true, /planner-element\.[tj]sx$/);
   holesContext.keys().forEach((key: string) => {
-    const element = holesContext(key).default;
-    Holes.push(element);
-    CatalogFn.registerElement(catalog, element);
+    const el = holesContext(key).default;
+    Holes.push(el);
+    CatalogFn.registerElement(catalog, el as any);
   });
 
   const Items: any[] = [];
-  const itemsContext = require.context(
-    './items/',
-    true,
-    /planner-element\.[tj]sx$/
-  );
+  const itemsContext = require.context('./items/', true, /planner-element\.[tj]sx$/);
   itemsContext.keys().forEach((key: string) => {
-    const element = itemsContext(key).default;
-    Items.push(element);
-    CatalogFn.registerElement(catalog, element);
+    const el = itemsContext(key).default;
+    Items.push(el);
+    if (!catalog.elements[el.name]) {
+      CatalogFn.registerElement(catalog, el as any);
+    }
   });
+
   CatalogFn.registerCategory(
     catalog,
     'windows',
     'Windows',
-    Holes.filter((h) => h.info.tag.includes('window'))
+    Holes.filter((h) => h?.info?.tag?.includes('window'))
   );
+
   CatalogFn.registerCategory(
     catalog,
     'doors',
     'Doors',
-    Holes.filter((h) => h.info.tag.includes('door'))
+    Holes.filter((h) => h?.info?.tag?.includes('door'))
   );
+
+  const ensureHiddenSubCategory = (name: string, label: string) => {
+    if (!catalog.categories[name]) {
+      catalog.categories[name] = { name, label, categories: [], elements: [] };
+    }
+    return catalog.categories[name];
+  };
+
+  const paintWhite = Items.find((el) => el?.name === 'paint-white');
+  const paintGrey = Items.find((el) => el?.name === 'paint-grey');
+  const paintBeige = Items.find((el) => el?.name === 'paint-beige');
+
+  const flooringCeramic60 = Items.find((el) => el?.name === 'flooring-ceramic-60x60');
+  const flooringLaminate = Items.find((el) => el?.name === 'flooring-laminate');
+  const plasteringMonacote = Items.find((el) => el?.name === 'plastering-monacote');
+  const boardsFlatCeiling = Items.find((el) => el?.name === 'boards-flat-ceiling');
+
+  for (const svc of PLANO_MAIN_SERVICES) {
+    if (svc.key === 'other') continue;
+
+    const mainName = `plano_${svc.key}`;
+
+    if (!catalog.categories[mainName]) {
+      CatalogFn.registerCategory(catalog, mainName, svc.label, []);
+    }
+
+    const mainCat = catalog.categories[mainName];
+    const subs = PLANO_SUBSERVICES[svc.key] || [];
+
+    for (const subLabel of subs) {
+      const subName = `plano_${svc.key}__${safeSlug(subLabel)}`;
+      const subCat = ensureHiddenSubCategory(subName, subLabel);
+
+      if (!mainCat.categories.some((c: any) => c.name === subCat.name)) {
+        mainCat.categories.push(subCat);
+      }
+
+      if (svc.key === 'painting' && subLabel === 'Internal paint') {
+        if (paintWhite && !subCat.elements.find((el: any) => el.name === paintWhite.name)) {
+          subCat.elements.push(paintWhite);
+        }
+        if (paintGrey && !subCat.elements.find((el: any) => el.name === paintGrey.name)) {
+          subCat.elements.push(paintGrey);
+        }
+        if (paintBeige && !subCat.elements.find((el: any) => el.name === paintBeige.name)) {
+          subCat.elements.push(paintBeige);
+        }
+      }
+
+      if (svc.key === 'flooring' && subLabel === 'Ceramic tiles 60×60') {
+        if (
+          flooringCeramic60 &&
+          !subCat.elements.find((el: any) => el.name === flooringCeramic60.name)
+        ) {
+          subCat.elements.push(flooringCeramic60);
+        }
+      }
+
+      if (svc.key === 'flooring' && subLabel === 'Laminate') {
+        if (
+          flooringLaminate &&
+          !subCat.elements.find((el: any) => el.name === flooringLaminate.name)
+        ) {
+          subCat.elements.push(flooringLaminate);
+        }
+      }
+
+      if (svc.key === 'plastering' && subLabel === 'Internal (monacote+finittura)') {
+        if (
+          plasteringMonacote &&
+          !subCat.elements.find((el: any) => el.name === plasteringMonacote.name)
+        ) {
+          subCat.elements.push(plasteringMonacote);
+        }
+      }
+
+      if (svc.key === 'boards' && subLabel === 'Flat ceiling') {
+        if (
+          boardsFlatCeiling &&
+          !subCat.elements.find((el: any) => el.name === boardsFlatCeiling.name)
+        ) {
+          subCat.elements.push(boardsFlatCeiling);
+        }
+      }
+    }
+  }
+
   return catalog;
 }
 

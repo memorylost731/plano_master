@@ -10,24 +10,27 @@ const STYLE = {
   borderBottom: '1px solid #48494E',
   userSelect: 'none'
 } as const;
+
 const STYLE_TITLE = {
   fontSize: '11px',
   color: SharedStyle.PRIMARY_COLOR.text_alt,
-  padding: '5px 15px 8px 15px',
+  padding: '6px 10px',
   backgroundColor: SharedStyle.PRIMARY_COLOR.alt,
   textShadow: '-1px -1px 2px rgba(0, 0, 0, 1)',
   boxShadow: 'inset 0px -3px 19px 0px rgba(0,0,0,0.5)',
   margin: '0px',
   cursor: 'pointer'
 } as const;
+
 const STYLE_CONTENT = {
   fontSize: '11px',
   color: SharedStyle.PRIMARY_COLOR.text_alt,
   border: '1px solid #222',
-  padding: '0px',
+  padding: '8px 10px', // ✅ uniform padding for all panel content
   backgroundColor: SharedStyle.PRIMARY_COLOR.alt,
   textShadow: '-1px -1px 2px rgba(0, 0, 0, 1)'
 } as const;
+
 const STYLE_ARROW = {
   float: 'right'
 } as const;

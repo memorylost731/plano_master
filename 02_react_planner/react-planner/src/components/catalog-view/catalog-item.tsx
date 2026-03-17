@@ -129,8 +129,52 @@ export default class CatalogItem extends Component<
     this.state = { hover: false };
   }
 
+  isAreaServiceSelector(element: CatalogElement) {
+    const tags = element.info?.tag as string[] | undefined;
+    const info = element.info as any;
+
+    return (
+      element.prototype === 'items' &&
+      Array.isArray(tags) &&
+      (
+        tags.includes('painting') ||
+        tags.includes('flooring') ||
+        tags.includes('plastering') ||
+        tags.includes('boards')
+      ) &&
+      !!info?.mainService &&
+      !!info?.subService
+    );
+  }
+
   select() {
     const element = this.props.element;
+
+    if (this.isAreaServiceSelector(element)) {
+      const info = element.info as any;
+
+      window.parent?.postMessage(
+        {
+          protocolVersion: 1,
+          type: 'CATALOG_SERVICE_SELECTED',
+          payload: {
+            mainService: info.mainService,
+            subService: info.subService,
+            materialKey: element.name,
+            materialLabel: element.info.title,
+            color: element.properties?.color?.defaultValue || null
+          }
+        },
+        '*'
+      );
+
+      this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+        element
+      );
+
+      this.context.projectActions.setMode('MODE_IDLE');
+      return;
+    }
 
     switch (element.prototype) {
       case 'lines':
@@ -156,9 +200,9 @@ export default class CatalogItem extends Component<
     return (
       <div
         style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
-        onClick={(e) => this.select()}
-        onMouseEnter={(e) => this.setState({ hover: true })}
-        onMouseLeave={(e) => this.setState({ hover: false })}
+        onClick={() => this.select()}
+        onMouseEnter={() => this.setState({ hover: true })}
+        onMouseLeave={() => this.setState({ hover: false })}
       >
         <b style={!hover ? STYLE_TITLE : STYLE_TITLE_HOVER}>
           {element.info.title}

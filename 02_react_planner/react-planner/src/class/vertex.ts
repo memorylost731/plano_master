@@ -297,7 +297,15 @@ class Vertex {
         });
       }
 
-      draft = Layer.detectAndUpdateAreas(draft, layerID);
+          const scene = draft.scene as any;
+    
+      if (!scene?.meta?.__normalized) {
+    
+        draft = Layer.detectAndUpdateAreas(draft, layerID);
+    
+      }
+    
+      // __RASTER_GUARD_APPLIED__
 
       draft.mode = draggingSupport.previousMode;
       draft.draggingSupport = undefined;

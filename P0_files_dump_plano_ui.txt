@@ -1,0 +1,727 @@
+=== ROOT: /home/ogi/project_root/plano_master ===
+
+================= FILE LIST (existing only) =================
+00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx
+00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx
+00_frontend_skeleton/plano-ui/src/state/plannerState.tsx
+00_frontend_skeleton/plano-ui/src/App.tsx
+00_frontend_skeleton/plano-ui/src/main.tsx
+
+================= FILE CONTENTS =================
+
+----------------- FILE: 00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx -----------------
+import { useMemo, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bolt,
+  Wrench,
+  Paintbrush,
+  Grid3X3,
+  Layers,
+  Boxes,
+  MoreHorizontal,
+  FilePlus,
+  FolderOpen,
+  Save,
+  Plus,
+  Undo2,
+  Settings,
+  PersonStanding,
+  FileText,
+} from "lucide-react";
+
+import PlannerFrame, { type PlannerApi } from "../../components/planner/PlannerFrame";
+
+import {
+  MAIN_SERVICES,
+  SUBSERVICES,
+  usePlannerState,
+  type MainService,
+} from "../../state/plannerState";
+
+type ViewMode = "2D" | "3D";
+
+const ICONS: Record<MainService, LucideIcon> = {
+  electricity: Bolt,
+  plumbing: Wrench,
+  painting: Paintbrush,
+  flooring: Grid3X3,
+  plastering: Layers,
+  boards: Boxes,
+  other: MoreHorizontal,
+};
+
+export default function Planner() {
+  const navigate = useNavigate();
+
+  const apiRef = useRef<PlannerApi | null>(null);
+  const didInitRef = useRef(false);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("2D");
+  const [engineMode, setEngineMode] = useState<string>("");
+
+  const {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    hasAnySelection,
+    selectedCount,
+    clearAll,
+  } = usePlannerState();
+
+  const subs = useMemo(() => SUBSERVICES[activeMain], [activeMain]);
+
+  const handleApi = useCallback((api: PlannerApi) => {
+    apiRef.current = api;
+    if (!didInitRef.current) {
+      didInitRef.current = true;
+      api.cmd("VIEW_2D");
+      api.cmd("SELECT_TOOL_EDIT");
+      setViewMode("2D");
+    }
+  }, []);
+
+  const go2D = useCallback(() => {
+    setViewMode("2D");
+    apiRef.current?.cmd("VIEW_2D");
+    apiRef.current?.cmd("SELECT_TOOL_EDIT");
+  }, []);
+
+  const go3D = useCallback(() => {
+    setViewMode("3D");
+    apiRef.current?.cmd("VIEW_3D");
+  }, []);
+
+  const isCatalogOpen = engineMode === "MODE_VIEWING_CATALOG";
+
+  return (
+    <div className={`${viewMode === "2D" ? "planner2d-bg" : "planner3d-bg"} fixed inset-0 text-zinc-900`}>
+      <PlannerFrame onApi={handleApi} onModeChange={setEngineMode} />
+
+      {/* TOP BAR (FULL WIDTH – NO SLIDER, NO WRAP) */}
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex justify-center p-2">
+        <div className="pointer-events-auto glass-panel w-[calc(100vw-24px)] px-4 py-1">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 font-semibold"
+            >
+              <span className="text-base">PlanO</span>
+            </button>
+
+            {/* SERVICES (3D only) — hidden while catalog is open */}
+            {viewMode === "3D" && !isCatalogOpen ? (
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 justify-center px-1">
+                  {MAIN_SERVICES.map((s) => {
+                    const Icon = ICONS[s.key];
+                    const isActive = activeMain === s.key;
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => setActiveMain(s.key)}
+                        className={`plano-dock-item flex items-center gap-2 px-2 py-1 text-xs ${
+                          isActive ? "ring-2 ring-white/70" : ""
+                        }`}
+                        title={s.label}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="hidden lg:inline">{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            {/* ACTIONS — hidden while catalog is open */}
+            {!isCatalogOpen && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("NEW_PROJECT")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="New project"
+                >
+                  <FilePlus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.saveProjectDownload()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Save project"
+                >
+                  <Save className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.loadProjectPicker()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Load project (JSON/PDF/Image via Raster)"
+                >
+                  <FolderOpen className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_CATALOG")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Open catalog"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go3D}
+                  className={`plano-glass-btn px-4 py-2 text-sm font-semibold ${
+                    viewMode === "3D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                  title="3D View"
+                >
+                  3D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go2D}
+                  className={`plano-glass-btn px-4 py-2 text-sm font-semibold ${
+                    viewMode === "2D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                  title="2D View"
+                >
+                  2D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => viewMode === "3D" && apiRef.current?.cmd("VIEW_3D_FIRST_PERSON")}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    viewMode === "3D" ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                  title="3D First Person (3D only)"
+                  disabled={viewMode !== "3D"}
+                >
+                  <PersonStanding className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("UNDO")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Undo"
+                >
+                  <Undo2 className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Configure project"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/estimate")}
+                  disabled={!hasAnySelection}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    hasAnySelection ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                  title="Estimate"
+                >
+                  <FileText className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* LEFT SUBSERVICES only in 3D (HIDDEN while catalog is open) */}
+      {viewMode === "3D" && !isCatalogOpen && (
+        <div className="pointer-events-none absolute left-4 top-36 z-50">
+          <div className="pointer-events-auto w-[300px] glass-panel overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/20">
+              <div className="text-[11px] font-semibold text-zinc-900">
+                {MAIN_SERVICES.find((x) => x.key === activeMain)?.label.toUpperCase()} SUB-SERVICES
+              </div>
+              <div className="text-[11px] text-zinc-700">
+                Click to toggle. Selected are highlighted.
+              </div>
+            </div>
+
+            <div className="p-3 space-y-2 max-h-[62vh] overflow-auto">
+              {subs.map((sub) => {
+                const isActive = selected[activeMain].has(sub);
+                return (
+                  <button
+                    key={sub}
+                    type="button"
+                    onClick={() => toggleSub(activeMain, sub)}
+                    className={`plano-dock-item w-full px-3 py-2 text-sm text-left ${
+                      isActive ? "ring-2 ring-white/70" : ""
+                    }`}
+                    title={sub}
+                  >
+                    {sub}
+                  </button>
+                );
+              })}
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearAll();
+                    apiRef.current?.cmd("UNSELECT_ALL");
+                  }}
+                  className="plano-glass-btn w-full px-3 py-2 text-sm font-semibold"
+                >
+                  Reset selections
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* IMPORTANT: removed the PlanO right NAV overlay entirely */}
+    </div>
+  );
+}
+
+----------------- FILE: 00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx -----------------
+import { useEffect, useRef } from "react";
+
+const ENGINE_URL = "http://localhost:5173";
+const PROTOCOL_VERSION = 1;
+
+const RASTER_URL = "http://localhost:8010/upload-plan";
+
+export type PlannerCmd =
+  | "NEW_PROJECT"
+  | "OPEN_CATALOG"
+  | "VIEW_2D"
+  | "VIEW_3D"
+  | "VIEW_3D_FIRST_PERSON"
+  | "UNDO"
+  | "OPEN_PROJECT_CONFIGURATOR"
+  | "TOOL_PAN"
+  | "TOOL_ZOOM_IN"
+  | "TOOL_ZOOM_OUT"
+  | "SELECT_TOOL_EDIT"
+  | "UNSELECT_ALL"
+  | "LOAD_PROJECT_JSON"
+  | "LOAD_RASTER_JSON"
+  | "REQUEST_SCENE_JSON";
+
+export type PlannerApi = {
+  cmd: (c: PlannerCmd, payload?: any) => void;
+  loadProjectPicker: () => void;
+  saveProjectDownload: () => void;
+};
+
+type Props = {
+  onApi?: (api: PlannerApi) => void;
+  onModeChange?: (mode: string) => void;
+};
+
+function downloadJson(filename: string, data: any) {
+  const dataStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+export default function PlannerFrame({ onApi, onModeChange }: Props) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  // IMPORTANT: Use '*' to avoid targetOrigin mismatch during dev.
+  // Engine validates event.origin.
+  const postToEngine = (msg: any) => {
+    const w = iframeRef.current?.contentWindow;
+    if (!w) return;
+    w.postMessage(msg, "*");
+  };
+
+  const cmd = (c: PlannerCmd, payload?: any) => {
+    postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "CMD", cmd: c, payload });
+  };
+
+  const loadProjectPicker = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json,.png,.jpg,.jpeg,application/pdf";
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      try {
+        if (file.name.toLowerCase().endsWith(".json")) {
+          const text = await file.text();
+          const scene = JSON.parse(text);
+          cmd("LOAD_PROJECT_JSON", { scene });
+          return;
+        }
+
+        const form = new FormData();
+        form.append("file", file);
+
+        const resp = await fetch(RASTER_URL, { method: "POST", body: form });
+        if (!resp.ok) {
+          const msg = await resp.text();
+          throw new Error(`Raster upload failed (${resp.status}): ${msg}`);
+        }
+
+        const raw = await resp.json();
+        cmd("LOAD_RASTER_JSON", { raw });
+      } catch (e: any) {
+        alert(e?.message || String(e));
+        console.error(e);
+      }
+    };
+
+    input.click();
+  };
+
+  const saveProjectDownload = () => {
+    cmd("REQUEST_SCENE_JSON");
+  };
+
+  useEffect(() => {
+    onApi?.({ cmd, loadProjectPicker, saveProjectDownload });
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== "http://localhost:5173") return;
+
+      const data: any = event.data;
+      if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
+
+      if (data.type === "ERROR") console.error("[ENGINE ERROR]", data.message);
+
+      // ONLY CHANGE: allow PlanO to know when catalog mode is active
+      if (data.type === "MODE_CHANGED") {
+        const mode = data?.payload?.mode;
+        if (typeof mode === "string") onModeChange?.(mode);
+        return;
+      }
+
+      if (data.type === "SCENE_JSON") {
+        const scene = data?.payload?.scene;
+        if (scene) downloadJson("plano_scene.json", scene);
+      }
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [onApi, onModeChange]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      src={ENGINE_URL}
+      title="React Planner Engine"
+      allow="clipboard-read; clipboard-write"
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100vh",
+        border: 0,
+        zIndex: 1,
+        background: "#fff",
+      }}
+      onLoad={() => postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "PING" })}
+    />
+  );
+}
+
+----------------- FILE: 00_frontend_skeleton/plano-ui/src/state/plannerState.tsx -----------------
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+export type MainService =
+  | "electricity"
+  | "plumbing"
+  | "painting"
+  | "flooring"
+  | "plastering"
+  | "boards"
+  | "other";
+
+export const MAIN_SERVICES: Array<{ key: MainService; label: string }> = [
+  { key: "electricity", label: "Electricity" },
+  { key: "plumbing", label: "Plumbing" },
+  { key: "painting", label: "Painting" },
+  { key: "flooring", label: "Flooring" },
+  { key: "plastering", label: "Plastering" },
+  { key: "boards", label: "Boards" },
+  { key: "other", label: "Other" },
+];
+
+export const SUBSERVICES: Record<MainService, string[]> = {
+  electricity: [
+    "Switches & plugs",
+    "Overlaps with plumbing",
+    "Oven",
+    "Hob",
+    "Fridge freezer",
+    "Microwave",
+    "AC",
+  ],
+  plumbing: [
+    "Floor drain",
+    "Shower cubical",
+    "Bathroom sink",
+    "Mixers",
+    "Kitchen sink",
+    "Water heater",
+    "Washing machine",
+    "Dishwasher",
+    "Tap for water",
+  ],
+  painting: ["Internal paint", "External paint"],
+  flooring: [
+    "Ceramic tiles 60×60",
+    "Ceramic tiles 120×60",
+    "Ceramic tiles custom",
+    "Laminate",
+    "Microcement",
+    "Polished concrete",
+    "Parquet",
+  ],
+  plastering: [
+    "Internal (monacote+finittura)",
+    "Internal (microcement)",
+    "External (GR1000)",
+    "External (silicato)",
+    "Stone restoration",
+  ],
+  boards: ["Flat ceiling", "L-shape bulkhead", "U-shape bulkhead", "Custom shapes"],
+  other: ["To be defined", "Custom request", "Special works"],
+};
+
+type State = {
+  activeMain: MainService;
+  setActiveMain: (s: MainService) => void;
+
+  selected: Record<MainService, Set<string>>;
+  toggleSub: (main: MainService, sub: string) => void;
+  clearAll: () => void;
+
+  hasAnySelection: boolean;
+  selectedCount: number;
+};
+
+const KEY = "plano:plannerSelections:v1";
+const Ctx = createContext<State | null>(null);
+
+function load(): { activeMain: MainService; selected: Record<MainService, string[]> } | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const activeMain = (parsed.activeMain as MainService) || "electricity";
+    const sel = (parsed.selected as Record<string, string[]>) || {};
+
+    const out: Record<MainService, string[]> = {
+      electricity: sel.electricity || [],
+      plumbing: sel.plumbing || [],
+      painting: sel.painting || [],
+      flooring: sel.flooring || [],
+      plastering: sel.plastering || [],
+      boards: sel.boards || [],
+      other: sel.other || [],
+    };
+
+    return { activeMain, selected: out };
+  } catch {
+    return null;
+  }
+}
+
+function save(activeMain: MainService, selected: Record<MainService, Set<string>>) {
+  const payload = {
+    activeMain,
+    selected: {
+      electricity: Array.from(selected.electricity),
+      plumbing: Array.from(selected.plumbing),
+      painting: Array.from(selected.painting),
+      flooring: Array.from(selected.flooring),
+      plastering: Array.from(selected.plastering),
+      boards: Array.from(selected.boards),
+      other: Array.from(selected.other),
+    },
+  };
+  localStorage.setItem(KEY, JSON.stringify(payload));
+}
+
+/** ✅ This name must match your main.tsx import */
+export function PlannerStateProvider({ children }: { children: React.ReactNode }) {
+  const initial = load();
+
+  const [activeMain, setActiveMain] = useState<MainService>(initial?.activeMain || "electricity");
+  const [selected, setSelected] = useState<Record<MainService, Set<string>>>(() => ({
+    electricity: new Set(initial?.selected.electricity || []),
+    plumbing: new Set(initial?.selected.plumbing || []),
+    painting: new Set(initial?.selected.painting || []),
+    flooring: new Set(initial?.selected.flooring || []),
+    plastering: new Set(initial?.selected.plastering || []),
+    boards: new Set(initial?.selected.boards || []),
+    other: new Set(initial?.selected.other || []),
+  }));
+
+  useEffect(() => {
+    save(activeMain, selected);
+  }, [activeMain, selected]);
+
+  const toggleSub = (main: MainService, sub: string) => {
+    setSelected((prev) => {
+      const next: Record<MainService, Set<string>> = {
+        electricity: new Set(prev.electricity),
+        plumbing: new Set(prev.plumbing),
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+        other: new Set(prev.other),
+      };
+      if (next[main].has(sub)) next[main].delete(sub);
+      else next[main].add(sub);
+      return next;
+    });
+  };
+
+  const clearAll = () => {
+    setSelected({
+      electricity: new Set(),
+      plumbing: new Set(),
+      painting: new Set(),
+      flooring: new Set(),
+      plastering: new Set(),
+      boards: new Set(),
+      other: new Set(),
+    });
+  };
+
+  const selectedCount = useMemo(() => {
+    return (
+      selected.electricity.size +
+      selected.plumbing.size +
+      selected.painting.size +
+      selected.flooring.size +
+      selected.plastering.size +
+      selected.boards.size +
+      selected.other.size
+    );
+  }, [selected]);
+
+  const hasAnySelection = selectedCount > 0;
+
+  const value: State = {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    clearAll,
+    hasAnySelection,
+    selectedCount,
+  };
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/** ✅ This name must match Planner3D.tsx import */
+export function usePlannerState() {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("usePlannerState must be used inside PlannerStateProvider");
+  return ctx;
+}
+
+----------------- FILE: 00_frontend_skeleton/plano-ui/src/App.tsx -----------------
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+import ClientLayout from "./app/ClientLayout";
+import GeoSelect from "./pages/client/GeoSelect";
+
+import Planner from "./pages/client/Planner";
+import Estimate from "./pages/client/Estimate";
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* FULLSCREEN EDITOR ROUTE (NO LAYOUT) */}
+        <Route path="/planner" element={<Planner />} />
+
+        {/* Backward compatibility: old URLs redirect to the single planner */}
+        <Route path="/planner/2d" element={<Navigate to="/planner" replace />} />
+        <Route path="/planner/3d" element={<Navigate to="/planner" replace />} />
+
+        {/* NORMAL PAGES (WITH LAYOUT) */}
+        <Route element={<ClientLayout />}>
+          <Route path="/" element={<GeoSelect />} />
+          <Route path="/estimate" element={<Estimate />} />
+
+          <Route path="/login" element={<div>Client Login</div>} />
+          <Route path="/upload" element={<div>Upload Plan</div>} />
+          <Route path="/create" element={<div>Create Plan</div>} />
+        </Route>
+
+        <Route path="/admin" element={<div>Admin Dashboard</div>} />
+        <Route path="/super-admin" element={<div>Super Admin Dashboard</div>} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+----------------- FILE: 00_frontend_skeleton/plano-ui/src/main.tsx -----------------
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App";
+import { PlannerStateProvider } from "./state/plannerState";
+
+const rootEl = document.getElementById("root");
+if (!rootEl) throw new Error("Root element #root not found");
+
+// cache-bust assets so changes appear immediately
+const bust = Date.now();
+const html = document.documentElement;
+
+// Keep your current images as-is
+html.style.setProperty("--plano-bg-landing", `url("/assets/background.png?v=${bust}")`);
+html.style.setProperty("--plano-bg-2d", `url("/assets/background.png?v=${bust}")`);
+html.style.setProperty("--plano-bg-3d", `url("/assets/3d_canvas.png?v=${bust}")`);
+
+createRoot(rootEl).render(
+  <StrictMode>
+    <div className="plano-liquid">
+      <PlannerStateProvider>
+        <App />
+      </PlannerStateProvider>
+    </div>
+  </StrictMode>
+);
+

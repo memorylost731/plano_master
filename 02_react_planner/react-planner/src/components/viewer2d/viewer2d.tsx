@@ -98,39 +98,36 @@ interface ExtractedElementData {
 function extractElementData(
   target: EventTarget | null
 ): ExtractedElementData | undefined {
-  // Type guard to ensure we are dealing with a DOM Element
   const isElement = (n: any): n is Element =>
     !!n && typeof n === 'object' && 'tagName' in n && 'getAttribute' in n;
 
   let node: any = target;
 
-  while (
-    isElement(node) &&
-    !node.hasAttribute('data-element-root') &&
-    node.tagName.toLowerCase() !== 'svg'
-  ) {
+  // Walk up until <svg>, but allow any ancestor that contains the required data-* fields
+  while (isElement(node) && node.tagName.toLowerCase() !== 'svg') {
+    const layer = node.getAttribute('data-layer');
+    const prototype = node.getAttribute('data-prototype');
+    const selectedAttr = node.getAttribute('data-selected');
+    const id = node.getAttribute('data-id');
+
+    // If the required attributes exist, return immediately
+    if (layer && prototype && selectedAttr && id) {
+      const part = node.getAttribute('data-part') || undefined;
+      return {
+        part,
+        layer,
+        prototype,
+        selected: selectedAttr === 'true',
+        id
+      };
+    }
+
     node = node.parentNode;
   }
 
-  if (!isElement(node) || node.tagName.toLowerCase() === 'svg') return; // Reached <svg> or invalid node
-
-  const layer = node.getAttribute('data-layer');
-  const prototype = node.getAttribute('data-prototype');
-  const selectedAttr = node.getAttribute('data-selected');
-  const id = node.getAttribute('data-id');
-
-  if (!layer || !prototype || !selectedAttr || !id) return;
-
-  const part = node.getAttribute('data-part') || undefined;
-
-  return {
-    part,
-    layer,
-    prototype,
-    selected: selectedAttr === 'true',
-    id
-  };
+  return;
 }
+
 
 interface Viewer2DProps {
   state: StateClass;

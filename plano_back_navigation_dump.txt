@@ -1,0 +1,916 @@
+===== PWD =====
+/home/ogi/project_root/plano_master
+
+===== ROUTE SEARCH =====
+00_frontend_skeleton/plano-ui/src/app/ClientLayout.tsx
+00_frontend_skeleton/plano-ui/src/App.tsx
+00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx
+00_frontend_skeleton/plano-ui/src/main.tsx
+00_frontend_skeleton/plano-ui/src/pages/client/Confirmation.tsx
+00_frontend_skeleton/plano-ui/src/pages/client/Estimate.tsx
+00_frontend_skeleton/plano-ui/src/pages/client/GeoSelect.tsx
+00_frontend_skeleton/plano-ui/src/pages/client/Landing.tsx
+00_frontend_skeleton/plano-ui/src/pages/client/Payment.tsx
+00_frontend_skeleton/plano-ui/src/pages/client/Planner2D.tsx
+00_frontend_skeleton/plano-ui/src/pages/client/Planner3D.tsx
+00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx
+00_frontend_skeleton/plano-ui/src/pages/client/Quote.tsx
+00_frontend_skeleton/plano-ui/src/state/plannerState.tsx
+
+===== main.tsx =====
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App";
+import { PlannerStateProvider } from "./state/plannerState";
+
+const rootEl = document.getElementById("root");
+if (!rootEl) throw new Error("Root element #root not found");
+
+// cache-bust assets so changes appear immediately
+const bust = Date.now();
+const html = document.documentElement;
+
+// Keep your current images as-is
+html.style.setProperty("--plano-bg-landing", `url("/assets/background.png?v=${bust}")`);
+html.style.setProperty("--plano-bg-2d", `url("/assets/background.png?v=${bust}")`);
+html.style.setProperty("--plano-bg-3d", `url("/assets/3d_canvas.png?v=${bust}")`);
+
+createRoot(rootEl).render(
+  <StrictMode>
+    <div className="plano-liquid">
+      <PlannerStateProvider>
+        <App />
+      </PlannerStateProvider>
+    </div>
+  </StrictMode>
+);
+
+===== Estimate.tsx =====
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
+import { FileText } from "lucide-react";
+
+import {
+  MAIN_SERVICES,
+  usePlannerState,
+} from "../../state/plannerState";
+
+type EstimateRow = {
+  key: string;
+  description: string;
+  unit: string;
+  qty: number;
+  rate: number;
+  amount: number;
+};
+
+function formatNumber(value: number) {
+  return (Math.round(value * 100) / 100).toFixed(2);
+}
+
+export default function Estimate() {
+  const { committedLedger, projectTotalM2 } = usePlannerState();
+
+  const rows = useMemo<EstimateRow[]>(() => {
+    return committedLedger.map((entry) => {
+      const serviceLabel =
+        MAIN_SERVICES.find((service) => service.key === entry.service)?.label ||
+        entry.service;
+
+      const rate = 0;
+      const amount = entry.totalM2 * rate;
+
+      return {
+        key: entry.ledgerId,
+        description: `${serviceLabel} — ${entry.subService} — ${entry.materialLabel}`,
+        unit: "m²",
+        qty: entry.totalM2,
+        rate,
+        amount,
+      };
+    });
+  }, [committedLedger]);
+
+  const totalAmount = useMemo(() => {
+    const sum = rows.reduce((acc, row) => acc + row.amount, 0);
+    return Math.round(sum * 100) / 100;
+  }, [rows]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="rounded-xl border bg-white p-2">
+          <FileText className="h-5 w-5" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold">Estimate</h1>
+          <div className="text-sm text-zinc-600">
+            Ledger-driven BOQ / cost breakdown
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+        <div className="border-b px-4 py-3 text-sm font-semibold">
+          Items
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-zinc-50 text-xs text-zinc-600">
+              <tr>
+                <th className="px-3 py-2 text-left">Description</th>
+                <th className="px-3 py-2 text-center">Unit</th>
+                <th className="px-3 py-2 text-center">Qty</th>
+                <th className="px-3 py-2 text-center">Rate</th>
+                <th className="px-3 py-2 text-right">Amount</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {rows.length === 0 ? (
+                <tr className="border-t">
+                  <td className="px-3 py-4 text-zinc-500" colSpan={5}>
+                    No committed services yet.
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {rows.map((row) => (
+                    <tr key={row.key} className="border-t">
+                      <td className="px-3 py-2">{row.description}</td>
+                      <td className="px-3 py-2 text-center">{row.unit}</td>
+                      <td className="px-3 py-2 text-center">
+                        {formatNumber(row.qty)}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        {formatNumber(row.rate)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {formatNumber(row.amount)}
+                      </td>
+                    </tr>
+                  ))}
+
+                  <tr className="border-t bg-zinc-50/60">
+                    <td className="px-3 py-2 font-semibold">Total m²</td>
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2 text-center font-semibold">
+                      {formatNumber(projectTotalM2)}
+                    </td>
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2" />
+                  </tr>
+
+                  <tr className="border-t">
+                    <td className="px-3 py-2 font-semibold">Grand Total</td>
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2 text-right font-semibold">
+                      {formatNumber(totalAmount)}
+                    </td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <Link
+        to="/planner/3d"
+        className="inline-flex items-center rounded-lg border bg-white px-3 py-2 text-sm hover:bg-zinc-50"
+      >
+        Back to Planner
+      </Link>
+    </div>
+  );
+}
+===== Planner.tsx =====
+import { useMemo, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bolt,
+  Wrench,
+  Paintbrush,
+  Grid3X3,
+  Layers,
+  Boxes,
+  MoreHorizontal,
+  FilePlus,
+  FolderOpen,
+  Save,
+  Plus,
+  Undo2,
+  Settings,
+  FileText,
+} from "lucide-react";
+
+import PlannerFrame, {
+  type PlannerApi,
+  type CatalogServiceSelectedPayload,
+  type SurfaceSelectedPayload,
+} from "../../components/planner/PlannerFrame";
+
+import {
+  MAIN_SERVICES,
+  usePlannerState,
+  type MainService,
+} from "../../state/plannerState";
+
+type ViewMode = "2D" | "3D";
+
+const ICONS: Record<MainService, LucideIcon> = {
+  electricity: Bolt,
+  plumbing: Wrench,
+  painting: Paintbrush,
+  flooring: Grid3X3,
+  plastering: Layers,
+  boards: Boxes,
+  other: MoreHorizontal,
+};
+
+export default function Planner() {
+  const navigate = useNavigate();
+
+  const apiRef = useRef<PlannerApi | null>(null);
+  const didInitRef = useRef(false);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("2D");
+  const [engineMode, setEngineMode] = useState<string>("");
+
+  const selectedSurfacesRef = useRef<Set<string>>(new Set());
+
+  const {
+    activeMain,
+    setActiveMain,
+    committedLedger,
+    commitCurrentService,
+    hasAnySelection,
+    selectedSurfaces,
+    surfaceGeoMap,
+    selectedSurfaceTotalM2,
+    areaServiceDraft,
+    toggleSurface,
+    clearSelectedSurfaces,
+    liveSurfaceGeo,
+    setLiveSurfaceGeo,
+    applyAreaService,
+    removeSurfaceFromAreaService,
+    activeAreaSubService,
+    setActiveAreaSubService,
+    activeAreaMaterialKey,
+    setActiveAreaMaterialKey,
+    activeAreaMaterialLabel,
+    setActiveAreaMaterialLabel,
+    activeAreaMaterialColor,
+    setActiveAreaMaterialColor,
+  } = usePlannerState();
+
+  selectedSurfacesRef.current = selectedSurfaces;
+
+  const handleApi = useCallback((api: PlannerApi) => {
+    apiRef.current = api;
+
+    if (!didInitRef.current) {
+      didInitRef.current = true;
+      api.cmd("VIEW_2D");
+      api.cmd("SELECT_TOOL_EDIT");
+      setViewMode("2D");
+    }
+  }, []);
+
+  const handleCatalogServiceSelected = useCallback(
+    (payload: CatalogServiceSelectedPayload) => {
+      const areaServices: MainService[] = [
+        "painting",
+        "flooring",
+        "plastering",
+        "boards",
+      ];
+
+      if (areaServices.includes(payload.mainService as MainService)) {
+        setActiveMain(payload.mainService as MainService);
+        setActiveAreaSubService(payload.subService);
+        setActiveAreaMaterialKey(payload.materialKey);
+        setActiveAreaMaterialLabel(payload.materialLabel);
+        setActiveAreaMaterialColor(payload.color || null);
+        setViewMode("3D");
+        apiRef.current?.cmd("VIEW_3D");
+      }
+    },
+    [
+      setActiveMain,
+      setActiveAreaSubService,
+      setActiveAreaMaterialKey,
+      setActiveAreaMaterialLabel,
+      setActiveAreaMaterialColor,
+    ]
+  );
+
+  const handleSurfaceSelected = useCallback(
+    (payload: SurfaceSelectedPayload) => {
+      const surfaceId = payload?.surfaceId;
+      if (!surfaceId) return;
+
+      setLiveSurfaceGeo({
+        surfaceId,
+        wallId: payload.wallId,
+        surfaceType: payload.surfaceType,
+        lengthM: payload.lengthM ?? null,
+        heightM: payload.heightM ?? null,
+        areaM2: payload.areaM2 ?? null,
+      });
+
+      const geo = {
+        wallId: payload.wallId,
+        surfaceType: payload.surfaceType,
+        lengthM: payload.lengthM ?? null,
+        heightM: payload.heightM ?? null,
+        areaM2: payload.areaM2 ?? null,
+      };
+
+      const isAreaService =
+        !!activeAreaSubService &&
+        !!activeAreaMaterialKey &&
+        (activeMain === "painting" ||
+          activeMain === "flooring" ||
+          activeMain === "plastering" ||
+          activeMain === "boards");
+
+      if (isAreaService) {
+        const wasSelected = selectedSurfacesRef.current.has(surfaceId);
+
+        toggleSurface(surfaceId, geo);
+
+        const next = new Set(selectedSurfacesRef.current);
+
+        if (wasSelected) {
+          next.delete(surfaceId);
+          selectedSurfacesRef.current = next;
+          removeSurfaceFromAreaService(activeMain, surfaceId);
+        } else {
+          next.add(surfaceId);
+          selectedSurfacesRef.current = next;
+          applyAreaService(activeMain, surfaceId);
+        }
+      } else {
+        toggleSurface(surfaceId, geo);
+      }
+    },
+    [
+      toggleSurface,
+      applyAreaService,
+      removeSurfaceFromAreaService,
+      activeMain,
+      activeAreaSubService,
+      activeAreaMaterialKey,
+      setLiveSurfaceGeo,
+    ]
+  );
+
+  const handleSurfacesCleared = useCallback(() => {
+    clearSelectedSurfaces();
+    selectedSurfacesRef.current = new Set();
+  }, [clearSelectedSurfaces]);
+
+  const go2D = useCallback(() => {
+    setViewMode("2D");
+    apiRef.current?.cmd("VIEW_2D");
+    apiRef.current?.cmd("SELECT_TOOL_EDIT");
+  }, []);
+
+  const go3D = useCallback(() => {
+    setViewMode("3D");
+    apiRef.current?.cmd("VIEW_3D");
+  }, []);
+
+  const openServiceCatalog = useCallback(
+    (service: MainService) => {
+      setActiveMain(service);
+      apiRef.current?.cmd("OPEN_CATALOG");
+
+      setTimeout(() => {
+        apiRef.current?.cmd("CHANGE_CATALOG_PAGE", {
+          newPage: `plano_${service}`,
+          oldPage: "root",
+        });
+      }, 50);
+    },
+    [setActiveMain]
+  );
+
+  const isCatalogOpen = engineMode === "MODE_VIEWING_CATALOG";
+
+  const currentServiceDraftCount = useMemo(() => {
+    if (
+      activeMain === "painting" ||
+      activeMain === "flooring" ||
+      activeMain === "plastering" ||
+      activeMain === "boards"
+    ) {
+      return areaServiceDraft[activeMain].size;
+    }
+    return 0;
+  }, [activeMain, areaServiceDraft]);
+
+  const canCompleteService = useMemo(() => {
+    const isAreaService =
+      activeMain === "painting" ||
+      activeMain === "flooring" ||
+      activeMain === "plastering" ||
+      activeMain === "boards";
+
+    return (
+      isAreaService &&
+      !!activeAreaSubService &&
+      !!activeAreaMaterialKey &&
+      !!activeAreaMaterialLabel &&
+      selectedSurfaces.size > 0 &&
+      surfaceGeoMap.size > 0
+    );
+  }, [
+    activeMain,
+    activeAreaSubService,
+    activeAreaMaterialKey,
+    activeAreaMaterialLabel,
+    selectedSurfaces,
+    surfaceGeoMap,
+  ]);
+
+  const statusBox = useMemo(() => {
+    if (!activeAreaSubService || !activeAreaMaterialLabel) return null;
+
+    return {
+      service: activeMain,
+      subService: activeAreaSubService,
+      material: activeAreaMaterialLabel,
+      draftFaces: currentServiceDraftCount,
+      liveFaces: selectedSurfaces.size,
+    };
+  }, [
+    activeMain,
+    activeAreaSubService,
+    activeAreaMaterialLabel,
+    currentServiceDraftCount,
+    selectedSurfaces,
+  ]);
+
+  return (
+    <div
+      className={`${
+        viewMode === "2D" ? "planner2d-bg" : "planner3d-bg"
+      } fixed inset-0 text-zinc-900`}
+    >
+      <PlannerFrame
+        onApi={handleApi}
+        onModeChange={setEngineMode}
+        onSurfaceSelected={handleSurfaceSelected}
+        onSurfacesCleared={handleSurfacesCleared}
+        onCatalogServiceSelected={handleCatalogServiceSelected}
+      />
+
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex justify-center p-2">
+        <div className="pointer-events-auto glass-panel w-[calc(100vw-24px)] px-4 py-1">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 font-semibold"
+            >
+              <span className="text-base">PlanO</span>
+            </button>
+
+            {viewMode === "3D" && !isCatalogOpen ? (
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 justify-center px-1">
+                  {MAIN_SERVICES.map((s) => {
+                    const Icon = ICONS[s.key];
+                    const isActive = activeMain === s.key;
+
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => openServiceCatalog(s.key)}
+                        className={`plano-dock-item flex items-center gap-2 px-2 py-1 text-xs ${
+                          isActive ? "ring-2 ring-white/70" : ""
+                        }`}
+                        title={s.label}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="hidden lg:inline">{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            {!isCatalogOpen && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("NEW_PROJECT")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <FilePlus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.saveProjectDownload()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Save className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.loadProjectPicker()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <FolderOpen className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_CATALOG")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go3D}
+                  className={`plano-glass-btn px-4 py-2 text-sm ${
+                    viewMode === "3D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                >
+                  3D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go2D}
+                  className={`plano-glass-btn px-4 py-2 text-sm ${
+                    viewMode === "2D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                >
+                  2D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("UNDO")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Undo2 className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")
+                  }
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/estimate")}
+                  disabled={committedLedger.length === 0}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    committedLedger.length > 0 ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                >
+                  <FileText className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {!isCatalogOpen && liveSurfaceGeo ? (
+        <div className="absolute left-4 top-20 z-40 rounded-xl bg-white/95 px-4 py-3 shadow-lg min-w-[220px]">
+          <div className="text-sm font-semibold">PlanO selection</div>
+
+          <div className="text-sm mt-1">Wall: {liveSurfaceGeo.wallId}</div>
+          <div className="text-sm">Face: {liveSurfaceGeo.surfaceType}</div>
+          <div className="text-sm">
+            Length: {liveSurfaceGeo.lengthM ?? "-"} m
+          </div>
+          <div className="text-sm">
+            Height: {liveSurfaceGeo.heightM ?? "-"} m
+          </div>
+          <div className="text-sm font-semibold">
+            Area: {liveSurfaceGeo.areaM2 ?? "-"} m²
+          </div>
+
+          <div className="text-sm mt-2">
+            Selected: {surfaceGeoMap.size} faces
+          </div>
+          <div className="text-sm font-semibold">
+            Total: {selectedSurfaceTotalM2} m²
+          </div>
+
+          {statusBox && (
+            <>
+              <div className="text-sm mt-2">Service: {statusBox.service}</div>
+              <div className="text-sm">Mode: {statusBox.subService}</div>
+              <div className="text-sm">Material: {statusBox.material}</div>
+              <div className="text-sm mt-2">
+                Draft faces: {statusBox.draftFaces}
+              </div>
+              <div className="text-sm">
+                Live clicked faces: {statusBox.liveFaces}
+              </div>
+
+              <button
+                type="button"
+                onClick={commitCurrentService}
+                disabled={!canCompleteService}
+                className={`mt-3 w-full rounded-lg px-3 py-2 text-sm font-semibold ${
+                  canCompleteService
+                    ? "bg-zinc-900 text-white"
+                    : "bg-zinc-300 text-zinc-500 cursor-not-allowed"
+                }`}
+              >
+                Complete Service
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+===== Planner2D.tsx =====
+import { useNavigate } from "react-router-dom";
+import { FolderOpen, Save, Download, RefreshCcw, Hand, Rotate3D } from "lucide-react";
+
+export default function Planner2D() {
+  const navigate = useNavigate();
+
+  return (
+    <div className="planner2d-bg fixed inset-0 text-zinc-900">
+      {/* React-Planner 2D canvas will live here later */}
+      <div className="absolute inset-0" />
+
+      {/* TOP BAR */}
+      <div className="pointer-events-none absolute left-0 right-0 top-0 flex justify-center p-4">
+        <div className="pointer-events-auto glass-panel flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold">Project: Demo Apartment · Mode: 2D</div>
+            <div className="truncate text-xs text-zinc-700">
+              2D editing (React-Planner). Switch to 3D for services.
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate("/planner/3d")}
+              className="plano-glass-btn px-4 py-2 text-sm font-semibold"
+            >
+              3D
+            </button>
+
+            <button type="button" className="plano-glass-btn h-10 w-10 grid place-items-center" title="Load">
+              <FolderOpen className="h-5 w-5" />
+            </button>
+
+            <button type="button" className="plano-glass-btn h-10 w-10 grid place-items-center" title="Save">
+              <Save className="h-5 w-5" />
+            </button>
+
+            <button type="button" className="plano-glass-btn h-10 w-10 grid place-items-center" title="Export">
+              <Download className="h-5 w-5" />
+            </button>
+
+            <button type="button" className="plano-glass-btn h-10 w-10 grid place-items-center" title="Reset">
+              <RefreshCcw className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT NAVIGATION MENU (Pan + Orbit) */}
+      <div className="pointer-events-none absolute right-4 top-28">
+        <div className="pointer-events-auto glass-panel w-[200px] p-3 space-y-2">
+          <div className="text-[11px] font-semibold text-zinc-800 px-1">NAVIGATION</div>
+
+          <button type="button" className="plano-dock-item w-full flex items-center gap-2 px-3 py-2 text-sm">
+            <Rotate3D className="h-4 w-4" />
+            Orbit / Rotate
+          </button>
+
+          <button type="button" className="plano-dock-item w-full flex items-center gap-2 px-3 py-2 text-sm">
+            <Hand className="h-4 w-4" />
+            Pan
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+===== Planner3D.tsx =====
+import { useNavigate } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bolt,
+  Wrench,
+  Paintbrush,
+  Grid3X3,
+  Layers,
+  Boxes,
+  MoreHorizontal,
+  FolderOpen,
+  Save,
+  FileText,
+  Download,
+  RefreshCcw,
+} from "lucide-react";
+
+import {
+  MAIN_SERVICES,
+  SUBSERVICES,
+  usePlannerState,
+  type MainService,
+} from "../../state/plannerState";
+
+const ICONS: Record<MainService, LucideIcon> = {
+  electricity: Bolt,
+  plumbing: Wrench,
+  painting: Paintbrush,
+  flooring: Grid3X3,
+  plastering: Layers,
+  boards: Boxes,
+  other: MoreHorizontal,
+};
+
+export default function Planner3D() {
+  const navigate = useNavigate();
+  const {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    hasAnySelection,
+    selectedCount,
+    clearAll,
+  } = usePlannerState();
+
+  const subs = SUBSERVICES[activeMain];
+
+  return (
+    <div className="planner3d-bg fixed inset-0 text-zinc-900">
+      {/* React-Planner 3D canvas will live here later */}
+      <div className="absolute inset-0" />
+
+      {/* HEADER */}
+      <div className="pointer-events-none absolute left-0 right-0 top-0 flex justify-center p-3">
+        <div className="pointer-events-auto glass-panel w-full max-w-6xl px-4 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 font-semibold"
+              title="PlanO"
+            >
+              <span className="text-base">PlanO</span>
+            </button>
+
+            {/* MAIN SERVICES (no wrapping — horizontal scroll instead) */}
+            <div className="flex-1 overflow-x-auto">
+              <div className="flex items-center gap-2 justify-center min-w-max px-1">
+                {MAIN_SERVICES.map((s) => {
+                  const Icon = ICONS[s.key];
+                  const isActive = activeMain === s.key;
+
+                  return (
+                    <button
+                      key={s.key}
+                      type="button"
+                      onClick={() => setActiveMain(s.key)}
+                      className={`plano-dock-item flex items-center gap-2 px-3 py-2 text-sm ${
+                        isActive ? "ring-2 ring-white/70" : ""
+                      }`}
+                      title={s.label}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="hidden sm:inline">{s.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ACTIONS */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate("/planner/2d")}
+                className="plano-glass-btn px-4 py-2 text-sm font-semibold"
+              >
+                2D
+              </button>
+
+              <button className="plano-glass-btn h-10 w-10 grid place-items-center" title="Load">
+                <FolderOpen className="h-5 w-5" />
+              </button>
+              <button className="plano-glass-btn h-10 w-10 grid place-items-center" title="Save">
+                <Save className="h-5 w-5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate("/estimate")}
+                disabled={!hasAnySelection}
+                className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                  hasAnySelection ? "" : "opacity-40 cursor-not-allowed"
+                }`}
+                title="Estimate"
+              >
+                <FileText className="h-5 w-5" />
+              </button>
+
+              <button className="plano-glass-btn h-10 w-10 grid place-items-center" title="Export">
+                <Download className="h-5 w-5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => clearAll()}
+                className="plano-glass-btn h-10 w-10 grid place-items-center"
+                title="Reset selections"
+              >
+                <RefreshCcw className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-2 text-xs text-zinc-700">
+            Selected items: <span className="font-semibold">{selectedCount}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* LEFT SUBSERVICES — moved down + clean header */}
+      <div className="pointer-events-none absolute left-4 top-36">
+        <div className="pointer-events-auto w-[300px] glass-panel overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/20">
+            <div className="text-[11px] font-semibold text-zinc-900">
+              {MAIN_SERVICES.find((x) => x.key === activeMain)?.label.toUpperCase()} SUB-SERVICES
+            </div>
+            <div className="text-[11px] text-zinc-700">
+              Click to toggle. Selected are highlighted.
+            </div>
+          </div>
+
+          <div className="p-3 space-y-2 max-h-[62vh] overflow-auto">
+            {subs.map((sub) => {
+              const isActive = selected[activeMain].has(sub);
+              return (
+                <button
+                  key={sub}
+                  type="button"
+                  onClick={() => toggleSub(activeMain, sub)}
+                  className={`plano-dock-item w-full px-3 py-2 text-sm text-left ${
+                    isActive ? "ring-2 ring-white/70" : ""
+                  }`}
+                  title={sub}
+                >
+                  {sub}
+                </button>
+              );
+            })}
+
+            {hasAnySelection && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => navigate("/estimate")}
+                  className="plano-glass-btn w-full px-3 py-2 text-sm font-semibold"
+                >
+                  Proceed to Estimate
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

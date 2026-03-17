@@ -146,8 +146,20 @@ export function createArea(
 
   const area = new Mesh(shapeGeometry, areaMaterial);
 
+  const sceneArea =
+    Math.abs(
+      vertices.reduce((sum, v, i) => {
+        const j = (i + 1) % vertices.length;
+        return sum + v.x * vertices[j].y - vertices[j].x * v.y;
+      }, 0)
+    ) / 2;
+
   area.rotation.x -= Math.PI / 2;
   area.name = 'floor';
+  area.userData = {
+    areaId: element.id,
+    sceneArea
+  };
 
   return area;
 }

@@ -1,0 +1,684 @@
+===== FILE 1: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-white/planner-element.tsx =====
+import React from 'react';
+
+import { defineCatalogElement } from '@archef2000/react-planner';
+import { BoxGeometry, BoxHelper, Mesh, MeshBasicMaterial } from 'three';
+
+export default defineCatalogElement({
+  name: 'paint-white',
+  prototype: 'items',
+
+  info: {
+    title: 'White Paint',
+    tag: ['painting'],
+    description: 'Internal white paint',
+    image: ''
+  },
+
+  properties: {
+    color: {
+      label: 'Color',
+      type: 'color',
+      defaultValue: '#ffffff'
+    }
+  },
+
+  render2D: (element) => {
+    const style = {
+      stroke: '#000',
+      strokeWidth: 2,
+      fill: element.properties.color
+    } as const;
+
+    return (
+      <g transform="translate(-50, -50)">
+        <rect x="0" y="0" width="100" height="100" style={style} />
+      </g>
+    );
+  },
+
+  async render3D(element) {
+    const geometry = new BoxGeometry(100, 100, 100);
+    const material = new MeshBasicMaterial({
+      color: element.properties.color
+    });
+
+    const mesh = new Mesh(geometry, material);
+
+    const box = new BoxHelper(mesh, '#000');
+    box.material.linewidth = 1;
+    box.material.depthTest = false;
+    box.renderOrder = 1000;
+    mesh.add(box);
+
+    mesh.position.y = 50;
+
+    return mesh;
+  }
+});
+===== FILE 2: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-grey/planner-element.tsx =====
+import React from 'react';
+
+import { defineCatalogElement } from '@archef2000/react-planner';
+import { BoxGeometry, BoxHelper, Mesh, MeshBasicMaterial } from 'three';
+
+export default defineCatalogElement({
+  name: 'paint-grey',
+  prototype: 'items',
+
+  info: {
+    title: 'Grey Paint',
+    tag: ['painting'],
+    description: 'Internal grey paint',
+    image: ''
+  },
+
+  properties: {
+    color: {
+      label: 'Color',
+      type: 'color',
+      defaultValue: '#cccccc'
+    }
+  },
+
+  render2D: (element) => {
+    const style = {
+      stroke: '#000',
+      strokeWidth: 2,
+      fill: element.properties.color
+    } as const;
+
+    return (
+      <g transform="translate(-50, -50)">
+        <rect x="0" y="0" width="100" height="100" style={style} />
+      </g>
+    );
+  },
+
+  async render3D(element) {
+    const geometry = new BoxGeometry(100, 100, 100);
+    const material = new MeshBasicMaterial({
+      color: element.properties.color
+    });
+
+    const mesh = new Mesh(geometry, material);
+
+    const box = new BoxHelper(mesh, '#000');
+    box.material.linewidth = 1;
+    box.material.depthTest = false;
+    box.renderOrder = 1000;
+    mesh.add(box);
+
+    mesh.position.y = 50;
+
+    return mesh;
+  }
+});
+===== FILE 3: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-beige/planner-element.tsx =====
+import React from 'react';
+
+import { defineCatalogElement } from '@archef2000/react-planner';
+import { BoxGeometry, BoxHelper, Mesh, MeshBasicMaterial } from 'three';
+
+export default defineCatalogElement({
+  name: 'paint-beige',
+  prototype: 'items',
+
+  info: {
+    title: 'Beige Paint',
+    tag: ['painting'],
+    description: 'Internal beige paint',
+    image: ''
+  },
+
+  properties: {
+    color: {
+      label: 'Color',
+      type: 'color',
+      defaultValue: '#e6d3b3'
+    }
+  },
+
+  render2D: (element) => {
+    const style = {
+      stroke: '#000',
+      strokeWidth: 2,
+      fill: element.properties.color
+    } as const;
+
+    return (
+      <g transform="translate(-50, -50)">
+        <rect x="0" y="0" width="100" height="100" style={style} />
+      </g>
+    );
+  },
+
+  async render3D(element) {
+    const geometry = new BoxGeometry(100, 100, 100);
+    const material = new MeshBasicMaterial({
+      color: element.properties.color
+    });
+
+    const mesh = new Mesh(geometry, material);
+
+    const box = new BoxHelper(mesh, '#000');
+    box.material.linewidth = 1;
+    box.material.depthTest = false;
+    box.renderOrder = 1000;
+    mesh.add(box);
+
+    mesh.position.y = 50;
+
+    return mesh;
+  }
+});
+===== FILE 4: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/internal-paint/planner-element.tsx =====
+import {
+  CatalogElementInfo,
+  CatalogElementTextures,
+  ElementsFactories
+} from '@archef2000/react-planner';
+
+const info: CatalogElementInfo = {
+  title: 'internal paint',
+  tag: ['painting'],
+  description: 'Internal wall paint',
+  image: ''
+};
+
+const textures: CatalogElementTextures = {
+  white_paint: {
+    name: 'White Paint',
+    uri: require('../area/textures/grass.jpg'),
+    lengthRepeatScale: 0.002,
+    heightRepeatScale: 0.002
+  },
+  light_grey_paint: {
+    name: 'Light Grey Paint',
+    uri: require('../area/textures/tile1.jpg'),
+    lengthRepeatScale: 0.002,
+    heightRepeatScale: 0.002
+  },
+  beige_paint: {
+    name: 'Beige Paint',
+    uri: require('../area/textures/parquet.jpg'),
+    lengthRepeatScale: 0.002,
+    heightRepeatScale: 0.002
+  }
+};
+
+export default ElementsFactories.AreaFactory('internal-paint', info, textures);
+===== FILE 5: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/areas/area/planner-element.tsx =====
+import {
+  CatalogElementInfo,
+  CatalogElementTextures,
+  ElementsFactories
+} from '@archef2000/react-planner';
+
+const info: CatalogElementInfo = {
+  title: 'area',
+  tag: ['area'],
+  description: 'Generic Room',
+  image: ''
+};
+
+const textures: CatalogElementTextures = {
+  parquet: {
+    name: 'Parquet',
+    uri: require('./textures/parquet.jpg'),
+    lengthRepeatScale: 0.004,
+    heightRepeatScale: 0.004
+  },
+  tile1: {
+    name: 'Tile1',
+    uri: require('./textures/tile1.jpg'),
+    lengthRepeatScale: 0.01,
+    heightRepeatScale: 0.01
+  },
+  ceramic: {
+    name: 'Ceramic Tile',
+    uri: require('./textures/ceramic-tile.jpg'),
+    lengthRepeatScale: 0.02,
+    heightRepeatScale: 0.02
+  },
+  strand_porcelain: {
+    name: 'Strand Porcelain Tile',
+    uri: require('./textures/strand-porcelain.jpg'),
+    lengthRepeatScale: 0.02,
+    heightRepeatScale: 0.02
+  },
+  grass: {
+    name: 'Grass',
+    uri: require('./textures/grass.jpg'),
+    lengthRepeatScale: 0.01,
+    heightRepeatScale: 0.01
+  }
+};
+
+export default ElementsFactories.AreaFactory('area', info, textures);
+===== FILE 6: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx =====
+import React, { Component } from 'react';
+
+import { FaPlusCircle as IconAdd } from 'react-icons/fa';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElement } from '../../types';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .15s ease-in-out',
+  WebkitTransition: 'all .15s ease-in-out',
+  alignSelf: 'center',
+  justifySelf: 'center'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_TITLE = {
+  width: '100%',
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '.5em',
+  textTransform: 'capitalize'
+} as const;
+
+const STYLE_TITLE_HOVER = {
+  ...STYLE_TITLE,
+  color: SharedStyle.COLORS.white
+} as const;
+
+const STYLE_IMAGE_CONTAINER = {
+  width: '100%',
+  height: '8em',
+  position: 'relative',
+  overflow: 'hidden',
+  border: 'solid 1px #e6e6e6',
+  padding: 0,
+  margin: 0,
+  marginBottom: '5px'
+} as const;
+
+const STYLE_IMAGE = {
+  position: 'absolute',
+  background: '#222',
+  width: '100%',
+  height: '100%',
+  backgroundSize: 'contain',
+  backgroundPosition: '50% 50%',
+  backgroundColor: SharedStyle.COLORS.white,
+  backgroundRepeat: 'no-repeat',
+  transition: 'all .2s ease-in-out'
+} as const;
+
+const STYLE_IMAGE_HOVER = {
+  ...STYLE_IMAGE,
+  transform: 'scale(1.2)'
+} as const;
+
+const STYLE_PLUS_HOVER = {
+  marginTop: '1.5em',
+  color: SharedStyle.SECONDARY_COLOR.main,
+  fontSize: '2em',
+  opacity: '0.7',
+  width: '100%'
+} as const;
+
+const STYLE_DESCRIPTION = {
+  display: 'block',
+  height: '2em',
+  margin: '0 auto',
+  fontSize: '0.75em',
+  fontStyle: 'italic',
+  lineHeight: '1em',
+  WebkitLineClamp: '2',
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
+} as const;
+
+const STYLE_TAGS = {
+  listStyle: 'none',
+  margin: '0px',
+  padding: '0px',
+  fontSize: '11px',
+  marginBottom: '3px'
+} as const;
+
+const STYLE_TAG = {
+  display: 'inline-block',
+  background: '#337ab7',
+  color: SharedStyle.COLORS.white,
+  padding: '1px 4px',
+  marginRight: '3px',
+  borderRadius: '3px'
+} as const;
+
+interface CatalogItemProps {
+  element: CatalogElement;
+}
+
+interface CatalogItemState {
+  hover: boolean;
+}
+
+export default class CatalogItem extends Component<
+  CatalogItemProps,
+  CatalogItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogItemProps,
+    context: React.ContextType<typeof ReactPlannerContext>
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  isAreaServiceSelector(element: CatalogElement) {
+    const tags = element.info?.tag as string[] | undefined;
+    const info = element.info as any;
+
+    return (
+      element.prototype === 'items' &&
+      Array.isArray(tags) &&
+      (
+        tags.includes('painting') ||
+        tags.includes('flooring') ||
+        tags.includes('plastering') ||
+        tags.includes('boards')
+      ) &&
+      !!info?.mainService &&
+      !!info?.subService
+    );
+  }
+
+  select() {
+    const element = this.props.element;
+
+    if (this.isAreaServiceSelector(element)) {
+      const info = element.info as any;
+
+      window.parent?.postMessage(
+        {
+          protocolVersion: 1,
+          type: 'CATALOG_SERVICE_SELECTED',
+          payload: {
+            mainService: info.mainService,
+            subService: info.subService,
+            materialKey: element.name,
+            materialLabel: element.info.title,
+            color: element.properties?.color?.defaultValue || null
+          }
+        },
+        '*'
+      );
+
+      this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+        element
+      );
+
+      this.context.projectActions.setMode('MODE_IDLE');
+      return;
+    }
+
+    switch (element.prototype) {
+      case 'lines':
+        this.context.linesActions.selectToolDrawingLine(element.name);
+        break;
+      case 'items':
+        this.context.itemsActions.selectToolDrawingItem(element.name);
+        break;
+      case 'holes':
+        this.context.holesActions.selectToolDrawingHole(element.name);
+        break;
+    }
+
+    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+      element
+    );
+  }
+
+  render() {
+    const element = this.props.element;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={() => this.select()}
+        onMouseEnter={() => this.setState({ hover: true })}
+        onMouseLeave={() => this.setState({ hover: false })}
+      >
+        <b style={!hover ? STYLE_TITLE : STYLE_TITLE_HOVER}>
+          {element.info.title}
+        </b>
+        <div style={STYLE_IMAGE_CONTAINER}>
+          <div
+            style={{
+              ...(!hover ? STYLE_IMAGE : STYLE_IMAGE_HOVER),
+              backgroundImage: 'url(' + element.info.image + ')'
+            }}
+          >
+            {hover ? <IconAdd style={STYLE_PLUS_HOVER} /> : null}
+          </div>
+        </div>
+        <ul style={STYLE_TAGS}>
+          {element.info.tag.map((tag, index) => (
+            <li style={STYLE_TAG} key={index}>
+              {tag}
+            </li>
+          ))}
+        </ul>
+        <div style={STYLE_DESCRIPTION}>{element.info.description}</div>
+      </div>
+    );
+  }
+}
+===== FILE 7: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/mycatalog.ts =====
+declare let require: {
+  context(directory: string, useSubdirectories?: boolean, regExp?: RegExp): any;
+};
+
+import { CatalogFactory, CatalogFn } from '@archef2000/react-planner';
+
+import Area from './areas/area/planner-element';
+import Wall from './lines/wall/planner-element';
+
+const PLANO_MAIN_SERVICES = [
+  { key: 'electricity', label: 'Electricity' },
+  { key: 'plumbing', label: 'Plumbing' },
+  { key: 'painting', label: 'Painting' },
+  { key: 'flooring', label: 'Flooring' },
+  { key: 'plastering', label: 'Plastering' },
+  { key: 'boards', label: 'Boards' },
+  { key: 'other', label: 'Other' }
+] as const;
+
+const PLANO_SUBSERVICES: Record<(typeof PLANO_MAIN_SERVICES)[number]['key'], string[]> = {
+  electricity: [
+    'Switches & plugs',
+    'Overlaps with plumbing',
+    'Oven',
+    'Hob',
+    'Fridge freezer',
+    'Microwave',
+    'AC'
+  ],
+  plumbing: [
+    'Floor drain',
+    'Shower cubical',
+    'Bathroom sink',
+    'Mixers',
+    'Kitchen sink',
+    'Water heater',
+    'Washing machine',
+    'Dishwasher',
+    'Tap for water'
+  ],
+  painting: ['Internal paint', 'External paint'],
+  flooring: [
+    'Ceramic tiles 60×60',
+    'Ceramic tiles 120×60',
+    'Ceramic tiles custom',
+    'Laminate',
+    'Microcement',
+    'Polished concrete',
+    'Parquet'
+  ],
+  plastering: [
+    'Internal (monacote+finittura)',
+    'Internal (microcement)',
+    'External (GR1000)',
+    'External (silicato)',
+    'Stone restoration'
+  ],
+  boards: ['Flat ceiling', 'L-shape bulkhead', 'U-shape bulkhead', 'Custom shapes'],
+  other: ['To be defined', 'Custom request', 'Special works']
+};
+
+function safeSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+export function createCatalog() {
+  const catalog: any = CatalogFactory();
+
+  CatalogFn.registerElement(catalog, Area as any);
+  CatalogFn.registerElement(catalog, Wall as any);
+
+  const Holes: any[] = [];
+  const holesContext = require.context('./holes/', true, /planner-element\.[tj]sx$/);
+  holesContext.keys().forEach((key: string) => {
+    const el = holesContext(key).default;
+    Holes.push(el);
+    CatalogFn.registerElement(catalog, el as any);
+  });
+
+  const Items: any[] = [];
+  const itemsContext = require.context('./items/', true, /planner-element\.[tj]sx$/);
+  itemsContext.keys().forEach((key: string) => {
+    const el = itemsContext(key).default;
+    Items.push(el);
+    if (!catalog.elements[el.name]) {
+      CatalogFn.registerElement(catalog, el as any);
+    }
+  });
+
+  CatalogFn.registerCategory(
+    catalog,
+    'windows',
+    'Windows',
+    Holes.filter((h) => h?.info?.tag?.includes('window'))
+  );
+
+  CatalogFn.registerCategory(
+    catalog,
+    'doors',
+    'Doors',
+    Holes.filter((h) => h?.info?.tag?.includes('door'))
+  );
+
+  const ensureHiddenSubCategory = (name: string, label: string) => {
+    if (!catalog.categories[name]) {
+      catalog.categories[name] = { name, label, categories: [], elements: [] };
+    }
+    return catalog.categories[name];
+  };
+
+  const paintWhite = Items.find((el) => el?.name === 'paint-white');
+  const paintGrey = Items.find((el) => el?.name === 'paint-grey');
+  const paintBeige = Items.find((el) => el?.name === 'paint-beige');
+
+  const flooringCeramic60 = Items.find((el) => el?.name === 'flooring-ceramic-60x60');
+  const flooringLaminate = Items.find((el) => el?.name === 'flooring-laminate');
+  const plasteringMonacote = Items.find((el) => el?.name === 'plastering-monacote');
+  const boardsFlatCeiling = Items.find((el) => el?.name === 'boards-flat-ceiling');
+
+  for (const svc of PLANO_MAIN_SERVICES) {
+    if (svc.key === 'other') continue;
+
+    const mainName = `plano_${svc.key}`;
+
+    if (!catalog.categories[mainName]) {
+      CatalogFn.registerCategory(catalog, mainName, svc.label, []);
+    }
+
+    const mainCat = catalog.categories[mainName];
+    const subs = PLANO_SUBSERVICES[svc.key] || [];
+
+    for (const subLabel of subs) {
+      const subName = `plano_${svc.key}__${safeSlug(subLabel)}`;
+      const subCat = ensureHiddenSubCategory(subName, subLabel);
+
+      if (!mainCat.categories.some((c: any) => c.name === subCat.name)) {
+        mainCat.categories.push(subCat);
+      }
+
+      if (svc.key === 'painting' && subLabel === 'Internal paint') {
+        if (paintWhite && !subCat.elements.find((el: any) => el.name === paintWhite.name)) {
+          subCat.elements.push(paintWhite);
+        }
+        if (paintGrey && !subCat.elements.find((el: any) => el.name === paintGrey.name)) {
+          subCat.elements.push(paintGrey);
+        }
+        if (paintBeige && !subCat.elements.find((el: any) => el.name === paintBeige.name)) {
+          subCat.elements.push(paintBeige);
+        }
+      }
+
+      if (svc.key === 'flooring' && subLabel === 'Ceramic tiles 60×60') {
+        if (
+          flooringCeramic60 &&
+          !subCat.elements.find((el: any) => el.name === flooringCeramic60.name)
+        ) {
+          subCat.elements.push(flooringCeramic60);
+        }
+      }
+
+      if (svc.key === 'flooring' && subLabel === 'Laminate') {
+        if (
+          flooringLaminate &&
+          !subCat.elements.find((el: any) => el.name === flooringLaminate.name)
+        ) {
+          subCat.elements.push(flooringLaminate);
+        }
+      }
+
+      if (svc.key === 'plastering' && subLabel === 'Internal (monacote+finittura)') {
+        if (
+          plasteringMonacote &&
+          !subCat.elements.find((el: any) => el.name === plasteringMonacote.name)
+        ) {
+          subCat.elements.push(plasteringMonacote);
+        }
+      }
+
+      if (svc.key === 'boards' && subLabel === 'Flat ceiling') {
+        if (
+          boardsFlatCeiling &&
+          !subCat.elements.find((el: any) => el.name === boardsFlatCeiling.name)
+        ) {
+          subCat.elements.push(boardsFlatCeiling);
+        }
+      }
+    }
+  }
+
+  return catalog;
+}
+
+export default createCatalog();

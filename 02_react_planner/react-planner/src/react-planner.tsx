@@ -33,9 +33,15 @@ import { VERSION } from './version';
 
 enableMapSet();
 
-const toolbarW = 50;
+/**
+ * IMPORTANT:
+ * - React-Planner toolbar remains mounted (functionality intact)
+ * - but is hidden, so only PlanO buttons/icons are visible (no duplicates)
+ * - Sidebar (information box) stays visible
+ */
+const toolbarW = 0; // canvas takes full width
 const sidebarW = 0; // floating sidebar (overlay)
-const footerBarH = 20;
+const footerBarH = 0;
 
 const wrapperStyle: React.CSSProperties = {
   display: 'flex',
@@ -115,7 +121,7 @@ function ReactPlanner(props: InternalReactPlannerProps) {
 
   const state = context.store.getState();
 
-  const contentW = width - toolbarW;
+  const contentW = width - toolbarW; // toolbarW=0 so full width
   const toolbarH = height - footerBarH;
   const contentH = height - footerBarH;
   const sidebarH = height - footerBarH;
@@ -124,31 +130,37 @@ function ReactPlanner(props: InternalReactPlannerProps) {
 
   return (
     <div style={{ ...wrapperStyle, height }}>
-      <Toolbar
-        {...restProps}
-        width={toolbarW}
-        height={toolbarH}
-        state={extractedState}
-      />
+      {/* Toolbar kept for functionality, but hidden to avoid duplicate icons/buttons */}
+      <div style={{ display: 'none' }}>
+        <Toolbar
+          {...restProps}
+          width={50} // keep original internal width
+          height={toolbarH}
+          state={extractedState}
+        />
+      </div>
+
       <Content
         {...restProps}
         width={contentW}
         height={contentH}
         state={extractedState}
       />{' '}
-      {/* onWheel={event => event.preventDefault()} */}
       <Sidebar
         {...restProps}
         width={sidebarW}
         height={sidebarH}
         state={extractedState}
       />
-      <FooterBar
-        {...restProps}
-        width={width}
-        height={footerBarH}
-        state={extractedState}
-      />
+      <div style={{ display: 'none' }}>
+        <FooterBar
+          {...restProps}
+          width={width}
+          height={20} // keep original internal height
+          state={extractedState}
+        />
+    </div>
+
     </div>
   );
 }

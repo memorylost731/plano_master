@@ -1,0 +1,1933 @@
+===== 1) VIEWER 3D =====
+import React, { Component } from 'react';
+
+import convert from 'convert-units';
+import * as Three from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+
+import { State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { diff } from '../../utils/history';
+
+import { parseData, PlanData, updateScene } from './scene-creator';
+import { disposeScene } from './three-memory-cleaner';
+
+interface Scene3DViewerProps {
+  state: State;
+  width: number;
+  height: number;
+}
+
+type HighlightEntry = {
+  mesh: Three.Mesh;
+  originalMaterial: Three.Material;
+};
+
+const hudStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 12,
+  bottom: 12,
+  zIndex: 10000,
+  background: 'rgba(0,0,0,0.65)',
+  color: '#fff',
+  padding: '8px 10px',
+  borderRadius: 8,
+  fontSize: 13,
+  lineHeight: 1.2,
+  pointerEvents: 'none',
+  userSelect: 'none'
+};
+
+export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
+  static contextType = ReactPlannerContext;
+  declare context: React.ContextType<typeof ReactPlannerContext>;
+
+  lastMousePosition: { x: number; y: number } = { x: 0, y: 0 };
+  width: number;
+  height: number;
+  renderingID = 0;
+  renderer: Three.WebGLRenderer;
+
+  canvasWrapper: React.RefObject<null | HTMLDivElement>;
+
+  camera: Three.PerspectiveCamera | undefined;
+  scene3D: Three.Scene | undefined;
+  planData: PlanData | undefined;
+  orbitController: OrbitControls | undefined;
+
+  highlightedMeshes: Map<string, HighlightEntry>;
+
+  mouseDownEvent: undefined | ((event: MouseEvent) => void);
+  mouseUpEvent: undefined | ((event: MouseEvent) => void);
+
+  constructor(props: Scene3DViewerProps) {
+    super(props);
+
+    this.width = props.width;
+    this.height = props.height;
+    this.canvasWrapper = React.createRef<HTMLDivElement>();
+    this.highlightedMeshes = new Map<string, HighlightEntry>();
+
+    this.renderer =
+      (window as any).__threeRenderer ||
+      new Three.WebGLRenderer({ preserveDrawingBuffer: true });
+    (window as any).__threeRenderer = this.renderer;
+  }
+
+  private getMeshKey(mesh: Three.Mesh) {
+    return `${mesh.uuid}:${mesh.name}`;
+  }
+
+  private isSelectableFace(mesh: Three.Object3D): mesh is Three.Mesh {
+    return (
+      mesh instanceof Three.Mesh &&
+      (mesh.name === 'frontFace' || mesh.name === 'backFace') &&
+      !Array.isArray((mesh as Three.Mesh).material)
+    );
+  }
+
+  private clearAllHighlights() {
+  this.highlightedMeshes.forEach((entry) => {
+    entry.mesh.material = entry.originalMaterial;
+  });
+  this.highlightedMeshes.clear();
+ }
+
+  private removeHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+    const entry = this.highlightedMeshes.get(key);
+    if (!entry) return;
+
+    entry.mesh.material = entry.originalMaterial;
+    this.highlightedMeshes.delete(key);
+  }
+
+  private addHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+    if (this.highlightedMeshes.has(key)) return;
+
+    const baseMaterial = mesh.material;
+    if (Array.isArray(baseMaterial) || !baseMaterial) return;
+
+    const highlightMaterial = (baseMaterial as Three.Material).clone();
+    highlightMaterial.transparent = true;
+    highlightMaterial.opacity = 0.35;
+    highlightMaterial.depthWrite = false;
+
+    this.highlightedMeshes.set(key, {
+      mesh,
+      originalMaterial: baseMaterial
+    });
+
+    mesh.material = highlightMaterial;
+  }
+
+  private toggleHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+
+    if (this.highlightedMeshes.has(key)) {
+      this.removeHighlight(mesh);
+    } else {
+      this.addHighlight(mesh);
+    }
+  }
+
+  private computeSelectedAreaM2(): number | null {
+    const { state } = this.props;
+    const unit = this.context.catalog.unit;
+    const selectedLayerID = state.scene.selectedLayer;
+    if (!selectedLayerID) return null;
+
+    const layer: any = state.scene.layers[selectedLayerID];
+    if (!layer) return null;
+
+    const selectedAreaIDs: string[] = layer.selected?.areas || [];
+    if (!selectedAreaIDs.length) return null;
+
+    const metersPerUnit = convert(1).from(unit).to('m');
+
+    let totalM2 = 0;
+
+    for (const areaID of selectedAreaIDs) {
+      const area: any = layer.areas?.[areaID];
+      if (!area) continue;
+
+      const verts: string[] = area.vertices;
+      if (!Array.isArray(verts) || verts.length < 3) continue;
+
+      const pts = verts
+        .map((vid) => layer.vertices?.[vid])
+        .filter(Boolean)
+        .map((v: any) => ({ x: v.x, y: v.y }));
+
+      if (pts.length < 3) continue;
+
+      let sum = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const j = (i + 1) % pts.length;
+        sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+      }
+
+      const areaUnit2 = Math.abs(sum) / 2;
+      const areaM2 = areaUnit2 * metersPerUnit * metersPerUnit;
+
+      totalM2 += areaM2;
+    }
+
+    if (!isFinite(totalM2) || totalM2 <= 0) return null;
+    return Math.round(totalM2 * 100) / 100;
+  }
+
+  componentDidMount() {
+    const { state } = this.props;
+
+    const scene3D = new Three.Scene();
+
+    this.renderer.setClearColor(new Three.Color(SharedStyle.COLORS.white));
+    this.renderer.setSize(this.width, this.height);
+
+    const planData = parseData(state.scene, this.context);
+
+    scene3D.add(planData.plan);
+    scene3D.add(planData.grid);
+
+    const aspectRatio = this.width / this.height;
+    const camera = new Three.PerspectiveCamera(45, aspectRatio, 1, 300000);
+
+    scene3D.add(camera);
+
+    const cameraPositionX =
+      -(planData.boundingBox.max.x - planData.boundingBox.min.x) / 2;
+    const cameraPositionY =
+      ((planData.boundingBox.max.y - planData.boundingBox.min.y) / 2) * 10;
+    const cameraPositionZ =
+      (planData.boundingBox.max.z - planData.boundingBox.min.z) / 2;
+
+    camera.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    camera.up = new Three.Vector3(0, 1, 0);
+
+    const ambient = new Three.AmbientLight(0xffffff, 0.45);
+    scene3D.add(ambient);
+
+    const hemi = new Three.HemisphereLight(0xffffff, 0x666666, 0.5);
+    scene3D.add(hemi);
+
+    const spotLight1 = new Three.SpotLight(SharedStyle.COLORS.white, 1.0);
+    spotLight1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    scene3D.add(spotLight1);
+
+    const dirLight = new Three.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(
+      cameraPositionX + 300,
+      cameraPositionY + 400,
+      cameraPositionZ + 300
+    );
+    scene3D.add(dirLight);
+
+    const toIntersect = [planData.plan];
+    const mouse = new Three.Vector2();
+    const raycaster = new Three.Raycaster();
+
+    this.mouseDownEvent = (event: MouseEvent) => {
+      this.lastMousePosition.x = (event.offsetX / this.width) * 2 - 1;
+      this.lastMousePosition.y = (-event.offsetY / this.height) * 2 + 1;
+    };
+
+    this.mouseUpEvent = (event: MouseEvent) => {
+      event.preventDefault();
+
+      mouse.x = (event.offsetX / this.width) * 2 - 1;
+      mouse.y = -(event.offsetY / this.height) * 2 + 1;
+
+      if (
+        Math.abs(mouse.x - this.lastMousePosition.x) <= 0.02 &&
+        Math.abs(mouse.y - this.lastMousePosition.y) <= 0.02
+      ) {
+        raycaster.setFromCamera(mouse, camera);
+
+        const intersects = raycaster.intersectObjects(toIntersect, true);
+
+        if (intersects.length > 0 && !isNaN(intersects[0].distance)) {
+          const object = intersects[0].object as any;
+
+          if (this.isSelectableFace(object)) {
+
+            this.toggleHighlight(object);
+
+            const mesh = object as Three.Mesh;
+
+            const wallId = mesh.userData?.wallId;
+            const surfaceType = mesh.userData?.surfaceType;
+
+            if (wallId && surfaceType) {
+
+              const surfaceId = `${wallId}:${surfaceType}`;
+
+              console.log("Surface selected:", surfaceId);
+
+              window.parent?.postMessage(
+                {
+                  protocolVersion: 1,
+                  type: "SURFACE_SELECTED",
+                  payload: {
+                    surfaceId,
+                    wallId,
+                    surfaceType
+                  }
+                },
+                "*"
+              );
+            }
+
+            const interactable = mesh as Three.Mesh & { interact?: () => void };
+            interactable.interact?.();
+          } else {
+            this.clearAllHighlights();
+            this.context.projectActions.unselectAll();
+          }
+        } else {
+          this.clearAllHighlights();
+          this.context.projectActions.unselectAll();
+        }
+      }
+    };
+
+    if (this.mouseDownEvent) {
+      this.renderer.domElement.addEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    }
+
+    if (this.mouseUpEvent) {
+      this.renderer.domElement.addEventListener(
+        'mouseup',
+        this.mouseUpEvent
+      );
+    }
+
+    this.renderer.domElement.style.display = 'block';
+
+    if (this.canvasWrapper.current) {
+      this.canvasWrapper.current.appendChild(this.renderer.domElement);
+    }
+
+    const orbitController = new OrbitControls(camera, this.renderer.domElement);
+
+    const spotLightTarget = new Three.Object3D();
+    spotLightTarget.name = 'spotLightTarget';
+
+    spotLightTarget.position.set(
+      orbitController.target.x,
+      orbitController.target.y,
+      orbitController.target.z
+    );
+
+    scene3D.add(spotLightTarget);
+    spotLight1.target = spotLightTarget;
+
+    const render = () => {
+      orbitController.update();
+
+      spotLight1.position.set(
+        camera.position.x,
+        camera.position.y,
+        camera.position.z
+      );
+
+      spotLightTarget.position.set(
+        orbitController.target.x,
+        orbitController.target.y,
+        orbitController.target.z
+      );
+
+      camera.updateMatrix();
+      camera.updateMatrixWorld();
+
+      for (const elemID in planData.sceneGraph.LODs) {
+        planData.sceneGraph.LODs[elemID].update(camera);
+      }
+
+      this.renderer.render(scene3D, camera);
+
+      this.renderingID = requestAnimationFrame(render);
+    };
+
+    render();
+
+    this.camera = camera;
+    this.scene3D = scene3D;
+    this.orbitController = orbitController;
+    this.planData = planData;
+  }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this.renderingID);
+    this.orbitController?.dispose();
+
+    this.clearAllHighlights();
+
+    if (this.mouseDownEvent) {
+      this.renderer.domElement.removeEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    }
+
+    if (this.mouseUpEvent) {
+      this.renderer.domElement.removeEventListener(
+        'mouseup',
+        this.mouseUpEvent
+      );
+    }
+
+    if (this.scene3D) {
+      disposeScene(this.scene3D);
+
+      if (this.planData) {
+        this.scene3D.remove(this.planData.plan);
+        this.scene3D.remove(this.planData.grid);
+      }
+    }
+
+    this.scene3D = undefined;
+    this.planData = undefined;
+    this.camera = undefined;
+    this.orbitController = undefined;
+
+    this.renderer.renderLists.dispose();
+  }
+
+  componentDidUpdate(prevProps: Scene3DViewerProps) {
+    const { width, height } = this.props;
+
+    this.width = width;
+    this.height = height;
+
+    if (this.camera) {
+      this.camera.aspect = width / height;
+      this.camera.updateProjectionMatrix();
+    }
+
+    if (prevProps && this.props.state.scene !== prevProps.state.scene) {
+      const changedValues = diff(prevProps.state.scene, this.props.state.scene);
+
+      if (this.planData) {
+        updateScene(
+          this.planData,
+          this.props.state.scene,
+          prevProps.state.scene,
+          changedValues,
+          this.context
+        );
+      }
+    }
+
+    this.renderer.setSize(width, height);
+  }
+
+  render() {
+    const areaM2 = this.computeSelectedAreaM2();
+
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        {areaM2 !== null ? (
+          <div style={hudStyle}>Selected area: {areaM2} m²</div>
+        ) : null}
+
+        <div ref={this.canvasWrapper} />
+      </div>
+    );
+  }
+}
+===== 2) PLANNER FRAME =====
+import { useEffect, useRef } from "react";
+
+const ENGINE_URL = "http://localhost:5173";
+const PROTOCOL_VERSION = 1;
+
+const RASTER_URL = "http://localhost:8000/upload-plan";
+
+export type PlannerCmd =
+  | "NEW_PROJECT"
+  | "OPEN_CATALOG"
+  | "CHANGE_CATALOG_PAGE"
+  | "VIEW_2D"
+  | "VIEW_3D"
+  | "VIEW_3D_FIRST_PERSON"
+  | "UNDO"
+  | "OPEN_PROJECT_CONFIGURATOR"
+  | "TOOL_PAN"
+  | "TOOL_ZOOM_IN"
+  | "TOOL_ZOOM_OUT"
+  | "SELECT_TOOL_EDIT"
+  | "UNSELECT_ALL"
+  | "LOAD_PROJECT_JSON"
+  | "LOAD_RASTER_JSON"
+  | "REQUEST_SCENE_JSON";
+
+export type SurfaceSelectedPayload = {
+  surfaceId: string;
+  wallId: string;
+  surfaceType: "front" | "back";
+};
+
+export type CatalogServiceSelectedPayload = {
+  mainService: string;
+  subService: string;
+  materialKey: string;
+  materialLabel: string;
+  color: string | null;
+};
+
+export type PlannerApi = {
+  cmd: (c: PlannerCmd, payload?: any) => void;
+  loadProjectPicker: () => void;
+  saveProjectDownload: () => void;
+};
+
+type Props = {
+  onApi?: (api: PlannerApi) => void;
+  onModeChange?: (mode: string) => void;
+  onSurfaceSelected?: (payload: SurfaceSelectedPayload) => void;
+  onCatalogServiceSelected?: (payload: CatalogServiceSelectedPayload) => void;
+};
+
+function downloadJson(filename: string, data: any) {
+  const dataStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+export default function PlannerFrame({
+  onApi,
+  onModeChange,
+  onSurfaceSelected,
+  onCatalogServiceSelected,
+}: Props) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  const postToEngine = (msg: any) => {
+    const w = iframeRef.current?.contentWindow;
+    if (!w) return;
+    w.postMessage(msg, "*");
+  };
+
+  const cmd = (c: PlannerCmd, payload?: any) => {
+    postToEngine({
+      protocolVersion: PROTOCOL_VERSION,
+      type: "CMD",
+      cmd: c,
+      payload,
+    });
+  };
+
+  const loadProjectPicker = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json,.png,.jpg,.jpeg,application/pdf";
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      try {
+        if (file.name.toLowerCase().endsWith(".json")) {
+          const text = await file.text();
+          const scene = JSON.parse(text);
+          cmd("LOAD_PROJECT_JSON", { scene });
+          return;
+        }
+
+        const form = new FormData();
+        form.append("file", file);
+
+        const resp = await fetch(RASTER_URL, { method: "POST", body: form });
+        if (!resp.ok) {
+          const msg = await resp.text();
+          throw new Error(`Raster upload failed (${resp.status}): ${msg}`);
+        }
+
+        const raw = await resp.json();
+        cmd("LOAD_RASTER_JSON", { raw });
+      } catch (e: any) {
+        alert(e?.message || String(e));
+        console.error(e);
+      }
+    };
+
+    input.click();
+  };
+
+  const saveProjectDownload = () => {
+    cmd("REQUEST_SCENE_JSON");
+  };
+
+  useEffect(() => {
+    onApi?.({ cmd, loadProjectPicker, saveProjectDownload });
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== "http://localhost:5173") return;
+
+      const data: any = event.data;
+      if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
+
+      if (data.type === "ERROR") {
+        console.error("[ENGINE ERROR]", data.message);
+        return;
+      }
+
+      if (data.type === "MODE_CHANGED") {
+        const mode = data?.payload?.mode;
+        if (typeof mode === "string") onModeChange?.(mode);
+        return;
+      }
+
+      if (data.type === "SURFACE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.surfaceId === "string" &&
+          typeof payload.wallId === "string" &&
+          (payload.surfaceType === "front" || payload.surfaceType === "back")
+        ) {
+          onSurfaceSelected?.(payload);
+        }
+        return;
+      }
+
+      if (data.type === "CATALOG_SERVICE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.mainService === "string" &&
+          typeof payload.subService === "string" &&
+          typeof payload.materialKey === "string" &&
+          typeof payload.materialLabel === "string"
+        ) {
+          onCatalogServiceSelected?.(payload);
+        }
+        return;
+      }
+
+      if (data.type === "SCENE_JSON") {
+        const scene = data?.payload?.scene;
+        if (scene) downloadJson("plano_scene.json", scene);
+      }
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [onApi, onModeChange, onSurfaceSelected, onCatalogServiceSelected]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      src={ENGINE_URL}
+      title="React Planner Engine"
+      allow="clipboard-read; clipboard-write"
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100vh",
+        border: 0,
+        zIndex: 1,
+        background: "#fff",
+      }}
+      onLoad={() =>
+        postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "PING" })
+      }
+    />
+  );
+}
+===== 3) PLANNER PAGE =====
+import { useMemo, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bolt,
+  Wrench,
+  Paintbrush,
+  Grid3X3,
+  Layers,
+  Boxes,
+  MoreHorizontal,
+  FilePlus,
+  FolderOpen,
+  Save,
+  Plus,
+  Undo2,
+  Settings,
+  FileText,
+} from "lucide-react";
+
+import PlannerFrame, {
+  type PlannerApi,
+  type CatalogServiceSelectedPayload,
+} from "../../components/planner/PlannerFrame";
+
+import {
+  MAIN_SERVICES,
+  usePlannerState,
+  type MainService,
+} from "../../state/plannerState";
+
+type ViewMode = "2D" | "3D";
+
+const ICONS: Record<MainService, LucideIcon> = {
+  electricity: Bolt,
+  plumbing: Wrench,
+  painting: Paintbrush,
+  flooring: Grid3X3,
+  plastering: Layers,
+  boards: Boxes,
+  other: MoreHorizontal,
+};
+
+export default function Planner() {
+  const navigate = useNavigate();
+
+  const apiRef = useRef<PlannerApi | null>(null);
+  const didInitRef = useRef(false);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("2D");
+  const [engineMode, setEngineMode] = useState<string>("");
+
+  const {
+    activeMain,
+    setActiveMain,
+    hasAnySelection,
+    toggleSurface,
+    applyAreaService,
+    activeAreaSubService,
+    setActiveAreaSubService,
+    activeAreaMaterialKey,
+    setActiveAreaMaterialKey,
+    activeAreaMaterialLabel,
+    setActiveAreaMaterialLabel,
+    activeAreaMaterialColor,
+    setActiveAreaMaterialColor,
+  } = usePlannerState();
+
+  const handleApi = useCallback((api: PlannerApi) => {
+    apiRef.current = api;
+
+    if (!didInitRef.current) {
+      didInitRef.current = true;
+      api.cmd("VIEW_2D");
+      api.cmd("SELECT_TOOL_EDIT");
+      setViewMode("2D");
+    }
+  }, []);
+
+  const handleCatalogServiceSelected = useCallback(
+    (payload: CatalogServiceSelectedPayload) => {
+      if (payload.mainService === "painting") {
+        setActiveMain("painting");
+        setActiveAreaSubService(payload.subService);
+        setActiveAreaMaterialKey(payload.materialKey);
+        setActiveAreaMaterialLabel(payload.materialLabel);
+        setActiveAreaMaterialColor(payload.color || null);
+        setViewMode("3D");
+        apiRef.current?.cmd("VIEW_3D");
+        console.log("Selected catalog material:", payload);
+      }
+    },
+    [
+      setActiveMain,
+      setActiveAreaSubService,
+      setActiveAreaMaterialKey,
+      setActiveAreaMaterialLabel,
+      setActiveAreaMaterialColor,
+    ]
+  );
+
+  const handleSurfaceSelected = useCallback(
+    (payload: any) => {
+      const surfaceId = payload?.surfaceId;
+      if (!surfaceId) return;
+
+      console.log("PlanO received surface:", surfaceId);
+
+      if (
+        activeAreaSubService &&
+        activeAreaMaterialKey &&
+        (activeMain === "painting" ||
+          activeMain === "flooring" ||
+          activeMain === "plastering" ||
+          activeMain === "boards")
+      ) {
+        console.log("Applying service/material:", {
+          service: activeMain,
+          subService: activeAreaSubService,
+          materialKey: activeAreaMaterialKey,
+          materialLabel: activeAreaMaterialLabel,
+          color: activeAreaMaterialColor,
+          surfaceId,
+        });
+
+        toggleSurface(surfaceId);
+        applyAreaService(activeMain);
+      } else {
+        toggleSurface(surfaceId);
+      }
+    },
+    [
+      toggleSurface,
+      applyAreaService,
+      activeMain,
+      activeAreaSubService,
+      activeAreaMaterialKey,
+      activeAreaMaterialLabel,
+      activeAreaMaterialColor,
+    ]
+  );
+
+  const go2D = useCallback(() => {
+    setViewMode("2D");
+    apiRef.current?.cmd("VIEW_2D");
+    apiRef.current?.cmd("SELECT_TOOL_EDIT");
+  }, []);
+
+  const go3D = useCallback(() => {
+    setViewMode("3D");
+    apiRef.current?.cmd("VIEW_3D");
+  }, []);
+
+  const openServiceCatalog = useCallback((service: MainService) => {
+    setActiveMain(service);
+    apiRef.current?.cmd("OPEN_CATALOG");
+
+    setTimeout(() => {
+      apiRef.current?.cmd("CHANGE_CATALOG_PAGE", {
+        newPage: `plano_${service}`,
+        oldPage: "root",
+      });
+    }, 50);
+  }, [setActiveMain]);
+
+  const isCatalogOpen = engineMode === "MODE_VIEWING_CATALOG";
+
+  const statusText = useMemo(() => {
+    if (!activeAreaSubService || !activeAreaMaterialLabel) return null;
+    return `${activeAreaSubService} → ${activeAreaMaterialLabel}`;
+  }, [activeAreaSubService, activeAreaMaterialLabel]);
+
+  return (
+    <div
+      className={`${
+        viewMode === "2D" ? "planner2d-bg" : "planner3d-bg"
+      } fixed inset-0 text-zinc-900`}
+    >
+      <PlannerFrame
+        onApi={handleApi}
+        onModeChange={setEngineMode}
+        onSurfaceSelected={handleSurfaceSelected}
+        onCatalogServiceSelected={handleCatalogServiceSelected}
+      />
+
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex justify-center p-2">
+        <div className="pointer-events-auto glass-panel w-[calc(100vw-24px)] px-4 py-1">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 font-semibold"
+            >
+              <span className="text-base">PlanO</span>
+            </button>
+
+            {viewMode === "3D" && !isCatalogOpen ? (
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 justify-center px-1">
+                  {MAIN_SERVICES.map((s) => {
+                    const Icon = ICONS[s.key];
+                    const isActive = activeMain === s.key;
+
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => openServiceCatalog(s.key)}
+                        className={`plano-dock-item flex items-center gap-2 px-2 py-1 text-xs ${
+                          isActive ? "ring-2 ring-white/70" : ""
+                        }`}
+                        title={s.label}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="hidden lg:inline">{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            {!isCatalogOpen && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("NEW_PROJECT")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <FilePlus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.saveProjectDownload()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Save className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.loadProjectPicker()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <FolderOpen className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_CATALOG")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go3D}
+                  className={`plano-glass-btn px-4 py-2 text-sm ${
+                    viewMode === "3D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                >
+                  3D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go2D}
+                  className={`plano-glass-btn px-4 py-2 text-sm ${
+                    viewMode === "2D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                >
+                  2D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("UNDO")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Undo2 className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/estimate")}
+                  disabled={!hasAnySelection}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    hasAnySelection ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                >
+                  <FileText className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {!isCatalogOpen && statusText ? (
+        <div className="absolute left-4 top-20 z-40 rounded-xl bg-white/95 px-4 py-3 shadow-lg">
+          <div className="text-sm font-semibold">Selected service</div>
+          <div className="text-sm">{statusText}</div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+===== 4) PLANNER STATE =====
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+export type MainService =
+  | "electricity"
+  | "plumbing"
+  | "painting"
+  | "flooring"
+  | "plastering"
+  | "boards"
+  | "other";
+
+export const MAIN_SERVICES: Array<{ key: MainService; label: string }> = [
+  { key: "electricity", label: "Electricity" },
+  { key: "plumbing", label: "Plumbing" },
+  { key: "painting", label: "Painting" },
+  { key: "flooring", label: "Flooring" },
+  { key: "plastering", label: "Plastering" },
+  { key: "boards", label: "Boards" },
+  { key: "other", label: "Other" },
+];
+
+export const SUBSERVICES: Record<MainService, string[]> = {
+  electricity: [
+    "Switches & plugs",
+    "Overlaps with plumbing",
+    "Oven",
+    "Hob",
+    "Fridge freezer",
+    "Microwave",
+    "AC",
+  ],
+  plumbing: [
+    "Floor drain",
+    "Shower cubical",
+    "Bathroom sink",
+    "Mixers",
+    "Kitchen sink",
+    "Water heater",
+    "Washing machine",
+    "Dishwasher",
+    "Tap for water",
+  ],
+  painting: ["Internal paint", "External paint"],
+  flooring: [
+    "Ceramic tiles 60×60",
+    "Ceramic tiles 120×60",
+    "Ceramic tiles custom",
+    "Laminate",
+    "Microcement",
+    "Polished concrete",
+    "Parquet",
+  ],
+  plastering: [
+    "Internal (monacote+finittura)",
+    "Internal (microcement)",
+    "External (GR1000)",
+    "External (silicato)",
+    "Stone restoration",
+  ],
+  boards: ["Flat ceiling", "L-shape bulkhead", "U-shape bulkhead", "Custom shapes"],
+  other: ["To be defined", "Custom request", "Special works"],
+};
+
+type AreaService = "painting" | "flooring" | "plastering" | "boards";
+
+type AreaServiceDraft = {
+  painting: Set<string>;
+  flooring: Set<string>;
+  plastering: Set<string>;
+  boards: Set<string>;
+};
+
+type State = {
+  activeMain: MainService;
+  setActiveMain: (s: MainService) => void;
+
+  selected: Record<MainService, Set<string>>;
+  toggleSub: (main: MainService, sub: string) => void;
+  clearAll: () => void;
+
+  hasAnySelection: boolean;
+  selectedCount: number;
+
+  selectedSurfaces: Set<string>;
+  toggleSurface: (surfaceId: string) => void;
+  clearSelectedSurfaces: () => void;
+
+  areaServiceDraft: AreaServiceDraft;
+  applyAreaService: (service: AreaService) => void;
+  removeSurfaceFromAreaService: (service: AreaService, surfaceId: string) => void;
+
+  activeAreaSubService: string | null;
+  setActiveAreaSubService: (value: string | null) => void;
+  activeAreaMaterialKey: string | null;
+  setActiveAreaMaterialKey: (value: string | null) => void;
+  activeAreaMaterialLabel: string | null;
+  setActiveAreaMaterialLabel: (value: string | null) => void;
+  activeAreaMaterialColor: string | null;
+  setActiveAreaMaterialColor: (value: string | null) => void;
+};
+
+const KEY = "plano:plannerSelections:v1";
+const Ctx = createContext<State | null>(null);
+
+function load(): { activeMain: MainService; selected: Record<MainService, string[]> } | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const activeMain = (parsed.activeMain as MainService) || "electricity";
+    const sel = (parsed.selected as Record<string, string[]>) || {};
+
+    const out: Record<MainService, string[]> = {
+      electricity: sel.electricity || [],
+      plumbing: sel.plumbing || [],
+      painting: sel.painting || [],
+      flooring: sel.flooring || [],
+      plastering: sel.plastering || [],
+      boards: sel.boards || [],
+      other: sel.other || [],
+    };
+
+    return { activeMain, selected: out };
+  } catch {
+    return null;
+  }
+}
+
+function save(activeMain: MainService, selected: Record<MainService, Set<string>>) {
+  const payload = {
+    activeMain,
+    selected: {
+      electricity: Array.from(selected.electricity),
+      plumbing: Array.from(selected.plumbing),
+      painting: Array.from(selected.painting),
+      flooring: Array.from(selected.flooring),
+      plastering: Array.from(selected.plastering),
+      boards: Array.from(selected.boards),
+      other: Array.from(selected.other),
+    },
+  };
+
+  localStorage.setItem(KEY, JSON.stringify(payload));
+}
+
+export function PlannerStateProvider({ children }: { children: React.ReactNode }) {
+  const initial = load();
+
+  const [activeMain, setActiveMain] = useState<MainService>(initial?.activeMain || "electricity");
+
+  const [selected, setSelected] = useState<Record<MainService, Set<string>>>(() => ({
+    electricity: new Set(initial?.selected.electricity || []),
+    plumbing: new Set(initial?.selected.plumbing || []),
+    painting: new Set(initial?.selected.painting || []),
+    flooring: new Set(initial?.selected.flooring || []),
+    plastering: new Set(initial?.selected.plastering || []),
+    boards: new Set(initial?.selected.boards || []),
+    other: new Set(initial?.selected.other || []),
+  }));
+
+  const [selectedSurfaces, setSelectedSurfaces] = useState<Set<string>>(new Set());
+
+  const [areaServiceDraft, setAreaServiceDraft] = useState<AreaServiceDraft>({
+    painting: new Set(),
+    flooring: new Set(),
+    plastering: new Set(),
+    boards: new Set(),
+  });
+
+  const [activeAreaSubService, setActiveAreaSubService] = useState<string | null>(null);
+  const [activeAreaMaterialKey, setActiveAreaMaterialKey] = useState<string | null>(null);
+  const [activeAreaMaterialLabel, setActiveAreaMaterialLabel] = useState<string | null>(null);
+  const [activeAreaMaterialColor, setActiveAreaMaterialColor] = useState<string | null>(null);
+
+  const toggleSurface = (surfaceId: string) => {
+    setSelectedSurfaces((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(surfaceId)) {
+        next.delete(surfaceId);
+      } else {
+        next.add(surfaceId);
+      }
+
+      console.log("Selected surfaces:", Array.from(next));
+
+      return next;
+    });
+  };
+
+  const clearSelectedSurfaces = () => {
+    setSelectedSurfaces(new Set());
+  };
+
+  const applyAreaService = (service: AreaService) => {
+    setAreaServiceDraft((prev) => {
+      const next: AreaServiceDraft = {
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+      };
+
+      selectedSurfaces.forEach((surfaceId) => {
+        next[service].add(surfaceId);
+      });
+
+      console.log("Area service draft:", {
+        service,
+        surfaces: Array.from(next[service]),
+        subService: activeAreaSubService,
+        materialKey: activeAreaMaterialKey,
+        materialLabel: activeAreaMaterialLabel,
+        color: activeAreaMaterialColor,
+      });
+
+      return next;
+    });
+  };
+
+  const removeSurfaceFromAreaService = (service: AreaService, surfaceId: string) => {
+    setAreaServiceDraft((prev) => {
+      const next: AreaServiceDraft = {
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+      };
+
+      next[service].delete(surfaceId);
+
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    save(activeMain, selected);
+  }, [activeMain, selected]);
+
+  const toggleSub = (main: MainService, sub: string) => {
+    setSelected((prev) => {
+      const next: Record<MainService, Set<string>> = {
+        electricity: new Set(prev.electricity),
+        plumbing: new Set(prev.plumbing),
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+        other: new Set(prev.other),
+      };
+
+      if (next[main].has(sub)) next[main].delete(sub);
+      else next[main].add(sub);
+
+      return next;
+    });
+  };
+
+  const clearAll = () => {
+    setSelected({
+      electricity: new Set(),
+      plumbing: new Set(),
+      painting: new Set(),
+      flooring: new Set(),
+      plastering: new Set(),
+      boards: new Set(),
+      other: new Set(),
+    });
+
+    clearSelectedSurfaces();
+  };
+
+  const selectedCount = useMemo(() => {
+    return (
+      selected.electricity.size +
+      selected.plumbing.size +
+      selected.painting.size +
+      selected.flooring.size +
+      selected.plastering.size +
+      selected.boards.size +
+      selected.other.size
+    );
+  }, [selected]);
+
+  const hasAnySelection = selectedCount > 0;
+
+  const value: State = {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    clearAll,
+    hasAnySelection,
+    selectedCount,
+    selectedSurfaces,
+    toggleSurface,
+    clearSelectedSurfaces,
+    areaServiceDraft,
+    applyAreaService,
+    removeSurfaceFromAreaService,
+    activeAreaSubService,
+    setActiveAreaSubService,
+    activeAreaMaterialKey,
+    setActiveAreaMaterialKey,
+    activeAreaMaterialLabel,
+    setActiveAreaMaterialLabel,
+    activeAreaMaterialColor,
+    setActiveAreaMaterialColor,
+  };
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function usePlannerState() {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("usePlannerState must be used inside PlannerStateProvider");
+  return ctx;
+}
+===== 5) SCENE CREATOR =====
+import * as Three from 'three';
+import { Object3D } from 'three';
+
+import { CatalogFn } from '../../catalog/catalog';
+import { Layer, Scene } from '../../models';
+import { ReactPlannerContextProps } from '../../react-planner-context';
+
+import createGrid from './grid-creator';
+import { disposeObject } from './three-memory-cleaner';
+
+/**
+ * Structures used by parseData to build the 3D scene graph.
+ */
+export interface BusyResourcesLayer {
+  id: string;
+  lines: Record<string, boolean>;
+  holes: Record<string, boolean>;
+  areas: Record<string, boolean>;
+  items: Record<string, boolean>;
+}
+
+export interface SceneGraphLayer {
+  id: string;
+  lines: Record<string, Three.Object3D>; // pivot objects containing meshes
+  holes: Record<string, Three.Object3D>;
+  areas: Record<string, Three.Object3D>;
+  items: Record<string, Three.Object3D>;
+  visible: boolean;
+  altitude: number; // layer altitude
+}
+
+export interface SceneGraphData {
+  unit: Scene['unit'];
+  layers: Record<string, SceneGraphLayer>;
+  busyResources: { layers: Record<string, BusyResourcesLayer> };
+  width: number;
+  height: number;
+  /** Map of element id -> LOD object used for camera dependent switching */
+  LODs: Record<string, Three.LOD>;
+}
+
+export interface PlanData {
+  sceneGraph: SceneGraphData;
+  plan: Three.Object3D; // root container for all scene objects
+  grid: Three.Object3D; // visual reference grid
+  boundingBox: Three.Box3; // axis-aligned bounding box centered at origin
+}
+
+export function parseData(
+  sceneData: Scene,
+  context: ReactPlannerContextProps
+): PlanData {
+  const planRoot = new Three.Object3D();
+  planRoot.name = 'plan';
+  const grid = createGrid(sceneData);
+  grid.name = 'grid';
+
+  const sceneGraph: SceneGraphData = {
+    unit: sceneData.unit,
+    layers: {},
+    busyResources: { layers: {} },
+    width: sceneData.width,
+    height: sceneData.height,
+    LODs: {}
+  };
+
+  const boundingBox = new Three.Box3().setFromObject(grid);
+  (boundingBox as any).name = 'boundingBox';
+
+  const planData: PlanData = {
+    sceneGraph,
+    plan: planRoot,
+    grid,
+    boundingBox
+  };
+
+  let promises: Promise<void>[] = [];
+
+  Object.values(sceneData.layers).forEach((layer) => {
+    if (layer.id === sceneData.selectedLayer || layer.visible) {
+      promises = promises.concat(
+        createLayerObjects(layer, planData, sceneData, context)
+      );
+    }
+  });
+
+  Promise.all(promises).then((value) => updateBoundingBox(planData));
+
+  return planData;
+}
+
+function createLayerObjects(
+  layer: Layer,
+  planData: PlanData,
+  sceneData: Scene,
+  context: ReactPlannerContextProps
+) {
+  const promises: Promise<void>[] = [];
+
+  planData.sceneGraph.layers[layer.id] = {
+    id: layer.id,
+    lines: {},
+    holes: {},
+    areas: {},
+    items: {},
+    visible: layer.visible,
+    altitude: layer.altitude
+  };
+
+  planData.sceneGraph.busyResources.layers[layer.id] = {
+    id: layer.id,
+    lines: {},
+    holes: {},
+    areas: {},
+    items: {}
+  };
+
+  // Import lines
+  Object.values(layer.lines).forEach((line) => {
+    promises.push(addLine(sceneData, planData, layer, line.id, context));
+    line.holes.forEach((holeID) => {
+      promises.push(addHole(sceneData, planData, layer, holeID, context));
+    });
+  });
+
+  // Import areas
+  Object.values(layer.areas).forEach((area) => {
+    promises.push(addArea(sceneData, planData, layer, area.id, context));
+  });
+
+  // Import items
+  Object.values(layer.items).forEach((item) => {
+    promises.push(addItem(sceneData, planData, layer, item.id, context));
+  });
+
+  return promises;
+}
+
+type Diff = {
+  op: 'add' | 'remove' | 'replace';
+  path: string[];
+  value: any;
+};
+
+export function updateScene(
+  planData: PlanData,
+  sceneData: Scene,
+  oldSceneData: Scene,
+  diffArray: { [key: string]: any },
+  context: ReactPlannerContextProps
+) {
+  const splitted = Object.values(diffArray).map((el) => {
+    return { op: el.op, path: el.path.split('/'), value: el.value };
+  });
+  let filteredDiffs = filterDiffs(splitted, sceneData, oldSceneData);
+
+  //***testing additional filter***
+  filteredDiffs = filteredDiffs.filter(({ path }) => path[3] !== 'selected');
+  filteredDiffs = filteredDiffs.filter(({ path }) => path[1] !== 'groups');
+  //*******************************
+
+  filteredDiffs.forEach(({ op, path, value }) => {
+    /* First of all I need to find the object I need to update */
+    if (path[1] === 'layers') {
+      const layer = sceneData.layers[path[2]];
+
+      if (path.length === 3 && op === 'remove') {
+        removeLayer(path[2], planData);
+      } else if (path.length > 3) {
+        switch (op) {
+          case 'replace':
+            replaceObject(
+              path as ModifiedPath,
+              layer,
+              planData,
+              sceneData,
+              oldSceneData,
+              context
+            );
+            break;
+          case 'add':
+            addObject(
+              path as ModifiedPath,
+              layer,
+              planData,
+              sceneData,
+              oldSceneData,
+              context
+            );
+            break;
+          case 'remove':
+            removeObject(
+              path as ModifiedPath,
+              layer,
+              planData,
+              sceneData,
+              oldSceneData,
+              context
+            );
+            break;
+        }
+      }
+    } else if (path[1] === 'selectedLayer') {
+      const layerSelectedID = value;
+      const layerSelected = sceneData.layers[layerSelectedID];
+      // First of all I check if the new selected layer is not visible
+      if (!layerSelected.visible) {
+        // I need to create the objects for this layer
+        const promises = createLayerObjects(
+          layerSelected,
+          planData,
+          sceneData,
+          context
+        );
+        Promise.all(promises).then(() => updateBoundingBox(planData));
+      }
+
+      const layerGraph =
+        planData.sceneGraph.layers[oldSceneData.selectedLayer as string];
+
+      if (layerGraph) {
+        if (!layerGraph.visible) {
+          // I need to remove the objects for this layer
+          for (const lineID in layerGraph.lines)
+            removeLine(planData, layerGraph.id, lineID);
+          for (const areaID in layerGraph.areas)
+            removeArea(planData, layerGraph.id, areaID);
+          for (const itemID in layerGraph.items)
+            removeItem(planData, layerGraph.id, itemID);
+          for (const holeID in layerGraph.holes)
+            removeHole(planData, layerGraph.id, holeID);
+        }
+      }
+    }
+  });
+  return planData;
+}
+
+type ModifiedPath = [number, number, number, string, string, ...string[]];
+
+function replaceObject(
+  modifiedPath: ModifiedPath,
+  layer: Layer,
+  planData: PlanData,
+  sceneData: Scene,
+  oldSceneData: Scene,
+  context: ReactPlannerContextProps
+) {
+  let promises: Promise<void>[] = [];
+
+  switch (modifiedPath[3]) {
+    case 'vertices':
+      if (modifiedPath[5] !== 'selected') {
+        const vertex = layer.vertices[modifiedPath[4]];
+
+        if (modifiedPath[5] === 'x' || modifiedPath[5] === 'y') {
+          vertex.lines.forEach((lineID) => {
+            const lineHoles = oldSceneData.layers[layer.id].lines[lineID].holes;
+            if (lineHoles)
+              lineHoles.forEach((holeID) => {
+                replaceObject(
+                  [0, 0, 0, 'holes', holeID, 'selected'],
+                  layer,
+                  planData,
+                  sceneData,
+                  oldSceneData,
+                  context
+                );
+              });
+            return replaceObject(
+              [0, 0, 0, 'lines', lineID],
+              layer,
+              planData,
+              sceneData,
+              oldSceneData,
+              context
+            );
+          });
+          vertex.areas.forEach((areaID) =>
+            replaceObject(
+              [0, 0, 0, 'areas', areaID],
+              layer,
+              planData,
+              sceneData,
+              oldSceneData,
+              context
+            )
+          );
+        }
+
+        if (modifiedPath[5] === 'areas') {
+          const areaID = vertex.areas[~~modifiedPath[6]];
+          replaceObject(
+            [0, 0, 0, 'areas', areaID],
+            layer,
+            planData,
+            sceneData,
+            oldSceneData,
+            context
+          );
+        }
+      }
+      break;
+    case 'holes':
+      const newHoleData = layer.holes[modifiedPath[4]];
+
+      if (
+        CatalogFn.getElement(context.catalog, newHoleData.type).updateRender3D
+      ) {
+        promises.push(
+          updateHole(
+            sceneData,
+            oldSceneData,
+            planData,
+            layer,
+            modifiedPath[4],
+            modifiedPath.slice(5) as string[],
+            context,
+            () => removeHole(planData, layer.id, newHoleData.id),
+            () => addHole(sceneData, planData, layer, newHoleData.id, context)
+          )
+        );
+      } else {
+        const lineID = newHoleData.line;
+        if (modifiedPath[5] === 'selected') {
+          // I remove only the hole without removing the wall
+          removeHole(planData, layer.id, newHoleData.id);
+          promises.push(
+            addHole(sceneData, planData, layer, newHoleData.id, context)
+          );
+        } else {
+          layer.lines[lineID].holes.forEach((holeID) => {
+            removeHole(planData, layer.id, holeID);
+          });
+          removeLine(planData, layer.id, lineID);
+          promises.push(addLine(sceneData, planData, layer, lineID, context));
+          layer.lines[lineID].holes.forEach((holeID) => {
+            promises.push(addHole(sceneData, planData, layer, holeID, context));
+          });
+        }
+      }
+      break;
+    case 'lines':
+      const line = layer.lines[modifiedPath[4]];
+
+      if (CatalogFn.getElement(context.catalog, line.type).updateRender3D) {
+        promises.push(
+          updateLine(
+            sceneData,
+            oldSceneData,
+            planData,
+            layer,
+            modifiedPath[4],
+            modifiedPath.slice(5) as string[],
+            context,
+            () => removeLine(planData, layer.id, modifiedPath[4]),
+            () => addLine(sceneData, planData, layer, modifiedPath[4], context)
+          )
+        );
+        // If wall thickness/height changed, rebuild adjacent connected walls to recalc shared edge geometry
+        if (
+          modifiedPath[5] === 'properties' &&
+          (modifiedPath[6] === 'thickness' || modifiedPath[6] === 'height')
+        ) {
+          const currentLineID = modifiedPath[4];
+          const vertices = line.vertices || [];
+          vertices.forEach((vID) => {
+            const v = layer.vertices[vID];
+            if (!v) return;
+            (v.lines || []).forEach((adjLineID) => {
+              if (adjLineID !== currentLineID && layer.lines[adjLineID]) {
+                // Full rebuild of adjacent line
+                removeLine(planData, layer.id, adjLineID);
+                promises.push(
+                  addLine(sceneData, planData, layer, adjLineID, context)
+                );
+              }
+            });
+          });
+        }
+      } else {
+        removeLine(planData, layer.id, modifiedPath[4]);
+        promises.push(
+          addLine(sceneData, planData, layer, modifiedPath[4], context)
+        );
+      }
+      break;
+    case 'areas':
+      const area = layer.areas[modifiedPath[4]];
+
+      if (CatalogFn.getElement(context.catalog, area.type).updateRender3D) {
+        promises.push(
+          updateArea(
+            sceneData,
+            oldSceneData,
+            planData,
+            layer,
+            modifiedPath[4],
+            modifiedPath.slice(5) as string[],
+            context,
+            () => removeArea(planData, layer.id, modifiedPath[4]),
+            () => addArea(sceneData, planData, layer, modifiedPath[4], context)
+          )
+        );
+      } else {
+        if (planData.sceneGraph.layers[layer.id].areas[modifiedPath[4]]) {
+          removeArea(planData, layer.id, modifiedPath[4]);
+        }
+        promises.push(
+          addArea(sceneData, planData, layer, modifiedPath[4], context)
+        );
+      }
+      break;
+    case 'items':
+      const item = layer.items[modifiedPath[4]];
+
+      if (CatalogFn.getElement(context.catalog, item.type).updateRender3D) {
+        promises.push(
+          updateItem(
+            sceneData,
+            oldSceneData,
+            planData,
+            layer,
+            modifiedPath[4],
+            modifiedPath.slice(5) as string[],
+            context,
+            () => removeItem(planData, layer.id, modifiedPath[4]),
+            () => addItem(sceneData, planData, layer, modifiedPath[4], context)
+          )
+        );
+      } else {
+        removeItem(planData, layer.id, modifiedPath[4]);
+        promises.push(
+          addItem(sceneData, planData, layer, modifiedPath[4], context)
+        );
+      }
+      break;
+
+    case 'visible':
+      if (!layer.visible) {
+        const layerGraph = planData.sceneGraph.layers[layer.id];
+
+        for (const lineID in layerGraph.lines)
+          removeLine(planData, layer.id, lineID);
+        for (const areaID in layerGraph.areas)
+          removeArea(planData, layer.id, areaID);
+        for (const itemID in layerGraph.items)
+          removeItem(planData, layer.id, itemID);
+        for (const holeID in layerGraph.holes)
+          removeHole(planData, layer.id, holeID);
+      } else {
+        promises = promises.concat(
+          createLayerObjects(layer, planData, sceneData, context)
+        );
+      }
+
+      break;
+
+    case 'opacity':
+    case 'altitude':
+      const layerGraph = planData.sceneGraph.layers[layer.id];
+      for (const lineID in layerGraph.lines)
+        removeLine(planData, layer.id, lineID);
+      for (const areaID in layerGraph.areas)
+        removeArea(planData, layer.id, areaID);
+      for (const itemID in layerGraph.items)
+        removeItem(planData, layer.id, itemID);
+      for (const holeID in layerGraph.holes)
+        removeHole(planData, layer.id, holeID);
+
+      promises = promises.concat(
+        createLayerObjects(layer, planData, sceneData, context)
+      );
+  }
+  Promise.all(promises).then((values) => updateBoundingBox(planData));
+}
+
+function removeObject(
+  modifiedPath: ModifiedPath,
+  layer: Layer,
+  planData: PlanData,
+  sceneData: Scene,
+  oldSceneData: Scene,
+  context: ReactPlannerContextProps
+) {
+  const promises = [];
+  switch (modifiedPath[3]) {
+    case 'lines':
+      // Here I remove the line with all its holes
+      const lineID = modifiedPath[4];
+      oldSceneData.layers[layer.id].lines[lineID].holes.forEach((holeID) => {
+        removeHole(planData, layer.id, holeID);
+      });
+      removeLine(planData, layer.id, lineID);
+      if (modifiedPath.length > 5) {
+        // I removed an hole, so I should add the new line
+        promises.push(addLine(sceneData, planData, layer, lineID, context));
+        layer.lines[lineID].holes.forEach((holeID) => {
+          promises.push(addHole(sceneData, planData, layer, holeID, context));
+        });
+      }
+      break;
+    case 'areas':
+      if (modifiedPath.length === 5) {
+        // I am removing an entire area
+        removeArea(planData, layer.id, modifiedPath[4]);
+      }
+      break;
+    case 'items':
+      if (modifiedPath.length === 5) {
+        // I am removing an item
+        removeItem(planData, layer.id, modifiedPath[4]);
+      }
+      break;
+  }
+
+  Promise.all(promises).then((values) => updateBoundingBox(planData));
+}
+
+function removeLayer(layerId: string, planData: PlanData) {
+  const layerGraph = planData.sceneGraph.layers[layerId];
+
+  for (const lineID in layerGraph.lines) removeLine(planData, layerId, lineID);
+  for (const areaID in layerGraph.areas) removeArea(planData, layerId, areaID);
+  for (const itemID in layerGraph.items) removeItem(planData, layerId, itemID);
+  for (const holeID in layerGraph.holes) removeHole(planData, layerId, holeID);
+
+  delete planData.sceneGraph.layers[layerId];
+}
+
+function removeHole(planData: PlanData, layerId: string, holeID: string) {
+  if (planData.sceneGraph.busyResources.layers[layerId].holes[holeID]) {
+    setTimeout(() => removeHole(planData, layerId, holeID), 100);
+    return;
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].holes[holeID] = true;
+
+  let hole3D: Object3D | null =
+    planData.sceneGraph.layers[layerId].holes[holeID];
+
+  if (hole3D) {
+    planData.plan.remove(hole3D);
+    disposeObject(hole3D);
+    delete planData.sceneGraph.layers[layerId].holes[holeID];
+    delete planData.sceneGraph.LODs[holeID];
+    hole3D = null;
+    updateBoundingBox(planData);
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].holes[holeID] = false;
+}
+
+function removeLine(planData: PlanData, layerId: string, lineID: string) {
+  if (planData.sceneGraph.busyResources.layers[layerId].lines[lineID]) {
+    setTimeout(() => removeLine(planData, layerId, lineID), 100);
+    return;
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].lines[lineID] = true;
+
+  let line3D: Object3D | null =
+    planData.sceneGraph.layers[layerId].lines[lineID];
+
+  if (line3D) {
+    planData.plan.remove(line3D);
+    disposeObject(line3D);
+    delete planData.sceneGraph.layers[layerId].lines[lineID];
+    delete planData.sceneGraph.LODs[lineID];
+    line3D = null;
+    updateBoundingBox(planData);
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].lines[lineID] = false;
+}
+
+function removeArea(planData: PlanData, layerId: string, areaID: string) {
+  if (planData.sceneGraph.busyResources.layers[layerId].areas[areaID]) {
+    setTimeout(() => removeArea(planData, layerId, areaID), 100);
+    return;
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].areas[areaID] = true;
+
+  let area3D: Object3D | null =
+    planData.sceneGraph.layers[layerId].areas[areaID];
+
+  if (area3D) {
+    planData.plan.remove(area3D);
+    disposeObject(area3D);
+    delete planData.sceneGraph.layers[layerId].areas[areaID];
+    delete planData.sceneGraph.LODs[areaID];
+    area3D = null;
+    updateBoundingBox(planData);
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].areas[areaID] = false;
+}
+
+function removeItem(planData: PlanData, layerId: string, itemID: string) {
+  if (planData.sceneGraph.busyResources.layers[layerId].items[itemID]) {
+    setTimeout(() => removeItem(planData, layerId, itemID), 100);
+    return;
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].items[itemID] = true;
+
+  let item3D: Object3D | null =
+    planData.sceneGraph.layers[layerId].items[itemID];
+
+  if (item3D) {
+    planData.plan.remove(item3D);
+    disposeObject(item3D);
+    delete planData.sceneGraph.layers[layerId].items[itemID];
+    delete planData.sceneGraph.LODs[itemID];
+    item3D = null;
+    updateBoundingBox(planData);
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].items[itemID] = false;
+
+===== 6) WALL FACTORY / WALL 3D =====
+02_react_planner/react-planner/src/actions/viewer3d-actions.ts
+02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts
+02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx
+02_react_planner/react-planner/src/components/viewer3d/grid-creator.ts
+02_react_planner/react-planner/src/components/viewer3d/grids/grid-horizontal-streak.ts
+02_react_planner/react-planner/src/components/viewer3d/grids/grid-vertical-streak.ts
+02_react_planner/react-planner/src/components/viewer3d/libs/first-person-controls.ts
+02_react_planner/react-planner/src/components/viewer3d/libs/helvetiker_regular.typeface.ts
+02_react_planner/react-planner/src/components/viewer3d/libs/pointer-lock-controls.ts
+02_react_planner/react-planner/src/components/viewer3d/pointer-lock-navigation.ts
+02_react_planner/react-planner/src/components/viewer3d/scene-creator.ts
+02_react_planner/react-planner/src/components/viewer3d/three-memory-cleaner.ts
+02_react_planner/react-planner/src/components/viewer3d/viewer3d-first-person.tsx
+02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx
+02_react_planner/react-planner/src/reducers/viewer3d-reducer.ts

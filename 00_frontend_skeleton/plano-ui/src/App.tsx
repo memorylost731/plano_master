@@ -1,19 +1,21 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import ClientLayout from "./app/ClientLayout";
 import GeoSelect from "./pages/client/GeoSelect";
 
-import Planner2D from "./pages/client/Planner2D";
-import Planner3D from "./pages/client/Planner3D";
+import Planner from "./pages/client/Planner";
 import Estimate from "./pages/client/Estimate";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* FULLSCREEN EDITOR ROUTES (NO LAYOUT) */}
-        <Route path="/planner/2d" element={<Planner2D />} />
-        <Route path="/planner/3d" element={<Planner3D />} />
+        {/* FULLSCREEN EDITOR ROUTE (NO LAYOUT) */}
+        <Route path="/planner" element={<Planner />} />
+
+        {/* Backward compatibility: old URLs redirect to the single planner */}
+        <Route path="/planner/2d" element={<Navigate to="/planner" replace />} />
+        <Route path="/planner/3d" element={<Navigate to="/planner" replace />} />
 
         {/* NORMAL PAGES (WITH LAYOUT) */}
         <Route element={<ClientLayout />}>

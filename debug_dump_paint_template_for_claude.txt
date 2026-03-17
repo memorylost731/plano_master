@@ -1,0 +1,309 @@
+===== FILE 1: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-white/planner-element.tsx =====
+import React from 'react';
+
+import { defineCatalogElement } from '@archef2000/react-planner';
+import { BoxGeometry, BoxHelper, Mesh, MeshBasicMaterial } from 'three';
+
+export default defineCatalogElement({
+  name: 'paint-white',
+  prototype: 'items',
+
+  info: {
+    title: 'White Paint',
+    tag: ['painting'],
+    description: 'Internal white paint',
+    image: ''
+  },
+
+  properties: {
+    color: {
+      label: 'Color',
+      type: 'color',
+      defaultValue: '#ffffff'
+    }
+  },
+
+  render2D: (element) => {
+    const style = {
+      stroke: '#000',
+      strokeWidth: 2,
+      fill: element.properties.color
+    } as const;
+
+    return (
+      <g transform="translate(-50, -50)">
+        <rect x="0" y="0" width="100" height="100" style={style} />
+      </g>
+    );
+  },
+
+  async render3D(element) {
+    const geometry = new BoxGeometry(100, 100, 100);
+    const material = new MeshBasicMaterial({
+      color: element.properties.color
+    });
+
+    const mesh = new Mesh(geometry, material);
+
+    const box = new BoxHelper(mesh, '#000');
+    box.material.linewidth = 1;
+    box.material.depthTest = false;
+    box.renderOrder = 1000;
+    mesh.add(box);
+
+    mesh.position.y = 50;
+
+    return mesh;
+  }
+});
+===== FILE 2: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-grey/planner-element.tsx =====
+import React from 'react';
+
+import { defineCatalogElement } from '@archef2000/react-planner';
+import { BoxGeometry, BoxHelper, Mesh, MeshBasicMaterial } from 'three';
+
+export default defineCatalogElement({
+  name: 'paint-grey',
+  prototype: 'items',
+
+  info: {
+    title: 'Grey Paint',
+    tag: ['painting'],
+    description: 'Internal grey paint',
+    image: ''
+  },
+
+  properties: {
+    color: {
+      label: 'Color',
+      type: 'color',
+      defaultValue: '#cccccc'
+    }
+  },
+
+  render2D: (element) => {
+    const style = {
+      stroke: '#000',
+      strokeWidth: 2,
+      fill: element.properties.color
+    } as const;
+
+    return (
+      <g transform="translate(-50, -50)">
+        <rect x="0" y="0" width="100" height="100" style={style} />
+      </g>
+    );
+  },
+
+  async render3D(element) {
+    const geometry = new BoxGeometry(100, 100, 100);
+    const material = new MeshBasicMaterial({
+      color: element.properties.color
+    });
+
+    const mesh = new Mesh(geometry, material);
+
+    const box = new BoxHelper(mesh, '#000');
+    box.material.linewidth = 1;
+    box.material.depthTest = false;
+    box.renderOrder = 1000;
+    mesh.add(box);
+
+    mesh.position.y = 50;
+
+    return mesh;
+  }
+});
+===== FILE 3: /home/ogi/project_root/plano_master/02_react_planner/react-planner/demo/src/catalog_custom/items/paint-beige/planner-element.tsx =====
+import React from 'react';
+
+import { defineCatalogElement } from '@archef2000/react-planner';
+import { BoxGeometry, BoxHelper, Mesh, MeshBasicMaterial } from 'three';
+
+export default defineCatalogElement({
+  name: 'paint-beige',
+  prototype: 'items',
+
+  info: {
+    title: 'Beige Paint',
+    tag: ['painting'],
+    description: 'Internal beige paint',
+    image: ''
+  },
+
+  properties: {
+    color: {
+      label: 'Color',
+      type: 'color',
+      defaultValue: '#e6d3b3'
+    }
+  },
+
+  render2D: (element) => {
+    const style = {
+      stroke: '#000',
+      strokeWidth: 2,
+      fill: element.properties.color
+    } as const;
+
+    return (
+      <g transform="translate(-50, -50)">
+        <rect x="0" y="0" width="100" height="100" style={style} />
+      </g>
+    );
+  },
+
+  async render3D(element) {
+    const geometry = new BoxGeometry(100, 100, 100);
+    const material = new MeshBasicMaterial({
+      color: element.properties.color
+    });
+
+    const mesh = new Mesh(geometry, material);
+
+    const box = new BoxHelper(mesh, '#000');
+    box.material.linewidth = 1;
+    box.material.depthTest = false;
+    box.renderOrder = 1000;
+    mesh.add(box);
+
+    mesh.position.y = 50;
+
+    return mesh;
+  }
+});
+===== FILE 4: /home/ogi/project_root/plano_master/02_react_planner/react-planner/src/types.ts =====
+  areas: Omit<Area, 'properties'>;
+  items: Omit<Item, 'properties'>;
+};
+
+// Base catalog element type parameterized by its prototype kind and its properties definition object.
+// The render/update handlers receive an element whose "properties" field is strongly typed with
+// the value types derived from the element's own property config (length-measure -> LengthMeasureValue, etc.).
+export type CatalogElementBase<
+  P extends keyof PrototypeToElement,
+  Props extends CatalogElementProperties = CatalogElementProperties
+> = {
+  name: string;
+  prototype: P;
+  info: CatalogElementInfo;
+  properties: Props;
+  render2D: (
+    element: PrototypeToElement[P] & {
+      properties: { [K in keyof Props]: PropertyValue<Props[K]> };
+    },
+    layer: Layer,
+    scene: Scene
+  ) => ReactNode;
+  render3D: (
+    element: PrototypeToElement[P] & {
+      properties: ElementPropertiesValues<Props>;
+    },
+    layer: Layer,
+    scene: Scene
+  ) => Promise<Object3D<Object3DEventMap>>;
+  updateRender3D?: (
+    element: PrototypeToElement[P] & {
+      properties: ElementPropertiesValues<Props>;
+    },
+    layer: Layer,
+    scene: Scene,
+    mesh: Object3D<Object3DEventMap>,
+    oldElement: PrototypeToElement[P] & {
+      properties: ElementPropertiesValues<Props>;
+    },
+    differences: string[],
+    selfDestroy: () => void,
+    selfBuild: () => void
+  ) => Promise<any>;
+};
+
+export type AnyCatalogElement =
+  | CatalogElementBase<'lines', CatalogElementProperties>
+  | CatalogElementBase<'holes', CatalogElementProperties>
+  | CatalogElementBase<'areas', CatalogElementProperties>
+  | CatalogElementBase<'items', CatalogElementProperties>;
+
+export type CatalogElement<
+  P extends keyof PrototypeToElement = keyof PrototypeToElement,
+  Props extends CatalogElementProperties = CatalogElementProperties
+> = CatalogElementBase<P, Props>;
+
+export type CatalogElementInfo = {
+  title: string;
+  description: string;
+  image: string | { uri: string; width?: number; height?: number };
+  tag: string[];
+  visibility?: { catalog?: boolean; layerElementsVisible?: boolean };
+};
+
+export type CatalogElementTextures = {
+  [key: string]: {
+    name: string;
+    uri: string;
+    lengthRepeatScale: number;
+    heightRepeatScale: number;
+    normal?: {
+      uri: string;
+      lengthRepeatScale: number;
+      heightRepeatScale: number;
+      normalScaleX: number;
+      normalScaleY: number;
+    };
+  };
+};
+
+export type ElementType = Line | Hole | Area | Item;
+
+export type ReactPlannerStore = Store<any, UnknownAction>;
+
+export interface ReactPlannerPluginProps {
+  store: ReactPlannerStore;
+  stateExtractor: (state: State) => any;
+}
+
+export type SnapMaskType = Partial<typeof SNAP_MASK>;
+
+export type ElementPrototypes =
+  | 'areas'
+  | 'holes'
+  | 'items'
+  | 'lines'
+  | 'vertices';
+
+export type StructuredComponentType = {
+  index?: number;
+  condition: boolean;
+  dom: React.ReactNode;
+};
+
+export type ComponentType =
+  | React.ComponentType<{ state: StateProps }>
+  | StructuredComponentType;
+
+export interface ReactPlannerStateExtractor {
+  (state: { [key: string]: any }): StateProps;
+}
+
+export interface ReactPlannerPlugin {
+  (store: ReactPlannerStore, stateExtractor: ReactPlannerStateExtractor): void;
+}
+
+export class ViewerEventError extends Event {
+  viewerEvent: any;
+
+  constructor(type: string, viewerEvent: any) {
+    super(type);
+    this.viewerEvent = viewerEvent;
+  }
+}
+
+export type ElementTypes = 'area' | 'hole' | 'item' | 'line';
+
+/**Helper factory for catalog elements with full property value inference.*/
+export function defineCatalogElement<
+  P extends keyof PrototypeToElement,
+  Props extends CatalogElementProperties
+>(el: CatalogElementBase<P, Props>): CatalogElementBase<P, Props> {
+  return el;
+}

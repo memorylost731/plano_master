@@ -1,0 +1,4177 @@
+==================== FILE INVENTORY ====================
+02_react_planner/react-planner/src/actions/items-actions.ts
+02_react_planner/react-planner/src/actions/lines-actions.ts
+02_react_planner/react-planner/src/actions/viewer3d-actions.ts
+02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts
+02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts
+02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx
+02_react_planner/react-planner/src/class/item.ts
+02_react_planner/react-planner/src/class/line.ts
+02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx
+02_react_planner/react-planner/src/components/catalog-view/catalog-page-item.tsx
+02_react_planner/react-planner/src/components/catalog-view/catalog-turn-back-page-item.tsx
+02_react_planner/react-planner/src/components/sidebar/panel-element-editor/attributes-editor/item-attributes-editor.tsx
+02_react_planner/react-planner/src/components/sidebar/panel-element-editor/attributes-editor/line-attributes-editor.tsx
+02_react_planner/react-planner/src/components/style/form-select.tsx
+02_react_planner/react-planner/src/components/viewer2d/item.tsx
+02_react_planner/react-planner/src/components/viewer2d/line.tsx
+02_react_planner/react-planner/src/components/viewer3d/viewer3d-first-person.tsx
+02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx
+02_react_planner/react-planner/src/reducers/items-reducer.ts
+02_react_planner/react-planner/src/reducers/lines-reducer.ts
+02_react_planner/react-planner/src/reducers/viewer3d-reducer.ts
+
+==================== FILE: 02_react_planner/react-planner/src/actions/items-actions.ts ====================
+import {
+  BEGIN_DRAGGING_ITEM,
+  BEGIN_ROTATING_ITEM,
+  END_DRAGGING_ITEM,
+  END_DRAWING_ITEM,
+  END_ROTATING_ITEM,
+  SELECT_ITEM,
+  SELECT_TOOL_DRAWING_ITEM,
+  UPDATE_DRAGGING_ITEM,
+  UPDATE_DRAWING_ITEM,
+  UPDATE_ROTATING_ITEM
+} from '../constants';
+
+export function selectItem(layerID: string, itemID: string) {
+  return {
+    type: SELECT_ITEM,
+    layerID,
+    itemID
+  };
+}
+
+export function selectToolDrawingItem(sceneComponentType: string) {
+  return {
+    type: SELECT_TOOL_DRAWING_ITEM,
+    sceneComponentType
+  };
+}
+
+export function updateDrawingItem(layerID: string, x: number, y: number) {
+  return {
+    type: UPDATE_DRAWING_ITEM,
+    layerID,
+    x,
+    y
+  };
+}
+
+export function endDrawingItem(layerID: string, x: number, y: number) {
+  return {
+    type: END_DRAWING_ITEM,
+    layerID,
+    x,
+    y
+  } as const;
+}
+
+export function beginDraggingItem(
+  layerID: string,
+  itemID: string,
+  x: number,
+  y: number
+) {
+  return {
+    type: BEGIN_DRAGGING_ITEM,
+    layerID,
+    itemID,
+    x,
+    y
+  };
+}
+
+export function updateDraggingItem(x: number, y: number) {
+  return {
+    type: UPDATE_DRAGGING_ITEM,
+    x,
+    y
+  };
+}
+
+export function endDraggingItem(x: number, y: number) {
+  return {
+    type: END_DRAGGING_ITEM,
+    x,
+    y
+  };
+}
+
+export function beginRotatingItem(
+  layerID: string,
+  itemID: string,
+  x: number,
+  y: number
+) {
+  return {
+    type: BEGIN_ROTATING_ITEM,
+    layerID,
+    itemID,
+    x,
+    y
+  };
+}
+
+export function updateRotatingItem(x: number, y: number) {
+  return {
+    type: UPDATE_ROTATING_ITEM,
+    x,
+    y
+  };
+}
+
+export function endRotatingItem(x: number, y: number) {
+  return {
+    type: END_ROTATING_ITEM,
+    x,
+    y
+  };
+}
+
+==================== FILE: 02_react_planner/react-planner/src/actions/lines-actions.ts ====================
+import {
+  BEGIN_DRAGGING_LINE,
+  BEGIN_DRAWING_LINE,
+  END_DRAGGING_LINE,
+  END_DRAWING_LINE,
+  SELECT_LINE,
+  SELECT_TOOL_DRAWING_LINE,
+  UPDATE_DRAGGING_LINE,
+  UPDATE_DRAWING_LINE
+} from '../constants';
+import { SnapMaskType } from '../types';
+
+export function selectLine(layerID: string, lineID: string) {
+  return {
+    type: SELECT_LINE,
+    layerID,
+    lineID
+  };
+}
+
+export function selectToolDrawingLine(sceneComponentType: string) {
+  return {
+    type: SELECT_TOOL_DRAWING_LINE,
+    sceneComponentType
+  };
+}
+
+export function beginDrawingLine(
+  layerID: string,
+  x: number,
+  y: number,
+  snapMask: SnapMaskType
+) {
+  return {
+    type: BEGIN_DRAWING_LINE,
+    layerID,
+    x,
+    y,
+    snapMask
+  };
+}
+
+export function updateDrawingLine(
+  x: number,
+  y: number,
+  snapMask: SnapMaskType
+) {
+  return {
+    type: UPDATE_DRAWING_LINE,
+    x,
+    y,
+    snapMask
+  };
+}
+
+export function endDrawingLine(x: number, y: number, snapMask: SnapMaskType) {
+  return {
+    type: END_DRAWING_LINE,
+    x,
+    y,
+    snapMask
+  };
+}
+
+export function beginDraggingLine(
+  layerID: string,
+  lineID: string,
+  x: number,
+  y: number,
+  snapMask: SnapMaskType
+) {
+  return {
+    type: BEGIN_DRAGGING_LINE,
+    layerID,
+    lineID,
+    x,
+    y,
+    snapMask
+  };
+}
+
+export function updateDraggingLine(
+  x: number,
+  y: number,
+  snapMask: SnapMaskType
+) {
+  return {
+    type: UPDATE_DRAGGING_LINE,
+    x,
+    y,
+    snapMask
+  };
+}
+
+export function endDraggingLine(x: number, y: number, snapMask: SnapMaskType) {
+  return {
+    type: END_DRAGGING_LINE,
+    x,
+    y,
+    snapMask
+  };
+}
+
+==================== FILE: 02_react_planner/react-planner/src/actions/viewer3d-actions.ts ====================
+import { SELECT_TOOL_3D_FIRST_PERSON, SELECT_TOOL_3D_VIEW } from '../constants';
+
+export function selectTool3DView() {
+  return {
+    type: SELECT_TOOL_3D_VIEW
+  };
+}
+
+export function selectTool3DFirstPerson() {
+  return {
+    type: SELECT_TOOL_3D_FIRST_PERSON
+  };
+}
+
+==================== FILE: 02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts ====================
+import {
+  Box3,
+  DoubleSide,
+  Mesh,
+  MeshBasicMaterial,
+  MeshPhongMaterial,
+  Object3D,
+  Object3DEventMap,
+  RepeatWrapping,
+  Shape,
+  ShapeGeometry,
+  TextureLoader,
+  Vector2
+} from 'three';
+
+import { Area, Layer, Scene, Vertex } from '../../models';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElementTextures } from '../../types';
+
+/**
+ * Apply a texture to a wall face
+ * @param material: The material of the face
+ * @param texture: The texture to load
+ * @param length: The lenght of the face
+ * @param height: The height of the face
+ */
+const applyTexture = (
+  material: MeshPhongMaterial,
+  texture: CatalogElementTextures[string],
+  length: number,
+  height: number
+) => {
+  const loader = new TextureLoader();
+
+  if (texture) {
+    material.map = loader.load(texture.uri);
+    material.needsUpdate = true;
+    material.map.wrapS = RepeatWrapping;
+    material.map.wrapT = RepeatWrapping;
+    material.map.repeat.set(
+      length * texture.lengthRepeatScale,
+      height * texture.heightRepeatScale
+    );
+
+    if (texture.normal) {
+      material.normalMap = loader.load(texture.normal.uri);
+      material.normalScale = new Vector2(
+        texture.normal.normalScaleX,
+        texture.normal.normalScaleY
+      );
+      material.normalMap.wrapS = RepeatWrapping;
+      material.normalMap.wrapT = RepeatWrapping;
+      material.normalMap.repeat.set(
+        length * texture.normal.lengthRepeatScale,
+        height * texture.normal.heightRepeatScale
+      );
+    }
+  }
+};
+
+/**
+ * Function that assign UV coordinates to a geometry
+ * @param geometry
+ */
+/*
+const assignUVs = (geometry: BufferGeometry) => {
+  geometry.computeBoundingBox();
+
+  const { min, max } = geometry.boundingBox as Box3;
+
+  const offset = new Vector2(0 - min.x, 0 - min.y);
+  const range = new Vector2(max.x - min.x, max.y - min.y);
+
+  geometry.faceVertexUvs[0] = geometry.faces.map((face) => {
+
+    const v1 = geometry.vertices[face.a];
+    const v2 = geometry.vertices[face.b];
+    const v3 = geometry.vertices[face.c];
+
+    return [
+      new Vector2((v1.x + offset.x) / range.x, (v1.y + offset.y) / range.y),
+      new Vector2((v2.x + offset.x) / range.x, (v2.y + offset.y) / range.y),
+      new Vector2((v3.x + offset.x) / range.x, (v3.y + offset.y) / range.y)
+    ];
+
+  });
+
+  geometry.uvsNeedUpdate = true;
+};
+*/
+
+export function createArea(
+  element: Area,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures
+) {
+  const vertices: Vertex[] = [];
+
+  element.vertices.forEach((vertexID) => {
+    vertices.push(layer.vertices[vertexID]);
+  });
+
+  const textureName = element.properties.texture;
+  let color = element.properties.patternColor;
+
+  if (element.selected) {
+    color = SharedStyle.AREA_MESH_COLOR.selected;
+  } else if (textureName && textureName !== 'none') {
+    color = SharedStyle.AREA_MESH_COLOR.unselected;
+  }
+
+  const shape = new Shape();
+  shape.moveTo(vertices[0].x, vertices[0].y);
+  for (let i = 1; i < vertices.length; i++) {
+    shape.lineTo(vertices[i].x, vertices[i].y);
+  }
+
+  const areaMaterial = new MeshPhongMaterial({ side: DoubleSide, color });
+
+  /* Create holes for the area */
+  element.holes.forEach((holeID) => {
+    let holeCoords: [number, number][] = [];
+    layer.areas[holeID].vertices.forEach((vertexID) => {
+      const { x, y } = layer.vertices[vertexID];
+      holeCoords.push([x, y]);
+    });
+    holeCoords = holeCoords.reverse();
+    const holeShape = createShape(holeCoords);
+    shape.holes.push(holeShape);
+  });
+
+  const shapeGeometry = new ShapeGeometry(shape);
+  //assignUVs(shapeGeometry);
+
+  const boundingBox = new Box3().setFromObject(
+    new Mesh(shapeGeometry, new MeshBasicMaterial())
+  );
+
+  const width = boundingBox.max.x - boundingBox.min.x;
+  const height = boundingBox.max.y - boundingBox.min.y;
+
+  const texture = textures[textureName];
+
+  applyTexture(areaMaterial, texture, width, height);
+
+  const area = new Mesh(shapeGeometry, areaMaterial);
+
+  area.rotation.x -= Math.PI / 2;
+  area.name = 'floor';
+
+  return area;
+}
+
+export function updatedArea(
+  element: Area,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures,
+  mesh: Object3D<Object3DEventMap>,
+  oldElement: Area,
+  differences: string[],
+  selfDestroy: () => void,
+  selfBuild: () => void
+) {
+  const noPerf = () => {
+    selfDestroy();
+    return selfBuild();
+  };
+  const floor = mesh.getObjectByName('floor');
+
+  if (differences[0] == 'selected') {
+    const color = element.selected
+      ? SharedStyle.AREA_MESH_COLOR.selected
+      : element.properties.patternColor ||
+      SharedStyle.AREA_MESH_COLOR.unselected;
+    ((floor as Mesh).material as MeshPhongMaterial).color.set(color);
+  } else if (differences[0] == 'properties') {
+    if (differences[1] === 'texture') {
+      return noPerf();
+    }
+  } else return noPerf();
+
+  return mesh;
+}
+
+/**
+ * This function will create a shape given a list of coordinates
+ * @param shapeCoords
+ * @returns {Shape}
+ */
+const createShape = (shapeCoords: [number, number][]): Shape => {
+  const shape = new Shape();
+  shape.moveTo(shapeCoords[0][0], shapeCoords[0][1]);
+  for (let i = 1; i < shapeCoords.length; i++) {
+    shape.lineTo(shapeCoords[i][0], shapeCoords[i][1]);
+  }
+  return shape;
+};
+
+==================== FILE: 02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts ====================
+import {
+  BackSide,
+  BoxGeometry,
+  BufferGeometry,
+  DoubleSide,
+  Float32BufferAttribute,
+  FrontSide,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  Object3D,
+  Object3DEventMap,
+  RepeatWrapping,
+  SRGBColorSpace,
+  Texture,
+  TextureLoader,
+  Vector2,
+  Vector3
+} from 'three';
+import { CSG } from 'three-csg-ts';
+
+import { Layer, Line, Scene } from '../../models';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElementTextures } from '../../types';
+import { verticesDistance } from '../../utils/geometry';
+
+import { calcLineEnd } from './utils/calcPolygon';
+
+const halfPI = Math.PI / 2;
+
+const baseTextureCache: Record<string, Texture> = {};
+const loaderSingleton = new TextureLoader();
+
+function getBaseTexture(uri: string): Texture {
+  if (!uri) return null as any;
+  if (baseTextureCache[uri]) return baseTextureCache[uri];
+  const tex = loaderSingleton.load(uri);
+  tex.colorSpace = SRGBColorSpace;
+  baseTextureCache[uri] = tex;
+  return tex;
+}
+
+const applyTexture = (
+  texture: CatalogElementTextures[string],
+  length: number,
+  height: number
+) => {
+  const material = new MeshStandardMaterial();
+
+  const setupMap = (
+    base: Texture,
+    repeatL: number,
+    repeatH: number,
+    assign: (t: Texture) => void,
+    extra?: (t: Texture) => void
+  ) => {
+    if (!base) return;
+
+    const cloneAndAssign = () => {
+      if (!base.image || !base.image.width) {
+        requestAnimationFrame(cloneAndAssign);
+        return;
+      }
+      const map = base.clone();
+      map.image = base.image;
+      map.wrapS = RepeatWrapping;
+      map.wrapT = RepeatWrapping;
+      map.repeat.set(repeatL, repeatH);
+      map.needsUpdate = true;
+      assign(map);
+      if (extra) extra(map);
+      material.needsUpdate = true;
+    };
+
+    cloneAndAssign();
+  };
+
+  if (texture) {
+    const base = getBaseTexture(texture.uri);
+    setupMap(
+      base,
+      length * texture.lengthRepeatScale,
+      height * texture.heightRepeatScale,
+      (m) => {
+        material.map = m;
+      }
+    );
+
+    const normal = texture.normal;
+    if (normal) {
+      const baseNormal = getBaseTexture(normal.uri);
+      setupMap(
+        baseNormal,
+        length * normal.lengthRepeatScale,
+        height * normal.heightRepeatScale,
+        (m) => {
+          material.normalMap = m;
+        },
+        () => {
+          material.normalScale = new Vector2(
+            normal.normalScaleX,
+            normal.normalScaleY
+          );
+        }
+      );
+    }
+  }
+
+  return material;
+};
+
+export function buildWall(
+  element: Line,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures
+) {
+  // Get the two vertices of the wall
+  let vertex0 = layer.vertices[element.vertices[0]];
+  let vertex1 = layer.vertices[element.vertices[1]];
+  let inverted = false;
+
+  // The first vertex is the smaller one
+  if (vertex0.x > vertex1.x) {
+    const app = vertex0;
+    vertex0 = vertex1;
+    vertex1 = app;
+    inverted = true;
+  }
+  // Get height and thickness of the wall converting them into the current scene units
+  const height = element.properties.height.length;
+  const thickness = element.properties.thickness.length;
+  const opacity = element.properties.opacity;
+  const faceThickness = 0.2; // thickness of decorative textured panel
+  const faceDistance = 0.5; // no artificial gap; panels will be shifted just outside the wall body
+
+  const distance = verticesDistance(vertex0, vertex1);
+
+  const points1 = calcLineEnd(
+    layer,
+    element.id,
+    element.vertices[0],
+    thickness
+  );
+  const rawPoints2 = calcLineEnd(
+    layer,
+    element.id,
+    element.vertices[1],
+    thickness
+  );
+  const points2 = rawPoints2.map((p) => ({ x: distance - p.x, y: p.y }));
+
+  // Robustly pair front/back ends to avoid twists: match end corner closest (in plan y) to the start corner
+  const endA = points2[0];
+  const endB = points2[points2.length - 1];
+  const frontEnd =
+    Math.abs(endA.y - points1[0].y) <= Math.abs(endB.y - points1[0].y)
+      ? endA
+      : endB;
+  const backEnd = frontEnd === endA ? endB : endA;
+
+  const frontPoints = [points1[0], frontEnd].map((p) => {
+    return { y: p.y * -1, x: p.x };
+  });
+  const backPoints = [points1[points1.length - 1], backEnd].map((p) => {
+    return { y: p.y * -1, x: p.x };
+  });
+
+  const halfDistance = distance / 2;
+
+  // Build a custom prism geometry using the four plan-view corners (front/back at start/end)
+  const fStart = frontPoints[0];
+  const fEnd = frontPoints[1];
+  const bStart = backPoints[0];
+  const bEnd = backPoints[1];
+
+  const bottomY = -height / 2;
+  const topY = height / 2;
+
+  const xLocal = (x: number) => x - halfDistance; // center geometry on X=0 like BoxGeometry
+  const uFromX = (x: number) => x / distance; // normalize along length for UVs
+
+  // 8 corner points (bottom and top)
+  const v0 = { x: xLocal(fEnd.x), y: bottomY, z: fEnd.y }; // front start bottom
+  const v1 = { x: xLocal(fStart.x), y: bottomY, z: fStart.y }; // front end bottom
+  const v2 = { x: xLocal(bStart.x), y: bottomY, z: bStart.y }; // back end bottom
+  const v3 = { x: xLocal(bEnd.x), y: bottomY, z: bEnd.y }; // back start bottom
+
+  const v4 = { x: v0.x, y: topY, z: v0.z }; // front start top
+  const v5 = { x: v1.x, y: topY, z: v1.z }; // front end top
+  const v6 = { x: v2.x, y: topY, z: v2.z }; // back end top
+  const v7 = { x: v3.x, y: topY, z: v3.z }; // back start top
+
+  const positions: number[] = [];
+  const uvs: number[] = [];
+
+  const push = (vx: { x: number; y: number; z: number }, ux = 0, vy = 0) => {
+    positions.push(vx.x, vx.y, vx.z);
+    uvs.push(ux, vy);
+  };
+
+  const tri = (
+    a: { x: number; y: number; z: number },
+    b: { x: number; y: number; z: number },
+    c: { x: number; y: number; z: number },
+    au = 0,
+    av = 0,
+    bu = 0,
+    bv = 0,
+    cu = 0,
+    cv = 0
+  ) => {
+    push(a, au, av);
+    push(b, bu, bv);
+    push(c, cu, cv);
+  };
+
+  // Front long face (map UVs: u along length [0..1], v along height [0..1])
+  const uF0 = uFromX(fStart.x),
+    uF1 = uFromX(fEnd.x);
+  tri(v0, v1, v5, uF0, 0, uF1, 0, uF1, 1);
+  tri(v0, v5, v4, uF0, 0, uF1, 1, uF0, 1);
+
+  // Back long face (UVs)
+  const uB0 = uFromX(bStart.x),
+    uB1 = uFromX(bEnd.x);
+  tri(v2, v3, v7, uB1, 0, uB0, 0, uB0, 1);
+  tri(v2, v7, v6, uB1, 0, uB0, 1, uB1, 1);
+
+  // Start end face (no UVs needed)
+  tri(v3, v0, v4);
+  tri(v3, v4, v7);
+
+  // End end face (no UVs needed)
+  tri(v1, v2, v6);
+  tri(v1, v6, v5);
+
+  // Bottom face (close the prism)
+  tri(v0, v2, v1);
+  tri(v0, v3, v2);
+
+  // Top face
+  tri(v4, v5, v6);
+  tri(v4, v6, v7);
+
+  const soulGeometry = new BufferGeometry();
+  soulGeometry.setAttribute(
+    'position',
+    new Float32BufferAttribute(positions, 3)
+  );
+  soulGeometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  soulGeometry.computeVertexNormals();
+
+  // Triangles order (each 2 tris): front(0-1), back(2-3), start(4-5), end(6-7), bottom(8-9), top(10-11)
+  // Each triangle adds 3 vertices
+  const frontVertCount = 2 * 3; // 6
+  const backVertCount = 2 * 3; // 6
+  const remainingVertCount =
+    positions.length / 3 - frontVertCount - backVertCount;
+
+  soulGeometry.clearGroups();
+  soulGeometry.addGroup(0, frontVertCount, 0); // front hidden
+  soulGeometry.addGroup(frontVertCount, backVertCount, 1); // back hidden
+  soulGeometry.addGroup(frontVertCount + backVertCount, remainingVertCount, 2); // visible sides/top/bottom
+
+  // Hidden faces fully transparent
+  const frontHiddenMat = new MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    side: BackSide
+  });
+  const backHiddenMat = new MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    side: FrontSide
+  });
+  // Visible faces adopt the opacity property
+  const sideVisibleMat = new MeshBasicMaterial({
+    color: element.selected ? SharedStyle.MESH_SELECTED : 0xd3d3d3,
+    side: DoubleSide,
+    opacity,
+    transparent: true
+  });
+
+  let soul: Mesh = new Mesh(soulGeometry, [
+    frontHiddenMat,
+    backHiddenMat,
+    sideVisibleMat
+  ]);
+
+  const alpha = Math.asin((vertex1.y - vertex0.y) / distance);
+
+  const sinAlpha = Math.sin(alpha);
+  const cosAlpha = Math.cos(alpha);
+
+  element.holes.forEach((holeID) => {
+    const holeData = layer.holes[holeID];
+
+    const holeWidth = holeData.properties.width.length;
+    const holeHeight = holeData.properties.height.length;
+    const holeAltitude = holeData.properties.altitude.length;
+    const offset = inverted ? 1 - holeData.offset : holeData.offset;
+    const holeDistance = offset * distance;
+
+    const holeGeometry = new BoxGeometry(holeWidth, holeHeight, thickness);
+    const holeMesh = new Mesh(holeGeometry);
+
+    // Work in wall local space
+    holeMesh.position.set(
+      holeDistance - distance / 2,
+      -(height / 2) + holeAltitude + holeHeight / 2,
+      0
+    );
+
+    holeMesh.updateMatrix();
+
+    soul = CSG.subtract(soul, holeMesh);
+  });
+
+  soul.position.y += height / 2;
+  soul.position.x += halfDistance * cosAlpha;
+  soul.position.z -= halfDistance * sinAlpha;
+
+  soul.rotation.y = alpha;
+  soul.name = 'soul';
+
+  const frontMaterial = applyTexture(
+    textures[element.properties.textureB],
+    distance,
+    height
+  );
+  const backMaterial = applyTexture(
+    textures[element.properties.textureA],
+    distance,
+    height
+  );
+
+  [frontMaterial, backMaterial].forEach((mat) => {
+    mat.opacity = opacity;
+    if (opacity < 1) mat.transparent = true;
+  });
+
+  // Build proper thin face panels from actual face quads, offset outward along face normal
+  // Helper to build a thin extruded quad geometry with UVs along length (u) and height (v)
+  const buildExtrudedQuad = (
+    a: { x: number; y: number; z: number },
+    b: { x: number; y: number; z: number },
+    c: { x: number; y: number; z: number },
+    d: { x: number; y: number; z: number },
+    thicknessLocal: number,
+    uA: number,
+    uB: number
+  ) => {
+    // Convert to arrays for convenience
+    const ax = a.x,
+      ay = a.y,
+      az = a.z;
+    const bx = b.x,
+      by = b.y,
+      bz = b.z;
+    const cx = c.x,
+      cy = c.y,
+      cz = c.z;
+    const dx = d.x,
+      dy = d.y,
+      dz = d.z;
+
+    // Compute face normal (a->b) x (a->d)
+    const abx = bx - ax,
+      aby = by - ay,
+      abz = bz - az;
+    const adx = dx - ax,
+      ady = dy - ay,
+      adz = dz - az;
+    // cross(ab, ad)
+    let nx = aby * adz - abz * ady;
+    let ny = abz * adx - abx * adz;
+    let nz = abx * ady - aby * adx;
+    const nLen = Math.hypot(nx, ny, nz) || 1;
+    nx /= nLen;
+    ny /= nLen;
+    nz /= nLen;
+
+    const halfT = thicknessLocal / 2;
+
+    // Offset the quad along +/- normal to create a thin volume
+    const aF = [ax + nx * halfT, ay + ny * halfT, az + nz * halfT]; // +normal side
+    const bF = [bx + nx * halfT, by + ny * halfT, bz + nz * halfT];
+    const cF = [cx + nx * halfT, cy + ny * halfT, cz + nz * halfT];
+    const dF = [dx + nx * halfT, dy + ny * halfT, dz + nz * halfT];
+
+    const aB = [ax - nx * halfT, ay - ny * halfT, az - nz * halfT]; // -normal side
+    const bB = [bx - nx * halfT, by - ny * halfT, bz - nz * halfT];
+    const cB = [cx - nx * halfT, cy - ny * halfT, cz - nz * halfT];
+    const dB = [dx - nx * halfT, dy - ny * halfT, dz - nz * halfT];
+
+    const pos: number[] = [];
+    const uv: number[] = [];
+
+    const pushV = (v: number[], u = 0, vT = 0) => {
+      pos.push(v[0], v[1], v[2]);
+      uv.push(u, vT);
+    };
+    const triV = (
+      A: number[],
+      B: number[],
+      C: number[],
+      Au = 0,
+      Av = 0,
+      Bu = 0,
+      Bv = 0,
+      Cu = 0,
+      Cv = 0
+    ) => {
+      pushV(A, Au, Av);
+      pushV(B, Bu, Bv);
+      pushV(C, Cu, Cv);
+    };
+
+    // Front face (+normal side) with UVs
+    triV(aF, bF, cF, uA, 0, uB, 0, uB, 1);
+    triV(aF, cF, dF, uA, 0, uB, 1, uA, 1);
+
+    // Back face (-normal side) UVs can be mirrored or default
+    triV(bB, aB, dB);
+    triV(bB, dB, cB);
+
+    // Sides (no UVs needed)
+    // Edge AB
+    triV(aB, aF, bF);
+    triV(aB, bF, bB);
+    // Edge BC
+    triV(bB, bF, cF);
+    triV(bB, cF, cB);
+    // Edge CD
+    triV(cB, cF, dF);
+    triV(cB, dF, dB);
+    // Edge DA
+    triV(dB, dF, aF);
+    triV(dB, aF, aB);
+
+    const g = new BufferGeometry();
+    g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new Float32BufferAttribute(uv, 2));
+    g.computeVertexNormals();
+    return g;
+  };
+
+  // Build face quads from existing corners
+  const uFrontA = uFromX(fStart.x),
+    uFrontB = uFromX(fEnd.x);
+  const frontGeom = buildExtrudedQuad(
+    v0,
+    v1,
+    v5,
+    v4,
+    faceThickness,
+    uFrontA,
+    uFrontB
+  );
+
+  const uBackA = uFromX(bStart.x),
+    uBackB = uFromX(bEnd.x);
+  const backGeom = buildExtrudedQuad(
+    v2,
+    v3,
+    v7,
+    v6,
+    faceThickness,
+    uBackB,
+    uBackA
+  ); // note reversed to keep u increasing along length
+
+  let frontFace: Mesh = new Mesh(frontGeom, frontMaterial);
+  let backFace: Mesh = new Mesh(backGeom, backMaterial);
+
+  // Compute outward normals based on center-to-center vector so panels always sit fully outside
+  const frontCenter = new Vector3(
+    (v0.x + v1.x + v5.x + v4.x) / 4,
+    (v0.y + v1.y + v5.y + v4.y) / 4,
+    (v0.z + v1.z + v5.z + v4.z) / 4
+  );
+  const backCenter = new Vector3(
+    (v2.x + v3.x + v7.x + v6.x) / 4,
+    (v2.y + v3.y + v7.y + v6.y) / 4,
+    (v2.z + v3.z + v7.z + v6.z) / 4
+  );
+  const centerVector = new Vector3().subVectors(backCenter, frontCenter); // from front to back
+  const thicknessDir = centerVector.clone().normalize();
+  // Invert previous direction: move front along +thicknessDir and back along -thicknessDir
+  const frontOutward = thicknessDir.clone();
+  const backOutward = thicknessDir.clone().multiplyScalar(1);
+  const outwardShift = faceThickness / 2 + faceDistance; // ensure panel sits fully outside + epsilon
+  const inwardShift = faceThickness / 2 - faceDistance; // ensure panel sits fully outside + epsilon
+
+  // Subtract holes from the face panels as well to avoid panels crossing openings
+  element.holes.forEach((holeID) => {
+    const holeData = layer.holes[holeID];
+
+    const holeWidth = holeData.properties.width.length;
+    const holeHeight = holeData.properties.height.length;
+    const holeAltitude = holeData.properties.altitude.length;
+    const offset = inverted ? 1 - holeData.offset : holeData.offset;
+    const holeDistance = offset * distance;
+
+    const holeGeometry = new BoxGeometry(
+      holeWidth,
+      holeHeight,
+      thickness + faceThickness * 2 + faceDistance * 2
+    );
+    const holeMesh = new Mesh(holeGeometry);
+
+    holeMesh.position.set(
+      holeDistance - distance / 2,
+      -(height / 2) + holeAltitude + holeHeight / 2,
+      0
+    );
+
+    holeMesh.updateMatrix();
+
+    // Front face
+    frontFace = CSG.subtract(frontFace, holeMesh);
+
+    // Back face
+    backFace = CSG.subtract(backFace, holeMesh);
+  });
+
+  // Position/rotate like soul
+  [frontFace, backFace].forEach((face) => {
+    face.position.y += height / 2;
+    face.position.x += halfDistance * cosAlpha;
+    face.position.z -= halfDistance * sinAlpha;
+    face.rotation.y = alpha;
+  });
+
+  frontFace.translateOnAxis(frontOutward, inwardShift);
+  backFace.translateOnAxis(backOutward, outwardShift);
+
+  frontFace.name = 'frontFace';
+  backFace.name = 'backFace';
+
+  const merged = new Group();
+  merged.add(soul, frontFace, backFace);
+
+  return merged;
+}
+
+export function updatedWall(
+  element: Line,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures,
+  mesh: Object3D<Object3DEventMap>,
+  oldElement: Line,
+  differences: string[],
+  selfDestroy: () => void,
+  selfBuild: () => void
+) {
+  const noPerf = () => {
+    selfDestroy();
+    return selfBuild();
+  };
+
+  const soul = mesh.getObjectByName('soul') as Mesh;
+  const frontFace = mesh.getObjectByName('frontFace') as Mesh;
+  const backFace = mesh.getObjectByName('backFace') as Mesh;
+
+  if (differences[0] == 'selected') {
+    const soulMesh = soul as Mesh;
+    if (Array.isArray(soulMesh.material)) {
+      const sideMat = soulMesh.material[2] as MeshBasicMaterial;
+      sideMat.color.set(
+        element.selected ? SharedStyle.MESH_SELECTED : 0xd3d3d3
+      );
+      sideMat.needsUpdate = true;
+    }
+  } else if (differences[0] == 'properties') {
+    if (differences[1] == 'thickness') {
+      const newThickness = element.properties.thickness.length;
+      const oldThickness = oldElement.properties.thickness.length;
+      const halfNewThickness = newThickness / 2;
+      const texturedFaceDistance = halfNewThickness + 1;
+      const originalThickness = oldThickness / soul.scale.z;
+      const alpha = soul.rotation.y;
+
+      const xTemp = texturedFaceDistance * Math.cos(alpha - halfPI);
+      const zTemp = texturedFaceDistance * Math.sin(alpha - halfPI);
+
+      soul.scale.set(1, 1, newThickness / originalThickness);
+
+      frontFace.position.x = soul.position.x + xTemp;
+      frontFace.position.z = soul.position.z + zTemp;
+
+      backFace.position.x = soul.position.x - xTemp;
+      backFace.position.z = soul.position.z - zTemp;
+      return noPerf();
+    } else return noPerf();
+  } else return noPerf();
+
+  return mesh;
+}
+
+==================== FILE: 02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx ====================
+import React from 'react';
+
+import * as Three from 'three';
+
+import { Layer, Line, Scene } from '../../models';
+import * as SharedStyle from '../../shared-style';
+import Translator from '../../translator/translator';
+import {
+  CatalogElement,
+  CatalogElementInfo,
+  CatalogElementTextures,
+  defineCatalogElement
+} from '../../types';
+import * as Geometry from '../../utils/geometry';
+
+import { calcLineEnd } from './utils/calcPolygon';
+import { buildWall, updatedWall } from './wall-factory-3d';
+
+const epsilon = 20;
+
+const STYLE_TEXT = { textAnchor: 'middle' } as const;
+const STYLE_LINE = { stroke: SharedStyle.LINE_MESH_COLOR.selected };
+const STYLE_RECT = {
+  strokeWidth: 1,
+  stroke: SharedStyle.LINE_MESH_COLOR.unselected,
+  fill: 'url(#diagonalFill)'
+};
+const STYLE_RECT_SELECTED = {
+  ...STYLE_RECT,
+  stroke: SharedStyle.LINE_MESH_COLOR.selected
+};
+
+const translator = new Translator();
+
+function orderPoints(points: { x: number; y: number }[]) {
+  // Compute centroid
+  const centroid = points.reduce(
+    (acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }),
+    { x: 0, y: 0 }
+  );
+  centroid.x /= points.length;
+  centroid.y /= points.length;
+
+  // Sort by angle from centroid
+  return points.slice().sort((a, b) => {
+    const angleA = Math.atan2(a.y - centroid.y, a.x - centroid.x);
+    const angleB = Math.atan2(b.y - centroid.y, b.x - centroid.x);
+    return angleA - angleB;
+  });
+}
+
+export default function WallFactory(
+  name: string,
+  info: CatalogElementInfo,
+  textures: CatalogElementTextures
+) {
+  const textureValues: Record<string, string> = { none: 'None' };
+
+  for (const textureName in textures) {
+    // textures is always an object
+    textureValues[textureName] = textures[textureName].name;
+  }
+
+  const wallElement = defineCatalogElement({
+    name,
+    prototype: 'lines',
+    info,
+    properties: {
+      height: {
+        label: translator.t('height'),
+        type: 'length-measure',
+        defaultValue: {
+          length: 300
+        }
+      },
+      thickness: {
+        label: translator.t('thickness'),
+        type: 'length-measure',
+        defaultValue: {
+          length: 20
+        }
+      },
+      opacity: {
+        label: translator.t('opacity'),
+        type: 'number',
+        defaultValue: 1,
+        min: 0,
+        max: 1,
+        step: 0.05
+      },
+      textureA: {
+        label: translator.t('texture') + ' A',
+        type: 'enum',
+        defaultValue: textureValues.bricks ? 'bricks' : 'none',
+        values: textureValues
+      },
+      textureB: {
+        label: translator.t('texture') + ' B',
+        type: 'enum',
+        defaultValue: textureValues.bricks ? 'bricks' : 'none',
+        values: textureValues
+      }
+    },
+
+    render2D: function (element: Line, layer: Layer, scene: Scene) {
+      const { x: x1, y: y1 } = layer.vertices[element.vertices[0]];
+      const { x: x2, y: y2 } = layer.vertices[element.vertices[1]];
+
+      const length = Geometry.pointsDistance(x1, y1, x2, y2);
+      const length_5 = length / 5;
+
+      const thickness = element.properties.thickness.length;
+      const half_thickness = thickness / 2;
+      const half_thickness_eps = half_thickness + epsilon;
+      const char_height = 11;
+      const extra_epsilon = 5;
+      const textDistance = half_thickness + epsilon + extra_epsilon;
+
+      const points1 = calcLineEnd(
+        layer,
+        element.id,
+        element.vertices[0],
+        thickness
+      );
+      const points2 = calcLineEnd(
+        layer,
+        element.id,
+        element.vertices[1],
+        thickness
+      );
+      const wp1 = layer.vertices[element.vertices[0]];
+      const wp2 = layer.vertices[element.vertices[1]];
+      const angleWall = Geometry.angleBetweenTwoVertices(wp1, wp2);
+      let points = [];
+
+      const degreeWall = (angleWall * 180) / Math.PI;
+      const lineInverted = degreeWall > 90 || degreeWall < -90;
+      if (lineInverted) {
+        // currently dragged
+        points.push(...points1.map((p) => ({ x: length - p.x, y: p.y })));
+        points.push(...points2);
+      } else {
+        points.push(...points1);
+        points.push(...points2.map((p) => ({ x: length - p.x, y: p.y })));
+      }
+
+      points = orderPoints(points);
+
+      //lines1 = lines1.filter((line) => (line !== undefined && line !== element.id));
+      //lines2 = lines2.filter((line) => (line !== undefined && line !== element.id));
+
+      return element.selected ? (
+        <g>
+          {/*<rect x="0" y={-half_thickness} width={length} height={thickness} style={STYLE_RECT_SELECTED} />*/}
+          {
+            <polygon
+              points={points.map((p) => `${p.x},${p.y}`).join(' ')}
+              style={STYLE_RECT_SELECTED}
+            />
+          }
+          <line
+            x1={length_5}
+            y1={-half_thickness_eps}
+            x2={length_5}
+            y2={half_thickness_eps}
+            style={STYLE_LINE}
+          />
+          <text x={length_5} y={textDistance + char_height} style={STYLE_TEXT}>
+            A
+          </text>
+          <text x={length_5} y={-textDistance} style={STYLE_TEXT}>
+            B
+          </text>
+        </g>
+      ) : (
+        <>
+          {/*<rect x="0" y={-half_thickness} width={length} height={thickness} style={STYLE_RECT} />*/}
+          {
+            <polygon
+              points={points.map((p) => `${p.x},${p.y}`).join(' ')}
+              style={STYLE_RECT}
+            />
+          }
+          {/* ////<text x={length_5} y={-thickness} style={STYLE_TEXT}>{element.id}</text>*/}
+        </>
+      );
+    },
+
+    async render3D(element: Line, layer: Layer, scene: Scene) {
+      return buildWall(element, layer, scene, textures);
+    },
+
+    async updateRender3D(
+      element: Line,
+      layer: Layer,
+      scene: Scene,
+      mesh: Three.Object3D<Three.Object3DEventMap>,
+      oldElement: Line,
+      differences,
+      selfDestroy,
+      selfBuild
+    ) {
+      return updatedWall(
+        element,
+        layer,
+        scene,
+        textures,
+        mesh,
+        oldElement,
+        differences,
+        selfDestroy,
+        selfBuild
+      );
+    }
+  });
+
+  return wallElement as unknown as CatalogElement;
+}
+
+==================== FILE: 02_react_planner/react-planner/src/class/item.ts ====================
+import { produce } from 'immer';
+
+import {
+  MODE_DRAGGING_ITEM,
+  MODE_DRAWING_ITEM,
+  MODE_IDLE,
+  MODE_ROTATING_ITEM
+} from '../constants';
+import { catalogElementFactory, Item as ItemModel, State } from '../models';
+import { IDBroker, NameGenerator } from '../utils/export';
+
+import { Group, Layer } from './export';
+
+class Item {
+  static create(
+    state: State,
+    layerID: string,
+    type: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    rotation: number
+  ) {
+    const itemID = IDBroker.acquireID();
+
+    const item = catalogElementFactory(state.catalog, type, {
+      id: itemID,
+      name: NameGenerator.generateName(
+        'items',
+        state.catalog.elements[type].info.title
+      ),
+      type,
+      height,
+      width,
+      x,
+      y,
+      rotation
+    }) as ItemModel;
+
+    const updatedState = produce(state, (draft) => {
+      draft.scene.layers[layerID].items[itemID] = item;
+    });
+
+    return { updatedState, item };
+  }
+
+  static select(state: State, layerID: string, itemID: string) {
+    state = Layer.select(state, layerID);
+    state = Layer.selectElement(state, layerID, 'items', itemID);
+    return state;
+  }
+
+  static remove(state: State, layerID: string, itemID: string) {
+    return produce(state, (draft) => {
+      draft = this.unselect(draft, layerID, itemID);
+      draft = Layer.removeElement(draft, layerID, 'items', itemID);
+      Object.values(draft.scene.groups).forEach((group) => {
+        draft = Group.removeElement(draft, group.id, layerID, 'items', itemID);
+      });
+      return draft;
+    });
+  }
+
+  static unselect(state: State, layerID: string, itemID: string) {
+    return Layer.unselect(state, layerID, 'items', itemID);
+  }
+
+  static selectToolDrawingItem(state: State, sceneComponentType: string) {
+    return produce(state, (draft) => {
+      draft.mode = MODE_DRAWING_ITEM;
+      draft.drawingSupport = {
+        type: sceneComponentType
+      };
+    });
+  }
+
+  static updateDrawingItem(
+    state: State,
+    layerID: string,
+    x: number,
+    y: number
+  ) {
+    if (state.drawingSupport.currentID) {
+      return produce(state, (draft) => {
+        const item =
+          draft.scene.layers[layerID]?.items[draft.drawingSupport.currentID];
+        if (item) {
+          item.x = x;
+          item.y = y;
+        }
+      });
+    } else {
+      const { updatedState: stateI, item } = this.create(
+        state,
+        layerID,
+        state.drawingSupport.type,
+        x,
+        y,
+        200,
+        100,
+        0
+      );
+      state = Item.select(stateI, layerID, item.id);
+      //draft.drawingSupport.currentID = item.id;
+      //draft = { ...draft, drawingSupport: { ...draft.drawingSupport, currentID: item.id } };
+      return produce(state, (draft) => {
+        draft.drawingSupport.currentID = item.id;
+      });
+    }
+  }
+
+  static endDrawingItem(state: State, layerID: string, x: number, y: number) {
+    state = this.updateDrawingItem(state, layerID, x, y);
+    state = Layer.unselectAll(state, layerID);
+    return produce(state, (draft) => {
+      draft.drawingSupport = { type: draft.drawingSupport.type };
+    });
+  }
+
+  static beginDraggingItem(
+    state: State,
+    layerID: string,
+    itemID: string,
+    x: number,
+    y: number
+  ) {
+    return produce(state, (draft) => {
+      const item = draft.scene.layers[layerID]?.items[itemID];
+      if (item) {
+        draft.mode = MODE_DRAGGING_ITEM;
+        draft.draggingSupport = {
+          layerID,
+          itemID,
+          startPointX: x,
+          startPointY: y,
+          originalX: item.x, // TODO: is a string sometimes
+          originalY: item.y
+        };
+      }
+    });
+  }
+
+  static updateDraggingItem(state: State, x: number, y: number) {
+    return produce(state, (draft) => {
+      const draggingSupport = draft.draggingSupport as Required<
+        State['draggingSupport']
+      >;
+      if (!draggingSupport) return;
+      const {
+        layerID,
+        itemID,
+        startPointX,
+        startPointY,
+        originalX,
+        originalY
+      } = draggingSupport;
+      const layer = draft.scene.layers[layerID];
+      const item = layer?.items[itemID];
+      if (layer && item) {
+        const deltaX = x - startPointX;
+        const deltaY = y - startPointY;
+        item.x = originalX + deltaX;
+        item.y = originalY + deltaY;
+      }
+    });
+  }
+
+  static endDraggingItem(state: State, x: number, y: number) {
+    return produce(state, (draft) => {
+      const draggingSupport = draft.draggingSupport as Required<
+        State['draggingSupport']
+      >;
+      if (!draggingSupport) return;
+      const {
+        layerID,
+        itemID,
+        startPointX,
+        startPointY,
+        originalX,
+        originalY
+      } = draggingSupport;
+      const layer = draft.scene.layers[layerID];
+      const item = layer?.items[itemID];
+      if (layer && item) {
+        const deltaX = x - startPointX;
+        const deltaY = y - startPointY;
+        item.x = originalX + deltaX;
+        item.y = originalY + deltaY;
+      }
+      draft.mode = MODE_IDLE;
+      draft.draggingSupport = undefined;
+    });
+  }
+
+  static beginRotatingItem(
+    state: State,
+    layerID: string,
+    itemID: string,
+    x: number,
+    y: number
+  ) {
+    return produce(state, (draft) => {
+      draft.mode = MODE_ROTATING_ITEM;
+      draft.rotatingSupport = {
+        layerID,
+        itemID
+      };
+    });
+  }
+
+  static updateRotatingItem(state: State, x: number, y: number) {
+    return produce(state, (draft) => {
+      if (!draft.rotatingSupport) return;
+      const { rotatingSupport } = draft;
+      const layerID = rotatingSupport.layerID;
+      const itemID = rotatingSupport.itemID;
+      const item = draft.scene.layers[layerID].items[itemID];
+
+      const deltaX = x - item.x;
+      const deltaY = y - item.y;
+      let rotation = (Math.atan2(deltaY, deltaX) * 180) / Math.PI - 90;
+
+      if (-5 < rotation && rotation < 5) rotation = 0;
+      if (-95 < rotation && rotation < -85) rotation = -90;
+      if (-185 < rotation && rotation < -175) rotation = -180;
+      if (85 < rotation && rotation < 90) rotation = 90;
+      if (-270 < rotation && rotation < -265) rotation = 90;
+
+      item.rotation = rotation;
+    });
+  }
+
+  static endRotatingItem(state: State, x: number, y: number) {
+    state = this.updateRotatingItem(state, x, y);
+    return produce(state, (draft) => {
+      draft.mode = MODE_IDLE;
+    });
+  }
+
+  static setProperties(
+    state: State,
+    layerID: string,
+    itemID: string,
+    properties: any
+  ) {
+    return produce(state, (draft) => {
+      draft.scene.layers[layerID].items[itemID].properties = properties;
+    });
+  }
+
+  static setJsProperties(
+    state: State,
+    layerID: string,
+    itemID: string,
+    properties: any
+  ) {
+    return this.setProperties(state, layerID, itemID, properties);
+  }
+
+  static updateProperties(
+    state: State,
+    layerID: string,
+    itemID: string,
+    properties: Record<string, any>
+  ) {
+    return produce(state, (draft) => {
+      const item = draft.scene.layers[layerID]?.items[itemID];
+      if (item) {
+        Object.entries(properties).forEach(([key, value]) => {
+          if (item.properties[key] !== undefined) {
+            item.properties[key] = value;
+          }
+        });
+      }
+    });
+  }
+
+  static updateJsProperties(
+    state: State,
+    layerID: string,
+    itemID: string,
+    properties: any
+  ) {
+    return this.updateProperties(state, layerID, itemID, properties);
+  }
+
+  static setAttributes(
+    state: State,
+    layerID: string,
+    itemID: string,
+    attributes: any
+  ) {
+    return produce(state, (draft) => {
+      const item = draft.scene.layers[layerID]?.items[itemID];
+      if (item) {
+        Object.assign(item, attributes);
+      }
+    });
+  }
+}
+
+export { Item as default };
+
+==================== FILE: 02_react_planner/react-planner/src/class/line.ts ====================
+import { produce } from 'immer';
+
+import {
+  MODE_DRAGGING_LINE,
+  MODE_DRAWING_LINE,
+  MODE_IDLE,
+  MODE_WAITING_DRAWING_LINE
+} from '../constants';
+import {
+  catalogElementFactory,
+  Hole as HoleModel,
+  Line as LineModel,
+  State
+} from '../models';
+import { LineAttributes } from '../types';
+import {
+  GeometryUtils,
+  IDBroker,
+  NameGenerator,
+  SnapSceneUtils,
+  SnapUtils
+} from '../utils/export';
+
+import { Group, Hole, Layer, Vertex } from './export';
+
+export type HoleWithOffsetPosition = {
+  hole: HoleModel;
+  offsetPosition: { x: number; y: number };
+};
+
+class Line {
+  static create(
+    state: State,
+    layerID: string,
+    type: string,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    properties?: LineModel['properties']
+  ) {
+    const lineID = IDBroker.acquireID();
+
+    const { updatedState: stateV0, vertex: v0 } = Vertex.add(
+      state,
+      layerID,
+      x0,
+      y0,
+      'lines',
+      lineID
+    );
+    const { updatedState: stateV1, vertex: v1 } = Vertex.add(
+      stateV0,
+      layerID,
+      x1,
+      y1,
+      'lines',
+      lineID
+    );
+    state = stateV1;
+
+    const line = catalogElementFactory(
+      state.catalog,
+      type,
+      {
+        id: lineID,
+        name: NameGenerator.generateName(
+          'lines',
+          state.catalog.elements[type].info.title
+        ),
+        vertices: [v0.id, v1.id],
+        type
+      },
+      properties
+    ) as LineModel;
+
+    state = produce(state, (draft) => {
+      draft.scene.layers[layerID].lines[lineID] = line;
+    });
+
+    return { updatedState: state, line };
+  }
+
+  static select(state: State, layerID: string, lineID: string) {
+    state = Layer.select(state, layerID);
+
+    const line = state.scene.layers[layerID].lines[lineID];
+    state = Layer.selectElement(state, layerID, 'lines', lineID);
+    state = Layer.selectElement(state, layerID, 'vertices', line.vertices[0]);
+    state = Layer.selectElement(state, layerID, 'vertices', line.vertices[1]);
+
+    return state;
+  }
+
+  static remove(state: State, layerID: string, lineID: string) {
+    const line = state.scene.layers[layerID].lines[lineID];
+    if (!line) return state;
+
+    state = this.unselect(state, layerID, lineID);
+
+    line.holes.forEach((holeID) => {
+      state = Hole.remove(state, layerID, holeID);
+    });
+
+    state = Layer.removeElement(state, layerID, 'lines', lineID);
+
+    line.vertices.forEach((vertexID) => {
+      state = Vertex.remove(state, layerID, vertexID, 'lines', lineID);
+    });
+
+    Object.values(state.scene.groups).forEach((group) => {
+      state = Group.removeElement(state, group.id, layerID, 'lines', lineID);
+    });
+
+    return state;
+  }
+
+  static unselect(state: State, layerID: string, lineID: string) {
+    const line = state.scene.layers[layerID].lines[lineID];
+    if (!line) return state;
+
+    state = Layer.unselect(state, layerID, 'vertices', line.vertices[0]);
+    state = Layer.unselect(state, layerID, 'vertices', line.vertices[1]);
+    state = Layer.unselect(state, layerID, 'lines', lineID);
+    return state;
+  }
+
+  static split(
+    state: State,
+    layerID: string,
+    lineID: string,
+    x: number,
+    y: number
+  ) {
+    const line = state.scene.layers[layerID].lines[lineID];
+    const layer = state.scene.layers[layerID];
+    const v0 = layer.vertices[line.vertices[0]];
+    const v1 = layer.vertices[line.vertices[1]];
+    const { x: x0, y: y0 } = v0;
+    const { x: x1, y: y1 } = v1;
+
+    const { updatedState: stateL1, line: line0 } = Line.create(
+      state,
+      layerID,
+      line.type,
+      x0,
+      y0,
+      x,
+      y,
+      line.properties
+    );
+    const { updatedState: stateL2, line: line1 } = Line.create(
+      stateL1,
+      layerID,
+      line.type,
+      x1,
+      y1,
+      x,
+      y,
+      line.properties
+    );
+    state = stateL2;
+
+    let splitPointOffset = GeometryUtils.pointPositionOnLineSegment(
+      x0,
+      y0,
+      x1,
+      y1,
+      x,
+      y
+    );
+    const minVertex = GeometryUtils.minVertex(v0, v1);
+
+    line.holes.forEach((holeID) => {
+      const hole = layer.holes[holeID];
+      let holeOffset = hole.offset;
+      if (minVertex.x === x1 && minVertex.y === y1) {
+        splitPointOffset = 1 - splitPointOffset;
+        holeOffset = 1 - hole.offset;
+      }
+
+      if (holeOffset < splitPointOffset) {
+        let offset = holeOffset / splitPointOffset;
+        if (minVertex.x === x1 && minVertex.y === y1) {
+          offset = 1 - offset;
+        }
+        const { updatedState } = Hole.create(
+          state,
+          layerID,
+          hole.type,
+          line0.id,
+          offset,
+          hole.properties
+        );
+        state = updatedState;
+      } else {
+        let offset = (holeOffset - splitPointOffset) / (1 - splitPointOffset);
+        if (minVertex.x === x1 && minVertex.y === y1) {
+          offset = 1 - offset;
+        }
+        const { updatedState } = Hole.create(
+          state,
+          layerID,
+          hole.type,
+          line1.id,
+          offset,
+          hole.properties
+        );
+        state = updatedState;
+      }
+    });
+
+    const lineGroups = Object.values(state.scene.groups).filter((group) => {
+      const lines = group.elements?.[layerID]?.lines;
+      return lines && lines.includes(lineID);
+    });
+
+    lineGroups.forEach((group) => {
+      state = Group.addElement(state, group.id, layerID, 'lines', line0.id);
+      state = Group.addElement(state, group.id, layerID, 'lines', line1.id);
+    });
+
+    state = Line.remove(state, layerID, lineID);
+
+    return { updatedState: state, lines: [line0, line1] };
+  }
+
+  static addFromPoints(
+    state: State,
+    layerID: string,
+    type: string,
+    points: { x: number; y: number }[],
+    properties?: LineModel['properties'],
+    holesWithOffsetPosition: HoleWithOffsetPosition[] = []
+  ) {
+    points = points.sort(({ x: x1, y: y1 }, { x: x2, y: y2 }) =>
+      x1 === x2 ? y1 - y2 : x1 - x2
+    );
+    //.filter((point, idx, arr) => idx === 0 || point.x !== arr[idx - 1].x || point.y !== arr[idx - 1].y);
+
+    const pointsPair = points
+      .slice(0, points.length - 1)
+      .map((point, idx) => [point, points[idx + 1]])
+      .filter(
+        ([{ x: x1, y: y1 }, { x: x2, y: y2 }]) => !(x1 === x2 && y1 === y2)
+      );
+
+    const lines: LineModel[] = [];
+
+    pointsPair.forEach(([{ x: x1, y: y1 }, { x: x2, y: y2 }]) => {
+      const { updatedState: stateL, line } = this.create(
+        state,
+        layerID,
+        type,
+        x1,
+        y1,
+        x2,
+        y2,
+        properties
+      );
+      state = stateL;
+
+      if (holesWithOffsetPosition) {
+        holesWithOffsetPosition.forEach((holeWithOffsetPoint) => {
+          const { x: xp, y: yp } = holeWithOffsetPoint.offsetPosition;
+
+          if (GeometryUtils.isPointOnLineSegment(x1, y1, x2, y2, xp, yp)) {
+            const newOffset = GeometryUtils.pointPositionOnLineSegment(
+              x1,
+              y1,
+              x2,
+              y2,
+              xp,
+              yp
+            );
+            if (newOffset >= 0 && newOffset <= 1) {
+              state = Hole.create(
+                state,
+                layerID,
+                holeWithOffsetPoint.hole.type,
+                line.id,
+                newOffset,
+                holeWithOffsetPoint.hole.properties
+              ).updatedState;
+            }
+          }
+        });
+      }
+      lines.push(line);
+    });
+
+    return { updatedState: state, lines };
+  }
+
+  static createAvoidingIntersections(
+    state: State,
+    layerID: string,
+    type: string,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    oldProperties: LineModel['properties'] = {},
+    oldHoles: HoleWithOffsetPosition[] = []
+  ) {
+    const points: { x: number; y: number }[] = [
+      { x: x0, y: y0 },
+      { x: x1, y: y1 }
+    ];
+
+    const linesArr = Object.values(state.scene.layers[layerID].lines);
+    for (const line of linesArr) {
+      const [v0, v1] = line.vertices.map((vertexID) => {
+        return state.scene.layers[layerID].vertices[vertexID];
+      });
+      //const v0 = draft.scene.layers[layerID].vertices[line.vertices[0]];
+      //const v1 = draft.scene.layers[layerID].vertices[line.vertices[1]];
+
+      const hasCommonEndpoint =
+        GeometryUtils.samePoints(v0, points[0]) ||
+        GeometryUtils.samePoints(v0, points[1]) ||
+        GeometryUtils.samePoints(v1, points[0]) ||
+        GeometryUtils.samePoints(v1, points[1]);
+
+      const intersection = GeometryUtils.twoLineSegmentsIntersection(
+        points[0],
+        points[1],
+        v0,
+        v1
+      );
+
+      if (intersection.type === 'colinear') {
+        if (!oldHoles) {
+          oldHoles = [];
+        }
+
+        const orderedVertices = GeometryUtils.orderVertices(points);
+
+        for (const holeID of line.holes) {
+          const hole = state.scene.layers[layerID].holes[holeID];
+          const oldLineLength = GeometryUtils.pointsDistance(
+            v0.x,
+            v0.y,
+            v1.x,
+            v1.y
+          );
+          const offset = GeometryUtils.samePoints(
+            orderedVertices[1],
+            state.scene.layers[layerID].vertices[line.vertices[1]]
+          )
+            ? 1 - hole.offset
+            : hole.offset;
+          const offsetPosition = GeometryUtils.extendLine(
+            v0.x,
+            v0.y,
+            v1.x,
+            v1.y,
+            oldLineLength * offset
+          );
+          oldHoles.push({ hole, offsetPosition });
+        }
+
+        state = Line.remove(state, layerID, line.id);
+
+        points.push({ ...v0 }, { ...v1 });
+      }
+
+      if (intersection.type === 'intersecting' && !hasCommonEndpoint) {
+        state = Line.split(
+          state,
+          layerID,
+          line.id,
+          intersection.point.x,
+          intersection.point.y
+        ).updatedState;
+        points.push({ ...intersection.point });
+      }
+    }
+
+    const { updatedState, lines } = Line.addFromPoints(
+      state,
+      layerID,
+      type,
+      points,
+      oldProperties,
+      oldHoles
+    );
+    return { updatedState, lines };
+  }
+
+  static replaceVertex(
+    state: State,
+    layerID: string,
+    lineID: string,
+    vertexIndex: number,
+    x: number,
+    y: number
+  ) {
+    const vertexID =
+      state.scene.layers[layerID].lines[lineID].vertices[vertexIndex];
+
+    state = Vertex.remove(state, layerID, vertexID, 'lines', lineID);
+    const { updatedState: stateV, vertex } = Vertex.add(
+      state,
+      layerID,
+      x,
+      y,
+      'lines',
+      lineID
+    );
+    state = stateV;
+
+    state = produce(state, (draft) => {
+      draft.scene.layers[layerID].lines[lineID].vertices[vertexIndex] =
+        vertex.id;
+    });
+
+    return {
+      updatedState: state,
+      line: state.scene.layers[layerID].lines[lineID],
+      vertex
+    };
+  }
+
+  static selectToolDrawingLine(state: State, sceneComponentType: string) {
+    return produce(state, (draft) => {
+      draft.mode = MODE_WAITING_DRAWING_LINE;
+      draft.drawingSupport = {
+        type: sceneComponentType
+      };
+    });
+  }
+
+  static beginDrawingLine(state: State, layerID: string, x: number, y: number) {
+    let snapElements = SnapSceneUtils.sceneSnapElements(
+      state.scene,
+      [],
+      state.snapMask
+    );
+    let snap = null;
+
+    if (state.snapMask) {
+      snap = SnapUtils.nearestSnap(snapElements, x, y, state.snapMask);
+      if (snap) ({ x, y } = snap.point);
+
+      let a: number, b: number, c: number;
+      ({ a, b, c } = GeometryUtils.horizontalLine(y));
+      snapElements = SnapUtils.addLineSnap(snapElements, a, b, c, 10, 3, null);
+      ({ a, b, c } = GeometryUtils.verticalLine(x));
+      snapElements = SnapUtils.addLineSnap(snapElements, a, b, c, 10, 3, null);
+    }
+
+    const drawingSupport = {
+      ...state.drawingSupport,
+      layerID
+    } as State['drawingSupport'];
+
+    state = Layer.unselectAll(state, layerID);
+
+    const { updatedState: stateL, line } = Line.create(
+      state,
+      layerID,
+      drawingSupport.type,
+      x,
+      y,
+      x,
+      y
+    );
+    state = Line.select(stateL, layerID, line.id);
+
+    return produce(state, (draft) => {
+      draft.mode = MODE_DRAWING_LINE;
+      draft.snapElements = snapElements;
+      draft.activeSnapElement = snap ? snap.snap : null;
+      draft.drawingSupport = drawingSupport;
+    });
+  }
+
+  static updateDrawingLine(state: State, x: number, y: number) {
+    let snap = null;
+    if (state.snapMask) {
+      snap = SnapUtils.nearestSnap(state.snapElements, x, y, state.snapMask);
+      if (snap) ({ x, y } = snap.point);
+    }
+    const layerID = state.drawingSupport.layerID;
+    const lineID = state.scene.layers[layerID].selected.lines[0];
+    state = Line.replaceVertex(state, layerID, lineID, 1, x, y).updatedState;
+    state = Line.select(state, layerID, lineID);
+    state = produce(state, (draft) => {
+      draft.activeSnapElement = snap ? snap.snap : null;
+    });
+    return state;
+  }
+
+  static endDrawingLine(state: State, x: number, y: number) {
+    if (state.snapMask) {
+      const snap = SnapUtils.nearestSnap(
+        state.snapElements,
+        x,
+        y,
+        state.snapMask
+      );
+      if (snap) ({ x, y } = snap.point);
+    }
+
+    const layerID = state.drawingSupport.layerID;
+    const layer = state.scene.layers[layerID];
+    const lineID = layer.selected.lines[0];
+    const line = layer.lines[lineID];
+    const v0 = layer.vertices[line.vertices[0]];
+
+    state = Line.remove(state, layerID, lineID);
+    state = Line.createAvoidingIntersections(
+      state,
+      layerID,
+      line.type,
+      v0.x,
+      v0.y,
+      x,
+      y
+    ).updatedState;
+        const scene = state.scene as any;
+    
+    if (!scene?.meta?.__normalized) {
+    
+      state = Layer.detectAndUpdateAreas(state, layerID);
+    
+    }
+    
+    // __RASTER_GUARD_APPLIED__
+
+    return produce(state, (draft) => {
+      draft.mode = MODE_WAITING_DRAWING_LINE;
+      draft.snapElements = [];
+      draft.activeSnapElement = null;
+    });
+  }
+
+  static beginDraggingLine(
+    state: State,
+    layerID: string,
+    lineID: string,
+    x: number,
+    y: number
+  ) {
+    return produce(state, (draft) => {
+      const snapElements = SnapSceneUtils.sceneSnapElements(
+        draft.scene,
+        [],
+        draft.snapMask
+      );
+      const layer = draft.scene.layers[layerID];
+      const line = layer.lines[lineID];
+      const vertex0 = layer.vertices[line.vertices[0]];
+      const vertex1 = layer.vertices[line.vertices[1]];
+
+      draft.mode = MODE_DRAGGING_LINE;
+      draft.snapElements = snapElements;
+      draft.draggingSupport = {
+        layerID,
+        lineID,
+        startPointX: x,
+        startPointY: y,
+        startVertex0X: vertex0.x,
+        startVertex0Y: vertex0.y,
+        startVertex1X: vertex1.x,
+        startVertex1Y: vertex1.y
+      };
+    });
+  }
+
+  static updateDraggingLine(state: State, x: number, y: number) {
+    return produce(state, (draft) => {
+      const { snapElements, snapMask } = draft;
+      const draggingSupport = draft.draggingSupport as Required<
+        State['draggingSupport']
+      >;
+      if (!draggingSupport) return;
+      const layerID = draggingSupport.layerID;
+      const lineID = draggingSupport.lineID;
+      const diffX = x - draggingSupport.startPointX;
+      const diffY = y - draggingSupport.startPointY;
+      let newVertex0X = draggingSupport.startVertex0X + diffX;
+      let newVertex0Y = draggingSupport.startVertex0Y + diffY;
+      let newVertex1X = draggingSupport.startVertex1X + diffX;
+      let newVertex1Y = draggingSupport.startVertex1Y + diffY;
+
+      let activeSnapElement = null;
+      let curSnap0 = null,
+        curSnap1 = null;
+      if (snapMask) {
+        curSnap0 = SnapUtils.nearestSnap(
+          snapElements,
+          newVertex0X,
+          newVertex0Y,
+          snapMask
+        );
+        curSnap1 = SnapUtils.nearestSnap(
+          snapElements,
+          newVertex1X,
+          newVertex1Y,
+          snapMask
+        );
+      }
+
+      let deltaX = 0,
+        deltaY = 0;
+      if (curSnap0 && curSnap1) {
+        if (curSnap0.point.distance < curSnap1.point.distance) {
+          deltaX = curSnap0.point.x - newVertex0X;
+          deltaY = curSnap0.point.y - newVertex0Y;
+          activeSnapElement = curSnap0.snap;
+        } else {
+          deltaX = curSnap1.point.x - newVertex1X;
+          deltaY = curSnap1.point.y - newVertex1Y;
+          activeSnapElement = curSnap1.snap;
+        }
+      } else {
+        if (curSnap0) {
+          deltaX = curSnap0.point.x - newVertex0X;
+          deltaY = curSnap0.point.y - newVertex0Y;
+          activeSnapElement = curSnap0.snap;
+        }
+        if (curSnap1) {
+          deltaX = curSnap1.point.x - newVertex1X;
+          deltaY = curSnap1.point.y - newVertex1Y;
+          activeSnapElement = curSnap1.snap;
+        }
+      }
+
+      newVertex0X += deltaX;
+      newVertex0Y += deltaY;
+      newVertex1X += deltaX;
+      newVertex1Y += deltaY;
+
+      draft.activeSnapElement = activeSnapElement;
+      draft.scene.layers[layerID].vertices[
+        draft.scene.layers[layerID].lines[lineID].vertices[0]
+      ].x = newVertex0X;
+      draft.scene.layers[layerID].vertices[
+        draft.scene.layers[layerID].lines[lineID].vertices[0]
+      ].y = newVertex0Y;
+      draft.scene.layers[layerID].vertices[
+        draft.scene.layers[layerID].lines[lineID].vertices[1]
+      ].x = newVertex1X;
+      draft.scene.layers[layerID].vertices[
+        draft.scene.layers[layerID].lines[lineID].vertices[1]
+      ].y = newVertex1Y;
+    });
+  }
+
+  static endDraggingLine(state: State, x: number, y: number) {
+    const draggingSupport = state.draggingSupport as Required<
+      State['draggingSupport']
+    >;
+    if (!draggingSupport) return state;
+    const { layerID, lineID } = draggingSupport;
+    const layer = state.scene.layers[layerID];
+    const line = layer.lines[lineID];
+
+    const vertex0 = layer.vertices[line.vertices[0]];
+    const vertex1 = layer.vertices[line.vertices[1]];
+
+    const maxV = GeometryUtils.maxVertex(vertex0, vertex1);
+    const minV = GeometryUtils.minVertex(vertex0, vertex1);
+
+    const lineLength = GeometryUtils.verticesDistance(minV, maxV);
+    const alpha = Math.atan2(maxV.y - minV.y, maxV.x - minV.x);
+
+    const holesWithOffsetPosition: HoleWithOffsetPosition[] = [];
+    layer.lines[lineID].holes.forEach((holeID) => {
+      const hole = layer.holes[holeID];
+      const pointOnLine = lineLength * hole.offset;
+
+      const offsetPosition = {
+        x: pointOnLine * Math.cos(alpha) + minV.x,
+        y: pointOnLine * Math.sin(alpha) + minV.y
+      };
+
+      holesWithOffsetPosition.push({ hole, offsetPosition });
+    });
+
+    const diffX = x - draggingSupport.startPointX;
+    const diffY = y - draggingSupport.startPointY;
+    let newVertex0X = draggingSupport.startVertex0X + diffX;
+    let newVertex0Y = draggingSupport.startVertex0Y + diffY;
+    let newVertex1X = draggingSupport.startVertex1X + diffX;
+    let newVertex1Y = draggingSupport.startVertex1Y + diffY;
+
+    if (state.snapMask) {
+      const curSnap0 = SnapUtils.nearestSnap(
+        state.snapElements,
+        newVertex0X,
+        newVertex0Y,
+        state.snapMask
+      );
+      const curSnap1 = SnapUtils.nearestSnap(
+        state.snapElements,
+        newVertex1X,
+        newVertex1Y,
+        state.snapMask
+      );
+
+      let deltaX = 0,
+        deltaY = 0;
+      if (curSnap0 && curSnap1) {
+        if (curSnap0.point.distance < curSnap1.point.distance) {
+          deltaX = curSnap0.point.x - newVertex0X;
+          deltaY = curSnap0.point.y - newVertex0Y;
+        } else {
+          deltaX = curSnap1.point.x - newVertex1X;
+          deltaY = curSnap1.point.y - newVertex1Y;
+        }
+      } else {
+        if (curSnap0) {
+          deltaX = curSnap0.point.x - newVertex0X;
+          deltaY = curSnap0.point.y - newVertex0Y;
+        }
+        if (curSnap1) {
+          deltaX = curSnap1.point.x - newVertex1X;
+          deltaY = curSnap1.point.y - newVertex1Y;
+        }
+      }
+
+      newVertex0X += deltaX;
+      newVertex0Y += deltaY;
+      newVertex1X += deltaX;
+      newVertex1Y += deltaY;
+    }
+
+    //get groups membership if present
+    const lineGroups = Object.values(state.scene.groups).filter((group) => {
+      const lines = group.elements?.[layerID]?.lines;
+      return lines && lines.includes(lineID);
+    });
+
+    state = Layer.mergeEqualsVertices(state, layerID, line.vertices[0]);
+    state = Layer.mergeEqualsVertices(state, layerID, line.vertices[1]);
+
+    state = Line.remove(state, layerID, lineID);
+
+    if (
+      !GeometryUtils.samePoints(
+        { x: newVertex0X, y: newVertex0Y },
+        { x: newVertex1X, y: newVertex1Y }
+      )
+    ) {
+      const ret = Line.createAvoidingIntersections(
+        state,
+        layerID,
+        line.type,
+        newVertex0X,
+        newVertex0Y,
+        newVertex1X,
+        newVertex1Y,
+        line.properties,
+        holesWithOffsetPosition
+      );
+
+      state = ret.updatedState;
+
+      //re-add to old line's groups if present
+      ret.lines.forEach((addedLine) => {
+        lineGroups.forEach((oldLineGroup) => {
+          state = Group.addElement(
+            state,
+            oldLineGroup.id,
+            layerID,
+            'lines',
+            addedLine.id
+          );
+        });
+      });
+    }
+
+        const scene = state.scene as any;
+    
+    if (!scene?.meta?.__normalized) {
+    
+      state = Layer.detectAndUpdateAreas(state, layerID);
+    
+    }
+    
+    // __RASTER_GUARD_APPLIED__
+
+    return produce(state, (draft) => {
+      draft.mode = MODE_IDLE;
+      draft.draggingSupport = undefined;
+      draft.activeSnapElement = null;
+      draft.snapElements = [];
+    });
+  }
+
+  static setProperties(
+    state: State,
+    layerID: string,
+    lineID: string,
+    properties: LineModel['properties']
+  ) {
+    return produce(state, (draft) => {
+      draft.scene.layers[layerID].lines[lineID].properties = properties;
+    });
+  }
+
+  static setJsProperties(
+    state: State,
+    layerID: string,
+    lineID: string,
+    properties: LineModel['properties']
+  ) {
+    return this.setProperties(state, layerID, lineID, properties);
+  }
+
+  static updateProperties(
+    state: State,
+    layerID: string,
+    lineID: string,
+    properties: Partial<LineModel['properties']>
+  ) {
+    Object.entries(properties).forEach(([k, v]) => {
+      state = produce(state, (draft) => {
+        if (
+          draft.scene.layers[layerID].lines[lineID].properties.hasOwnProperty(k)
+        ) {
+          draft.scene.layers[layerID].lines[lineID].properties[k] = v;
+        }
+      });
+    });
+    return state;
+  }
+
+  static updateJsProperties(
+    state: State,
+    layerID: string,
+    lineID: string,
+    properties: Partial<LineModel['properties']>
+  ) {
+    return this.updateProperties(state, layerID, lineID, properties);
+  }
+
+  static setAttributes(
+    state: State,
+    layerID: string,
+    lineID: string,
+    lineAttributes: LineAttributes
+  ) {
+    const { vertexOne, vertexTwo, lineLength, name } = lineAttributes;
+
+    state = produce(state, (draft) => {
+      const layer = draft.scene.layers[layerID];
+      layer.vertices[vertexOne.id].x = vertexOne.x;
+      layer.vertices[vertexOne.id].y = vertexOne.y;
+      layer.vertices[vertexTwo.id].x = vertexTwo.x;
+      layer.vertices[vertexTwo.id].y = vertexTwo.y;
+      if (!layer.lines[lineID].misc) {
+        layer.lines[lineID].misc = {};
+      }
+      layer.lines[lineID].misc._unitLength = lineLength._unit;
+      layer.lines[lineID].name = name;
+    });
+
+    state = Layer.mergeEqualsVertices(state, layerID, vertexOne.id);
+
+    if (vertexOne.x != vertexTwo.x && vertexOne.y != vertexTwo.y) {
+      state = Layer.mergeEqualsVertices(state, layerID, vertexTwo.id);
+    }
+
+        const scene = state.scene as any;
+    
+    if (!scene?.meta?.__normalized) {
+    
+      state = Layer.detectAndUpdateAreas(state, layerID);
+    
+    }
+    
+    // __RASTER_GUARD_APPLIED__
+    return state;
+  }
+
+  static setVerticesCoords(
+    state: State,
+    layerID: string,
+    lineID: string,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number
+  ) {
+    const line = state.scene.layers[layerID].lines[lineID];
+    state = Vertex.setAttributes(state, layerID, line.vertices[0], {
+      x: x1,
+      y: y1
+    });
+    return Vertex.setAttributes(state, layerID, line.vertices[1], {
+      x: x2,
+      y: y2
+    });
+  }
+}
+
+export { Line as default };
+
+==================== FILE: 02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx ====================
+import React, { Component } from 'react';
+
+import { FaPlusCircle as IconAdd } from 'react-icons/fa';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElement } from '../../types';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .15s ease-in-out',
+  WebkitTransition: 'all .15s ease-in-out',
+  alignSelf: 'center',
+  justifySelf: 'center'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_TITLE = {
+  width: '100%',
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '.5em',
+  textTransform: 'capitalize'
+} as const;
+
+const STYLE_TITLE_HOVER = {
+  ...STYLE_TITLE,
+  color: SharedStyle.COLORS.white
+} as const;
+
+const STYLE_IMAGE_CONTAINER = {
+  width: '100%',
+  height: '8em',
+  position: 'relative',
+  overflow: 'hidden',
+  border: 'solid 1px #e6e6e6',
+  padding: 0,
+  margin: 0,
+  marginBottom: '5px'
+} as const;
+
+const STYLE_IMAGE = {
+  position: 'absolute',
+  background: '#222',
+  width: '100%',
+  height: '100%',
+  backgroundSize: 'contain',
+  backgroundPosition: '50% 50%',
+  backgroundColor: SharedStyle.COLORS.white,
+  backgroundRepeat: 'no-repeat',
+  transition: 'all .2s ease-in-out'
+} as const;
+
+const STYLE_IMAGE_HOVER = {
+  ...STYLE_IMAGE,
+  transform: 'scale(1.2)'
+} as const;
+
+const STYLE_PLUS_HOVER = {
+  marginTop: '1.5em',
+  color: SharedStyle.SECONDARY_COLOR.main,
+  fontSize: '2em',
+  opacity: '0.7',
+  width: '100%'
+} as const;
+
+const STYLE_DESCRIPTION = {
+  display: 'block',
+  height: '2em',
+  margin: '0 auto',
+  fontSize: '0.75em',
+  fontStyle: 'italic',
+  lineHeight: '1em',
+  WebkitLineClamp: '2',
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
+} as const;
+
+const STYLE_TAGS = {
+  listStyle: 'none',
+  margin: '0px',
+  padding: '0px',
+  fontSize: '11px',
+  marginBottom: '3px'
+} as const;
+
+const STYLE_TAG = {
+  display: 'inline-block',
+  background: '#337ab7',
+  color: SharedStyle.COLORS.white,
+  padding: '1px 4px',
+  marginRight: '3px',
+  borderRadius: '3px'
+} as const;
+
+interface CatalogItemProps {
+  element: CatalogElement;
+}
+
+interface CatalogItemState {
+  hover: boolean;
+}
+
+export default class CatalogItem extends Component<
+  CatalogItemProps,
+  CatalogItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogItemProps,
+    context: React.ContextType<typeof ReactPlannerContext>
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  select() {
+    const element = this.props.element;
+
+    switch (element.prototype) {
+      case 'lines':
+        this.context.linesActions.selectToolDrawingLine(element.name);
+        break;
+      case 'items':
+        this.context.itemsActions.selectToolDrawingItem(element.name);
+        break;
+      case 'holes':
+        this.context.holesActions.selectToolDrawingHole(element.name);
+        break;
+    }
+
+    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+      element
+    );
+  }
+
+  render() {
+    const element = this.props.element;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.select()}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        <b style={!hover ? STYLE_TITLE : STYLE_TITLE_HOVER}>
+          {element.info.title}
+        </b>
+        <div style={STYLE_IMAGE_CONTAINER}>
+          <div
+            style={{
+              ...(!hover ? STYLE_IMAGE : STYLE_IMAGE_HOVER),
+              backgroundImage: 'url(' + element.info.image + ')'
+            }}
+          >
+            {hover ? <IconAdd style={STYLE_PLUS_HOVER} /> : null}
+          </div>
+        </div>
+        <ul style={STYLE_TAGS}>
+          {element.info.tag.map((tag, index) => (
+            <li style={STYLE_TAG} key={index}>
+              {tag}
+            </li>
+          ))}
+        </ul>
+        <div style={STYLE_DESCRIPTION}>{element.info.description}</div>
+      </div>
+    );
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/catalog-view/catalog-page-item.tsx ====================
+import React, { Component } from 'react';
+
+import { MdNavigateNext } from 'react-icons/md';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .2s ease-in-out',
+  WebkitTransition: 'all .2s ease-in-out',
+  alignSelf: 'center',
+  justifySelf: 'center'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_TITLE = {
+  width: '100%',
+  position: 'absolute',
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '.5em',
+  padding: '1em',
+  textTransform: 'capitalize',
+  WebkitTransition: 'all .15s ease-in-out'
+} as const;
+
+const STYLE_TITLE_HOVERED = {
+  ...STYLE_TITLE,
+  fontSize: '1.4em',
+  transform: 'translateY(-60px)',
+  color: 'rgb(28, 166, 252)',
+  marginTop: '0.5em'
+} as const;
+
+const STYLE_NEXT_HOVER = {
+  position: 'absolute',
+  color: SharedStyle.SECONDARY_COLOR.main,
+  fontSize: '5em',
+  width: '100%'
+} as const;
+
+const CONTAINER_DIV = {
+  background: SharedStyle.COLORS.white,
+  marginBottom: '5px',
+  border: 'solid 1px #EEE',
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+} as const;
+
+interface CatalogPageItemProps {
+  page: {
+    name: string;
+    label: string;
+    [key: string]: any;
+  };
+  oldPage: {
+    name: string;
+    label: string;
+    [key: string]: any;
+  };
+}
+
+interface CatalogPageItemState {
+  hover: boolean;
+}
+
+export default class CatalogPageItem extends Component<
+  CatalogPageItemProps,
+  CatalogPageItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogPageItemProps,
+    context: React.ContextType<typeof ReactPlannerContext>
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  changePage(newPage: string) {
+    this.context.projectActions.changeCatalogPage(
+      newPage,
+      this.props.oldPage.name
+    );
+  }
+
+  render() {
+    const page = this.props.page;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.changePage(page.name)}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        {hover ? (
+          <div style={CONTAINER_DIV}>
+            <b style={STYLE_TITLE_HOVERED}>{page.label}</b>
+            <MdNavigateNext style={STYLE_NEXT_HOVER} />
+          </div>
+        ) : (
+          <div style={CONTAINER_DIV}>
+            <b style={STYLE_TITLE}>{page.label}</b>
+          </div>
+        )}
+      </div>
+    );
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/catalog-view/catalog-turn-back-page-item.tsx ====================
+import React, { Component } from 'react';
+
+import { MdNavigateBefore } from 'react-icons/md';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  margin: '0.3em',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .2s ease-in-out',
+  WebkitTransition: 'all .2s ease-in-out'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_BACK = {
+  position: 'absolute',
+  color: SharedStyle.COLORS.black,
+  fontSize: '5em',
+  width: '100%'
+} as const;
+
+const STYLE_BACK_HOVER = {
+  ...STYLE_BACK,
+  color: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const CONTAINER_DIV = {
+  background: SharedStyle.COLORS.white,
+  marginBottom: '5px',
+  border: 'solid 1px #e6e6e6',
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+} as const;
+
+interface CatalogTurnBackPageItemProps {
+  page: {
+    name: string;
+    label: string;
+    [key: string]: any;
+  };
+}
+
+interface CatalogTurnBackPageItemState {
+  hover: boolean;
+}
+
+export default class CatalogTurnBackPageItem extends Component<
+  CatalogTurnBackPageItemProps,
+  CatalogTurnBackPageItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogTurnBackPageItemProps,
+    context: typeof ReactPlannerContext
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  changePage(newPage: string) {
+    this.context.projectActions.goBackToCatalogPage(newPage);
+  }
+
+  render() {
+    const page = this.props.page;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.changePage(page.name)}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        <div style={CONTAINER_DIV}>
+          <MdNavigateBefore style={!hover ? STYLE_BACK : STYLE_BACK_HOVER} />
+        </div>
+      </div>
+    );
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/sidebar/panel-element-editor/attributes-editor/item-attributes-editor.tsx ====================
+import React, { useContext } from 'react';
+
+import { Item, State } from '../../../../models';
+import ReactPlannerContext from '../../../../react-planner-context';
+import FormNumberInput from '../../../style/form-number-input';
+import FormTextInput from '../../../style/form-text-input';
+
+const tableStyle = { width: '100%' } as const;
+const firstTdStyle = { width: '6em' } as const;
+const inputStyle = { textAlign: 'left' } as const;
+
+interface ItemAttributesEditorProps {
+  element: Item;
+  onUpdate: (name: string, value: any) => void;
+  attributeFormData: Item;
+  state: State;
+  [key: string]: any;
+}
+
+export default function ItemAttributesEditor({
+  element,
+  onUpdate,
+  attributeFormData,
+  state,
+  ...rest
+}: ItemAttributesEditorProps) {
+  const { translator } = useContext(ReactPlannerContext);
+  const name = attributeFormData.name || element.name;
+  const renderedX = attributeFormData.x || element.x;
+  const renderedY = attributeFormData.y || element.y;
+  const renderedR = attributeFormData.rotation || element.rotation;
+
+  return (
+    <table style={tableStyle}>
+      <tbody>
+        <tr>
+          <td style={firstTdStyle}>{translator.t('Name')}</td>
+          <td>
+            <FormTextInput
+              value={name}
+              onChange={(event) => onUpdate('name', event.target.value)}
+              style={inputStyle}
+            />
+          </td>
+        </tr>
+        <tr>
+          <td style={firstTdStyle}>X</td>
+          <td>
+            <FormNumberInput
+              value={renderedX}
+              onChange={(event) => onUpdate('x', event.target.value)}
+              style={inputStyle}
+              precision={2}
+              {...rest}
+            />
+          </td>
+        </tr>
+        <tr>
+          <td style={firstTdStyle}>Y</td>
+          <td>
+            <FormNumberInput
+              value={renderedY}
+              onChange={(event) => onUpdate('y', event.target.value)}
+              style={inputStyle}
+              precision={2}
+              {...rest}
+            />
+          </td>
+        </tr>
+        <tr>
+          <td style={firstTdStyle}>{translator.t('Rotation')}</td>
+          <td>
+            <FormNumberInput
+              value={renderedR}
+              onChange={(event) => onUpdate('rotation', event.target.value)}
+              style={inputStyle}
+              precision={2}
+              {...rest}
+            />
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/sidebar/panel-element-editor/attributes-editor/line-attributes-editor.tsx ====================
+import React, { useContext, useMemo } from 'react';
+
+import convert from 'convert-units';
+
+import { PropertyLengthMeasure } from '../../../../catalog/properties/export';
+import { Line, State } from '../../../../models';
+import ReactPlannerContext from '../../../../react-planner-context';
+import { LineAttributes } from '../../../../types';
+import { FormTextInput } from '../../../style/export';
+
+const tableStyle = { width: '100%' } as const;
+const firstTdStyle = { width: '6em' } as const;
+const inputStyle = { textAlign: 'left' } as const;
+
+const measureRowWrapStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'stretch',
+  width: '100%'
+};
+
+const unitBoxStyle: React.CSSProperties = {
+  width: '4.2em',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: '1px solid #cfcfcf',
+  borderLeft: 'none',
+  background: '#f5f5f5',
+  color: '#333',
+  fontSize: '0.95em'
+};
+
+const readOnlyInputStyle: React.CSSProperties = {
+  ...inputStyle,
+  borderRight: 'none'
+};
+
+interface LineAttributesEditorProps {
+  element: Line;
+  onUpdate: (key: string, value: any) => void;
+  attributeFormData: LineAttributes;
+  state: State;
+  [key: string]: any;
+}
+
+export default function LineAttributesEditor({
+  element,
+  onUpdate,
+  attributeFormData,
+  state
+}: LineAttributesEditorProps) {
+  const { translator, catalog } = useContext(ReactPlannerContext);
+
+  const name = attributeFormData.name || element.name;
+  const lineLength = attributeFormData.lineLength || null;
+
+  const wallSurfaceM2 = useMemo(() => {
+    try {
+      const lenU = Number(lineLength?.length ?? 0);
+      const hU = Number(element.properties?.height?.length ?? 0);
+      if (!isFinite(lenU) || !isFinite(hU) || lenU <= 0 || hU <= 0) return null;
+
+      const lenM = convert(lenU).from(catalog.unit).to('m');
+      const hM = convert(hU).from(catalog.unit).to('m');
+
+      const m2 = lenM * hM;
+      if (!isFinite(m2) || m2 <= 0) return null;
+
+      return Math.round(m2 * 100) / 100;
+    } catch {
+      return null;
+    }
+  }, [lineLength, element.properties, catalog.unit]);
+
+  const wallSurfaceDisplay = wallSurfaceM2 === null ? '' : String(wallSurfaceM2);
+
+  return (
+    <div>
+      <table style={tableStyle}>
+        <tbody>
+          <tr>
+            <td style={firstTdStyle}>{translator.t('Name')}</td>
+            <td>
+              <FormTextInput
+                value={wallSurfaceDisplay ? `${wallSurfaceDisplay} m²` : ''}
+                onChange={() => {}}
+                style={inputStyle}
+                readOnly
+              />
+            </td>
+          </tr>
+
+          <tr>
+            <td style={firstTdStyle}>{translator.t('Surface')}</td>
+            <td>
+              <div style={measureRowWrapStyle}>
+                <FormTextInput
+                  value={wallSurfaceDisplay}
+                  onChange={() => {}}
+                  style={readOnlyInputStyle}
+                  readOnly
+                />
+                <div style={unitBoxStyle}>m²</div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <PropertyLengthMeasure
+        value={lineLength}
+        onUpdate={(mapped) => onUpdate('lineLength', mapped)}
+        configs={{
+          label: translator.t('Length'),
+          min: 0,
+          max: Infinity,
+          precision: 2
+        }}
+        state={state}
+      />
+    </div>
+  );
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/style/form-select.tsx ====================
+import React from 'react';
+
+import * as SharedStyle from '../../shared-style';
+
+const BASE_STYLE = {
+  display: 'block',
+  width: '100%',
+  padding: '0px 4px',
+  fontSize: '13px',
+  color: SharedStyle.PRIMARY_COLOR.input,
+  backgroundColor: SharedStyle.COLORS.white,
+  backgroundImage: 'none',
+  border: '1px solid rgba(0,0,0,.15)',
+  outline: 'none',
+  borderRadius: '0px',
+  height: '30px',
+  WebkitAppearance: 'none',
+  WebkitBorderRadius: '0px',
+  background: `url("data:image/svg+xml;utf8,<svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='24' height='24' viewBox='0 0 24 24'><path fill='#444' d='M7.406 7.828l4.594 4.594 4.594-4.594 1.406 1.406-6 6-6-6z'></path></svg>") #fff`,
+  backgroundPosition: '100% 50%',
+  backgroundRepeat: 'no-repeat'
+} as const;
+
+export default function FormSelect({
+  children,
+  style,
+  ...rest
+}: React.DetailedHTMLProps<
+  React.SelectHTMLAttributes<HTMLSelectElement>,
+  HTMLSelectElement
+>) {
+  return (
+    <select style={{ ...BASE_STYLE, ...style }} {...rest}>
+      {children}
+    </select>
+  );
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/viewer2d/item.tsx ====================
+import React from 'react';
+
+import { CatalogFn, CatalogJson } from '../../catalog/catalog';
+import { Item as ItemModel, Layer, Scene } from '../../models';
+import If from '../../utils/react-if';
+
+const STYLE_CIRCLE = {
+  fill: '#0096fd',
+  stroke: '#0096fd',
+  cursor: 'ew-resize'
+};
+
+const STYLE_CIRCLE2 = {
+  fill: 'none',
+  stroke: '#0096fd',
+  cursor: 'ew-resize'
+};
+
+interface ItemProps {
+  layer: Layer;
+  item: ItemModel;
+  scene: Scene;
+  catalog: CatalogJson;
+}
+
+export default function Item({ layer, item, scene, catalog }: ItemProps) {
+  const { x, y, rotation } = item;
+
+  const renderedItem = CatalogFn.getElement(catalog, item.type).render2D(
+    item,
+    layer,
+    scene
+  );
+
+  return (
+    <g
+      data-element-root
+      data-prototype={item.prototype}
+      data-id={item.id}
+      data-selected={item.selected}
+      data-layer={layer.id}
+      style={item.selected ? { cursor: 'move' } : {}}
+      transform={`translate(${x},${y}) rotate(${rotation})`}
+    >
+      {renderedItem}
+      <If condition={item.selected} style={{}}>
+        <g
+          data-element-root
+          data-prototype={item.prototype}
+          data-id={item.id}
+          data-selected={item.selected}
+          data-layer={layer.id}
+          data-part="rotation-anchor"
+        >
+          <circle cx="0" cy="150" r="10" style={STYLE_CIRCLE} />
+          <circle cx="0" cy="0" r="150" style={STYLE_CIRCLE2} />
+        </g>
+      </If>
+    </g>
+  );
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/viewer2d/line.tsx ====================
+import React from 'react';
+
+import { CatalogFn, CatalogJson } from '../../catalog/catalog';
+import { Layer, Line as LineModel, Scene } from '../../models';
+import { GeometryUtils } from '../../utils/export';
+
+import Ruler from './ruler';
+
+interface LineProps {
+  line: LineModel;
+  layer: Layer;
+  scene: Scene;
+  catalog: CatalogJson;
+}
+
+export default function Line({ line, layer, scene, catalog }: LineProps) {
+  const vertex0 = layer.vertices[line.vertices[0]];
+  const vertex1 = layer.vertices[line.vertices[1]];
+
+  if (vertex0.id === vertex1.id || GeometryUtils.samePoints(vertex0, vertex1))
+    return null; //avoid 0-length lines
+
+  let { x: x1, y: y1 } = vertex0;
+  let { x: x2, y: y2 } = vertex1;
+
+  if (x1 > x2) {
+    ({ x: x1, y: y1 } = vertex1);
+    ({ x: x2, y: y2 } = vertex0);
+  }
+
+  const length = GeometryUtils.pointsDistance(x1, y1, x2, y2);
+  const angle = GeometryUtils.angleBetweenTwoPointsAndOrigin(x1, y1, x2, y2);
+
+  const renderedHoles = line.holes.map((holeID) => {
+    const hole = layer.holes[holeID];
+    const startAt = length * hole.offset;
+    const renderedHole = CatalogFn.getElement(catalog, hole.type).render2D(
+      hole,
+      layer,
+      scene
+    );
+
+    return (
+      <g
+        key={holeID}
+        transform={`translate(${startAt}, 0)`}
+        data-element-root
+        data-prototype={hole.prototype}
+        data-id={hole.id}
+        data-selected={hole.selected}
+        data-layer={layer.id}
+      >
+        {renderedHole}
+      </g>
+    );
+  });
+
+  const thickness = line.properties.thickness.length;
+  const half_thickness = thickness / 2;
+
+  const renderedLine = CatalogFn.getElement(catalog, line.type).render2D(
+    line,
+    layer,
+    scene
+  );
+  const renderedRuler = line.selected ? (
+    <Ruler
+      unit={scene.unit}
+      length={length}
+      transform={`translate(0, ${half_thickness + 10} )`}
+    />
+  ) : null;
+
+  return (
+    <g
+      transform={`translate(${x1}, ${y1}) rotate(${angle}, 0, 0)`}
+      data-element-root
+      data-prototype={line.prototype}
+      data-id={line.id}
+      data-selected={line.selected}
+      data-layer={layer.id}
+      style={line.selected ? { cursor: 'move' } : {}}
+    >
+      {renderedRuler}
+      {renderedLine}
+      {renderedHoles}
+    </g>
+  );
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/viewer3d/viewer3d-first-person.tsx ====================
+'use strict';
+
+import React from 'react';
+import * as Three from 'three';
+
+import { State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { diff } from '../../utils/history';
+
+import {
+  firstPersonOnKeyDown,
+  firstPersonOnKeyUp
+} from './libs/first-person-controls';
+import PointerLockControls from './libs/pointer-lock-controls';
+import { initPointerLock } from './pointer-lock-navigation';
+import { parseData, PlanData, updateScene } from './scene-creator';
+import { disposeScene } from './three-memory-cleaner';
+
+interface Viewer3DFirstPersonProps {
+  state: State;
+  width: number;
+  height: number;
+}
+
+class Viewer3DFirstPerson extends React.Component<Viewer3DFirstPersonProps> {
+  static contextType = ReactPlannerContext;
+  declare context: React.ContextType<typeof ReactPlannerContext>;
+
+  private renderer: Three.WebGLRenderer;
+  private stopRendering = false;
+  private scene3D: Three.Scene | null = null;
+  private sceneOnTop: Three.Scene | null = null;
+  private camera: Three.PerspectiveCamera | null = null;
+  private planData: PlanData | null = null;
+  private controls: PointerLockControls | null = null;
+  private pointerlockChangeEvent: any = null;
+  private requestPointerLockEvent: any = null;
+  private keyDownEvent: any = null;
+  private keyUpEvent: any = null;
+  private mouseDownEvent: any = null;
+  private canvasWrapper = React.createRef<HTMLDivElement>();
+
+  // === STEP 1: shading state (single surface only) ===
+  private shadedMesh: Three.Mesh | null = null;
+  private originalMaterial: Three.Material | null = null;
+
+  constructor(props: Viewer3DFirstPersonProps) {
+    super(props);
+    this.renderer =
+      (window as any).__threeRenderer ||
+      new Three.WebGLRenderer({ preserveDrawingBuffer: true });
+    (window as any).__threeRenderer = this.renderer;
+  }
+
+  private clearShading() {
+    if (this.shadedMesh && this.originalMaterial) {
+      this.shadedMesh.material = this.originalMaterial;
+    }
+    this.shadedMesh = null;
+    this.originalMaterial = null;
+  }
+
+  private shadeMesh(mesh: Three.Mesh) {
+    if (this.shadedMesh === mesh) return;
+
+    this.clearShading();
+
+    this.shadedMesh = mesh;
+    this.originalMaterial = mesh.material as Three.Material;
+
+    const shadedMaterial = (mesh.material as Three.Material).clone();
+    shadedMaterial.transparent = true;
+    shadedMaterial.opacity = 0.3;
+    shadedMaterial.depthWrite = false;
+
+    mesh.material = shadedMaterial;
+  }
+
+  componentDidMount() {
+    let prevTime = performance.now();
+    const velocity = new Three.Vector3();
+    const direction = new Three.Vector3();
+    let moveForward = false;
+    let moveBackward = false;
+    let moveLeft = false;
+    let moveRight = false;
+    let canJump = false;
+
+    const { width, height, state } = this.props;
+    const { projectActions } = this.context;
+
+    this.renderer.setClearColor(new Three.Color(SharedStyle.COLORS.white));
+    this.renderer.setSize(width, height);
+
+    const scene3D = new Three.Scene();
+    const sceneOnTop = new Three.Scene();
+    const planData = parseData(state.scene, this.context);
+    scene3D.add(planData.plan);
+
+    const camera = new Three.PerspectiveCamera(45, width / height, 0.1, 300000);
+    sceneOnTop.add(camera);
+    camera.position.set(0, 0, 0);
+    camera.up = new Three.Vector3(0, 1, 0);
+
+    scene3D.add(new Three.AmbientLight(0xafafaf));
+    scene3D.add(new Three.HemisphereLight(0xffffff, 0x666666, 0.5));
+
+    const pointLight = new Three.PointLight(SharedStyle.COLORS.white, 0.4, 1000);
+    scene3D.add(pointLight);
+
+    const dirLight = new Three.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(300, 400, 300);
+    scene3D.add(dirLight);
+
+    document.body.requestPointerLock?.();
+
+    const humanHeight = 170;
+    let yInitialPosition =
+      planData.boundingBox.min.y +
+      (planData.boundingBox.min.y - planData.boundingBox.max.y) / 2 +
+      humanHeight;
+
+    const { controls, pointerlockChangeEvent, requestPointerLockEvent } =
+      initPointerLock(camera, this.renderer.domElement);
+
+    controls.getObject().position.set(-50, yInitialPosition, -100);
+    sceneOnTop.add(controls.getObject());
+
+    this.keyDownEvent = (e: KeyboardEvent) => {
+      ({ moveForward, moveLeft, moveBackward, moveRight, canJump } =
+        firstPersonOnKeyDown(
+          e,
+          moveForward,
+          moveLeft,
+          moveBackward,
+          moveRight,
+          canJump,
+          velocity
+        ));
+    };
+
+    this.keyUpEvent = (e: KeyboardEvent) => {
+      ({ moveForward, moveLeft, moveBackward, moveRight, canJump } =
+        firstPersonOnKeyUp(
+          e,
+          moveForward,
+          moveLeft,
+          moveBackward,
+          moveRight,
+          canJump
+        ));
+    };
+
+    document.addEventListener('keydown', this.keyDownEvent);
+    document.addEventListener('keyup', this.keyUpEvent);
+
+    const raycaster = new Three.Raycaster();
+    const mouseVector = new Three.Vector2(0, 0);
+    const toIntersect = [planData.plan];
+
+    this.mouseDownEvent = (event: MouseEvent) => {
+      if (!controls.enabled) return;
+
+      event.preventDefault();
+      raycaster.setFromCamera(mouseVector, camera);
+      const intersects = raycaster.intersectObjects(toIntersect, true);
+
+      if (intersects.length > 0 && intersects[0].object instanceof Three.Mesh) {
+        const mesh = intersects[0].object;
+        this.shadeMesh(mesh);
+        (mesh as any).interact && (mesh as any).interact();
+      } else {
+        this.clearShading();
+        projectActions.unselectAll();
+      }
+    };
+
+    document.addEventListener('mousedown', this.mouseDownEvent, false);
+
+    this.renderer.domElement.style.display = 'block';
+    this.canvasWrapper.current!.appendChild(this.renderer.domElement);
+    this.renderer.autoClear = false;
+
+    const render = () => {
+      if (!this.stopRendering && planData) {
+        yInitialPosition = planData.boundingBox.min.y + humanHeight;
+        const time = performance.now();
+        const delta = (time - prevTime) / 1000;
+
+        velocity.x -= velocity.x * 10 * delta;
+        velocity.z -= velocity.z * 10 * delta;
+        velocity.y -= 9.8 * 100 * delta;
+
+        direction.z = Number(moveForward) - Number(moveBackward);
+        direction.x = Number(moveLeft) - Number(moveRight);
+        direction.normalize();
+
+        if (moveForward || moveBackward)
+          velocity.z -= direction.z * 400 * delta;
+        if (moveLeft || moveRight)
+          velocity.x -= direction.x * 400 * delta;
+
+        controls.getObject().translateX(velocity.x * delta);
+        controls.getObject().translateY(velocity.y * delta);
+        controls.getObject().translateZ(velocity.z * delta);
+
+        if (controls.getObject().position.y < yInitialPosition) {
+          velocity.y = 0;
+          controls.getObject().position.y = yInitialPosition;
+          canJump = true;
+        }
+
+        prevTime = time;
+        const p = controls.getObject().position;
+        pointLight.position.set(p.x, p.y, p.z);
+
+        for (const id in planData.sceneGraph.LODs)
+          planData.sceneGraph.LODs[id].update(camera);
+
+        this.renderer.clear();
+        this.renderer.render(scene3D, camera);
+        this.renderer.clearDepth();
+        this.renderer.render(sceneOnTop, camera);
+
+        requestAnimationFrame(render);
+      }
+    };
+
+    render();
+
+    this.scene3D = scene3D;
+    this.sceneOnTop = sceneOnTop;
+    this.camera = camera;
+    this.planData = planData;
+    this.controls = controls;
+    this.pointerlockChangeEvent = pointerlockChangeEvent;
+    this.requestPointerLockEvent = requestPointerLockEvent;
+  }
+
+  componentWillUnmount() {
+    this.stopRendering = true;
+    this.renderer.autoClear = true;
+
+    document.removeEventListener('mousedown', this.mouseDownEvent);
+    document.removeEventListener('keydown', this.keyDownEvent);
+    document.removeEventListener('keyup', this.keyUpEvent);
+
+    document.removeEventListener('pointerlockchange', this.pointerlockChangeEvent);
+    document.removeEventListener(
+      'mozpointerlockchange',
+      this.pointerlockChangeEvent
+    );
+    document.removeEventListener(
+      'webkitpointerlockchange',
+      this.pointerlockChangeEvent
+    );
+
+    this.renderer.domElement.removeEventListener(
+      'click',
+      this.requestPointerLockEvent
+    );
+
+    if (this.scene3D && this.planData) {
+      disposeScene(this.scene3D);
+      this.scene3D.remove(this.planData.plan);
+    }
+
+    this.scene3D = null;
+    this.planData = null;
+    this.renderer.renderLists.dispose();
+  }
+
+  render() {
+    return <div ref={this.canvasWrapper} />;
+  }
+}
+
+export default Viewer3DFirstPerson;
+
+==================== FILE: 02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx ====================
+import React, { Component } from 'react';
+
+import convert from 'convert-units';
+import * as Three from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+
+import { State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { diff } from '../../utils/history';
+
+import { parseData, PlanData, updateScene } from './scene-creator';
+import { disposeScene } from './three-memory-cleaner';
+
+interface Scene3DViewerProps {
+  state: State;
+  width: number;
+  height: number;
+}
+
+const hudStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 12,
+  bottom: 12,
+  zIndex: 10000,
+  background: 'rgba(0,0,0,0.65)',
+  color: '#fff',
+  padding: '8px 10px',
+  borderRadius: 8,
+  fontSize: 13,
+  lineHeight: 1.2,
+  pointerEvents: 'none',
+  userSelect: 'none'
+};
+
+export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
+  static contextType = ReactPlannerContext;
+  declare context: React.ContextType<typeof ReactPlannerContext>;
+
+  lastMousePosition: { x: number; y: number } = { x: 0, y: 0 };
+  width: number;
+  height: number;
+  renderingID = 0;
+  renderer: Three.WebGLRenderer;
+
+  canvasWrapper: React.RefObject<null | HTMLDivElement>;
+
+  camera: Three.PerspectiveCamera | undefined;
+  scene3D: Three.Scene | undefined;
+  planData: PlanData | undefined;
+  orbitController: OrbitControls | undefined;
+
+  mouseDownEvent: undefined | ((event: MouseEvent) => void);
+  mouseUpEvent: undefined | ((event: MouseEvent) => void);
+
+  constructor(props: Scene3DViewerProps) {
+    super(props);
+
+    this.width = props.width;
+    this.height = props.height;
+    this.canvasWrapper = React.createRef<HTMLDivElement>();
+
+    this.renderer =
+      (window as any).__threeRenderer ||
+      new Three.WebGLRenderer({ preserveDrawingBuffer: true });
+    (window as any).__threeRenderer = this.renderer;
+  }
+
+  private computeSelectedAreaM2(): number | null {
+    const { state } = this.props;
+    const unit = this.context.catalog.unit; // usually "cm"
+    const selectedLayerID = state.scene.selectedLayer;
+    if (!selectedLayerID) return null;
+
+    const layer: any = state.scene.layers[selectedLayerID];
+    if (!layer) return null;
+
+    const selectedAreaIDs: string[] = layer.selected?.areas || [];
+    if (!selectedAreaIDs.length) return null;
+
+    const metersPerUnit = convert(1).from(unit).to('m');
+
+    let totalM2 = 0;
+
+    for (const areaID of selectedAreaIDs) {
+      const area: any = layer.areas?.[areaID];
+      if (!area) continue;
+
+      const verts: string[] = area.vertices;
+      if (!Array.isArray(verts) || verts.length < 3) continue;
+
+      const pts = verts
+        .map((vid) => layer.vertices?.[vid])
+        .filter(Boolean)
+        .map((v: any) => ({ x: v.x, y: v.y }));
+
+      if (pts.length < 3) continue;
+
+      // shoelace in unit^2
+      let sum = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const j = (i + 1) % pts.length;
+        sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+      }
+      const areaUnit2 = Math.abs(sum) / 2;
+      const areaM2 = areaUnit2 * metersPerUnit * metersPerUnit;
+
+      totalM2 += areaM2;
+    }
+
+    if (!isFinite(totalM2) || totalM2 <= 0) return null;
+    return Math.round(totalM2 * 100) / 100; // 2 decimals
+  }
+
+  componentDidMount() {
+    const { state } = this.props;
+
+    const scene3D = new Three.Scene();
+
+    // RENDERER
+    this.renderer.setClearColor(new Three.Color(SharedStyle.COLORS.white));
+    this.renderer.setSize(this.width, this.height);
+
+    // LOAD DATA
+    const planData = parseData(state.scene, this.context);
+
+    scene3D.add(planData.plan);
+    scene3D.add(planData.grid);
+
+    const aspectRatio = this.width / this.height;
+    const camera = new Three.PerspectiveCamera(45, aspectRatio, 1, 300000);
+
+    scene3D.add(camera);
+
+    // Set position for the camera
+    const cameraPositionX =
+      -(planData.boundingBox.max.x - planData.boundingBox.min.x) / 2;
+    const cameraPositionY =
+      ((planData.boundingBox.max.y - planData.boundingBox.min.y) / 2) * 10;
+    const cameraPositionZ =
+      (planData.boundingBox.max.z - planData.boundingBox.min.z) / 2;
+
+    camera.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    camera.up = new Three.Vector3(0, 1, 0);
+
+    // LIGHT
+    const ambient = new Three.AmbientLight(0xffffff, 0.45);
+    scene3D.add(ambient);
+    const hemi = new Three.HemisphereLight(0xffffff, 0x666666, 0.5);
+    scene3D.add(hemi);
+    const spotLight1 = new Three.SpotLight(SharedStyle.COLORS.white, 1.0);
+    spotLight1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    scene3D.add(spotLight1);
+    const dirLight = new Three.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(
+      cameraPositionX + 300,
+      cameraPositionY + 400,
+      cameraPositionZ + 300
+    );
+    scene3D.add(dirLight);
+
+    // OBJECT PICKING
+    const toIntersect = [planData.plan];
+    const mouse = new Three.Vector2();
+    const raycaster = new Three.Raycaster();
+
+    this.mouseDownEvent = (event: MouseEvent) => {
+      this.lastMousePosition.x = (event.offsetX / this.width) * 2 - 1;
+      this.lastMousePosition.y = (-event.offsetY / this.height) * 2 + 1;
+    };
+    this.mouseUpEvent = (event: MouseEvent) => {
+      event.preventDefault();
+      mouse.x = (event.offsetX / this.width) * 2 - 1;
+      mouse.y = -(event.offsetY / this.height) * 2 + 1;
+
+      if (
+        Math.abs(mouse.x - this.lastMousePosition.x) <= 0.02 &&
+        Math.abs(mouse.y - this.lastMousePosition.y) <= 0.02
+      ) {
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(toIntersect, true);
+
+        if (intersects.length > 0 && !isNaN(intersects[0].distance)) {
+          const object = intersects[0].object as any;
+          object.interact && object.interact();
+        } else {
+          this.context.projectActions.unselectAll();
+        }
+      }
+    };
+
+    if (this.mouseDownEvent)
+      this.renderer.domElement.addEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    if (this.mouseUpEvent)
+      this.renderer.domElement.addEventListener('mouseup', this.mouseUpEvent);
+    this.renderer.domElement.style.display = 'block';
+
+    if (this.canvasWrapper.current)
+      this.canvasWrapper.current.appendChild(this.renderer.domElement);
+
+    // create orbit controls
+    const orbitController = new OrbitControls(camera, this.renderer.domElement);
+    const spotLightTarget = new Three.Object3D();
+    spotLightTarget.name = 'spotLightTarget';
+    spotLightTarget.position.set(
+      orbitController.target.x,
+      orbitController.target.y,
+      orbitController.target.z
+    );
+    scene3D.add(spotLightTarget);
+    spotLight1.target = spotLightTarget;
+
+    const render = () => {
+      orbitController.update();
+      spotLight1.position.set(
+        camera.position.x,
+        camera.position.y,
+        camera.position.z
+      );
+      spotLightTarget.position.set(
+        orbitController.target.x,
+        orbitController.target.y,
+        orbitController.target.z
+      );
+      camera.updateMatrix();
+      camera.updateMatrixWorld();
+
+      for (const elemID in planData.sceneGraph.LODs) {
+        planData.sceneGraph.LODs[elemID].update(camera);
+      }
+
+      this.renderer.render(scene3D, camera);
+
+      this.renderingID = requestAnimationFrame(render);
+    };
+
+    render();
+
+    this.camera = camera;
+    this.scene3D = scene3D;
+    this.orbitController = orbitController;
+    this.planData = planData;
+  }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this.renderingID);
+    this.orbitController?.dispose();
+
+    if (this.mouseDownEvent)
+      this.renderer.domElement.removeEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    if (this.mouseUpEvent)
+      this.renderer.domElement.removeEventListener(
+        'mouseup',
+        this.mouseUpEvent
+      );
+
+    if (this.scene3D) {
+      disposeScene(this.scene3D);
+      if (this.planData) {
+        this.scene3D.remove(this.planData.plan);
+        this.scene3D.remove(this.planData.grid);
+      }
+    }
+
+    this.scene3D = undefined;
+    this.planData = undefined;
+    this.camera = undefined;
+    this.orbitController = undefined;
+    this.renderer.renderLists.dispose();
+  }
+
+  componentDidUpdate(prevProps: Scene3DViewerProps) {
+    const { width, height } = this.props;
+    this.width = width;
+    this.height = height;
+    if (this.camera) {
+      this.camera.aspect = width / height;
+      this.camera.updateProjectionMatrix();
+    }
+
+    if (prevProps && this.props.state.scene !== prevProps.state.scene) {
+      const changedValues = diff(prevProps.state.scene, this.props.state.scene);
+      if (this.planData) {
+        updateScene(
+          this.planData,
+          this.props.state.scene,
+          prevProps.state.scene,
+          changedValues,
+          this.context
+        );
+      }
+    }
+    this.renderer.setSize(width, height);
+  }
+
+  render() {
+    const areaM2 = this.computeSelectedAreaM2();
+
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        {areaM2 !== null ? (
+          <div style={hudStyle}>Selected area: {areaM2} m²</div>
+        ) : null}
+        <div ref={this.canvasWrapper} />
+      </div>
+    );
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/reducers/items-reducer.ts ====================
+import { produce } from 'immer';
+
+import { Item } from '../class/export';
+import {
+  BEGIN_DRAGGING_ITEM,
+  BEGIN_ROTATING_ITEM,
+  END_DRAGGING_ITEM,
+  END_DRAWING_ITEM,
+  END_ROTATING_ITEM,
+  SELECT_ITEM,
+  SELECT_TOOL_DRAWING_ITEM,
+  UPDATE_DRAGGING_ITEM,
+  UPDATE_DRAWING_ITEM,
+  UPDATE_ROTATING_ITEM
+} from '../constants';
+import { State } from '../models';
+import { history } from '../utils/export';
+
+export type ItemAction =
+  | { type: typeof SELECT_ITEM; layerID: string; itemID: string }
+  | { type: typeof SELECT_TOOL_DRAWING_ITEM; sceneComponentType: string }
+  | { type: typeof UPDATE_DRAWING_ITEM; layerID: string; x: number; y: number }
+  | { type: typeof END_DRAWING_ITEM; layerID: string; x: number; y: number }
+  | {
+    type: typeof BEGIN_DRAGGING_ITEM;
+    layerID: string;
+    itemID: string;
+    x: number;
+    y: number;
+  }
+  | { type: typeof UPDATE_DRAGGING_ITEM; x: number; y: number }
+  | { type: typeof END_DRAGGING_ITEM; x: number; y: number }
+  | {
+    type: typeof BEGIN_ROTATING_ITEM;
+    layerID: string;
+    itemID: string;
+    x: number;
+    y: number;
+  }
+  | { type: typeof UPDATE_ROTATING_ITEM; x: number; y: number }
+  | { type: typeof END_ROTATING_ITEM; x: number; y: number };
+
+export default function itemsReducer(state: State, action: ItemAction): State {
+  switch (action.type) {
+    case SELECT_ITEM:
+      return Item.select(state, action.layerID, action.itemID);
+
+    case SELECT_TOOL_DRAWING_ITEM:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Item.selectToolDrawingItem(state, action.sceneComponentType);
+
+    case UPDATE_DRAWING_ITEM:
+      return Item.updateDrawingItem(state, action.layerID, action.x, action.y);
+
+    case END_DRAWING_ITEM:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Item.endDrawingItem(state, action.layerID, action.x, action.y);
+
+    case BEGIN_DRAGGING_ITEM:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Item.beginDraggingItem(
+        state,
+        action.layerID,
+        action.itemID,
+        action.x,
+        action.y
+      );
+
+    case UPDATE_DRAGGING_ITEM:
+      return Item.updateDraggingItem(state, action.x, action.y);
+
+    case END_DRAGGING_ITEM:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Item.endDraggingItem(state, action.x, action.y);
+
+    case BEGIN_ROTATING_ITEM:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Item.beginRotatingItem(
+        state,
+        action.layerID,
+        action.itemID,
+        action.x,
+        action.y
+      );
+
+    case UPDATE_ROTATING_ITEM:
+      return Item.updateRotatingItem(state, action.x, action.y);
+
+    case END_ROTATING_ITEM:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Item.endRotatingItem(state, action.x, action.y);
+    default:
+      return state;
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/reducers/lines-reducer.ts ====================
+import { produce } from 'immer';
+
+import { Line } from '../class/export';
+import {
+  BEGIN_DRAGGING_LINE,
+  BEGIN_DRAWING_LINE,
+  END_DRAGGING_LINE,
+  END_DRAWING_LINE,
+  SELECT_LINE,
+  SELECT_TOOL_DRAWING_LINE,
+  UPDATE_DRAGGING_LINE,
+  UPDATE_DRAWING_LINE
+} from '../constants';
+import { State } from '../models';
+import { history } from '../utils/export';
+
+export type LineAction =
+  | { type: typeof SELECT_LINE; layerID: string; lineID: string }
+  | { type: typeof SELECT_TOOL_DRAWING_LINE; sceneComponentType: string }
+  | { type: typeof BEGIN_DRAWING_LINE; layerID: string; x: number; y: number }
+  | { type: typeof UPDATE_DRAWING_LINE; x: number; y: number }
+  | { type: typeof END_DRAWING_LINE; x: number; y: number }
+  | {
+    type: typeof BEGIN_DRAGGING_LINE;
+    layerID: string;
+    lineID: string;
+    x: number;
+    y: number;
+  }
+  | { type: typeof UPDATE_DRAGGING_LINE; x: number; y: number }
+  | { type: typeof END_DRAGGING_LINE; x: number; y: number };
+
+export default function (state: State, action: LineAction): State {
+  switch (action.type) {
+    case SELECT_TOOL_DRAWING_LINE:
+      return Line.selectToolDrawingLine(state, action.sceneComponentType);
+
+    case BEGIN_DRAWING_LINE:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Line.beginDrawingLine(state, action.layerID, action.x, action.y);
+
+    case UPDATE_DRAWING_LINE:
+      return Line.updateDrawingLine(state, action.x, action.y);
+
+    case END_DRAWING_LINE:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Line.endDrawingLine(state, action.x, action.y);
+
+    case BEGIN_DRAGGING_LINE:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Line.beginDraggingLine(
+        state,
+        action.layerID,
+        action.lineID,
+        action.x,
+        action.y
+      );
+
+    case UPDATE_DRAGGING_LINE:
+      return Line.updateDraggingLine(state, action.x, action.y);
+
+    case END_DRAGGING_LINE:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Line.endDraggingLine(state, action.x, action.y);
+
+    case SELECT_LINE:
+      return Line.select(state, action.layerID, action.lineID);
+
+    default:
+      return state;
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/reducers/viewer3d-reducer.ts ====================
+import { Project } from '../class/export';
+import {
+  MODE_3D_FIRST_PERSON,
+  MODE_3D_VIEW,
+  SELECT_TOOL_3D_FIRST_PERSON,
+  SELECT_TOOL_3D_VIEW
+} from '../constants';
+import { State } from '../models';
+import { history } from '../utils/export';
+
+export type SelectTool3DViewAction = {
+  type: typeof SELECT_TOOL_3D_VIEW;
+};
+
+export type SelectTool3DFirstPersonAction = {
+  type: typeof SELECT_TOOL_3D_FIRST_PERSON;
+};
+
+export type Viewer3DAction =
+  | SelectTool3DViewAction
+  | SelectTool3DFirstPersonAction;
+
+export default function viewer3DReducer(
+  state: State,
+  action: Viewer3DAction
+): State {
+  state = {
+    ...state,
+    sceneHistory: history.historyPush(state.sceneHistory, state.scene)
+  };
+
+  switch (action.type) {
+    case SELECT_TOOL_3D_VIEW:
+      state = Project.rollback(state);
+      state = Project.setMode(state, MODE_3D_VIEW);
+      return state;
+
+    case SELECT_TOOL_3D_FIRST_PERSON:
+      state = Project.rollback(state);
+      state = Project.setMode(state, MODE_3D_FIRST_PERSON);
+      return state;
+
+    default:
+      return state;
+  }
+}
