@@ -50,7 +50,14 @@ try:
     from server.ads_geo_engine import register_ads_routes
     register_ads_routes(app)
 except ImportError:
-    pass  # ads_geo_engine not available
+    pass
+
+# Register Map Layer Engine
+try:
+    from server.map_layers import register_layer_routes
+    register_layer_routes(app)
+except ImportError:
+    pass
 
 
 @app.post("/upload-plan")
