@@ -25,10 +25,8 @@ import { createCatalog } from './catalog_custom/mycatalog';
  * - reports MODE_CHANGED + SCENE_JSON back to the parent
  */
 
-// ------- Protocol (must match PlanO PlannerFrame.tsx) -------
 const PROTOCOL_VERSION = 1;
 
-// ------- Import action creators + constants from local source -------
 import * as constants from '../../src/constants';
 import { normalizeSceneFromRaster } from '../../src/utils/scene-normalizer';
 
@@ -39,12 +37,10 @@ import * as linesActions from '../../src/actions/lines-actions';
 import * as holesActions from '../../src/actions/holes-actions';
 import * as itemsActions from '../../src/actions/items-actions';
 
-//define state
 const AppState = {
   'react-planner': PlannerModels.State()
 };
 
-//define reducer
 const reducer = (state: { [key: string]: any } | undefined, action: any) => {
   state = state || AppState;
   state = produce(state, (draft) => {
@@ -66,10 +62,8 @@ const store = configureStore({
 
 const plugins = [PlannerPlugins.Keyboard(), PlannerPlugins.ConsoleDebugger()];
 
-// ---- helpers to talk to parent (PlanO) ----
 function postToParent(msg: any) {
   try {
-    // targetOrigin '*' is OK; parent verifies origin is http://localhost:5173
     window.parent?.postMessage(msg, '*');
   } catch (e: any) {
     // ignore
@@ -100,17 +94,14 @@ function emitSceneJson(scene: any) {
   });
 }
 
-// Component that uses useMeasure hook
 function ResponsiveReactPlanner() {
   const [ref, bounds] = useMeasure();
   const catalog = createCatalog();
 
   useEffect(() => {
-    // Send initial mode to PlanO as soon as possible
     const st: any = store.getState()['react-planner'];
     if (st?.mode) emitModeChanged(String(st.mode));
 
-    // Subscribe to mode changes
     let lastMode = st?.mode;
     const unsubscribe = store.subscribe(() => {
       const cur: any = store.getState()['react-planner'];
@@ -121,13 +112,10 @@ function ResponsiveReactPlanner() {
       }
     });
 
-    // Listen for PlanO commands
     const onMessage = (event: MessageEvent) => {
-      // PlanO uses '*' targetOrigin, so accept but validate message shape
       const data: any = event.data;
       if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
 
-      // Basic ping (PlanO sends on iframe load)
       if (data.type === 'PING') {
         const cur: any = store.getState()['react-planner'];
         if (cur?.mode) emitModeChanged(String(cur.mode));
@@ -143,17 +131,15 @@ function ResponsiveReactPlanner() {
         const planner: any = store.getState()['react-planner'];
 
         switch (cmd) {
-          // ----- toolbar equivalents -----
           case 'NEW_PROJECT':
             store.dispatch(projectActions.newProject());
             break;
 
           case 'OPEN_CATALOG':
             store.dispatch(projectActions.openCatalog());
-          
             break;
-            
-            case 'CHANGE_CATALOG_PAGE': {
+
+          case 'CHANGE_CATALOG_PAGE': {
             const newPage = payload?.newPage;
             const oldPage = payload?.oldPage ?? 'root';
             if (!newPage) throw new Error('CHANGE_CATALOG_PAGE: missing payload.newPage');
@@ -181,7 +167,6 @@ function ResponsiveReactPlanner() {
             store.dispatch(projectActions.openProjectConfigurator());
             break;
 
-          // ----- 2D tools -----
           case 'TOOL_PAN':
             store.dispatch(viewer2DActions.selectToolPan());
             break;
@@ -202,7 +187,6 @@ function ResponsiveReactPlanner() {
             store.dispatch(projectActions.unselectAll());
             break;
 
-          // ----- loading -----
           case 'LOAD_PROJECT_JSON': {
             const scene = payload?.scene;
             if (!scene) throw new Error('LOAD_PROJECT_JSON: missing payload.scene');
@@ -218,7 +202,6 @@ function ResponsiveReactPlanner() {
             break;
           }
 
-          // ----- export -----
           case 'REQUEST_SCENE_JSON': {
             const st2: any = store.getState()['react-planner'];
             const scene = st2?.scene;
@@ -227,13 +210,35 @@ function ResponsiveReactPlanner() {
             break;
           }
 
+          case 'RESTORE_SURFACE_HIGHLIGHTS': {
+            const surfaceIds = payload?.surfaceIds || [];
+
+            window.dispatchEvent(
+              new CustomEvent('PLANO_RESTORE_HIGHLIGHTS', {
+                detail: { surfaceIds }
+              })
+            );
+
+            break;
+          }
+
+          case 'APPLY_SURFACE_COLORS': {
+            const surfaces = payload?.surfaces || {};
+
+            window.dispatchEvent(
+              new CustomEvent('PLANO_APPLY_SURFACE_COLORS', {
+                detail: { surfaces }
+              })
+            );
+
+            break;
+          }
+
           default:
-            // Unknown command: ignore but report to parent
             emitError(`Unknown CMD: ${cmd}`);
             break;
         }
 
-        // After any command, inform parent of current mode (helps keep UI in sync)
         const after: any = store.getState()['react-planner'];
         if (after?.mode) emitModeChanged(String(after.mode));
       } catch (e: any) {
@@ -256,7 +261,6 @@ function ResponsiveReactPlanner() {
           width={bounds.width}
           height={bounds.height}
           plugins={plugins}
-          // Keep toolbarButtons empty; PlanO is the toolbar.
           toolbarButtons={[]}
           stateExtractor={(state) => state['react-planner']}
         />
@@ -265,13 +269,11 @@ function ResponsiveReactPlanner() {
   );
 }
 
-//render
 const container = document.getElementById('app');
 if (!container) {
   throw new Error('Container element not found');
 }
 
-// Reuse a single React root across HMR updates
 const globalAny = globalThis as any;
 const ROOT_KEY = '__REACT_PLANNER_DEMO_ROOT__';
 const root =

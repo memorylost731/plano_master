@@ -1,0 +1,85 @@
+PLANO TILES NOT SHOWING - LIVE CHECK
+GENERATED: 2026-03-22 19:12:10 CET
+ROOT: /home/ogi/project_root/plano_master
+
+================ CURRENT CONFIG =================
+9:  textureUri?: string | null;
+177:          materialKey: "flooring-ceramic-60x60-carara",
+180:          textureUri: "/textures/60x60.carara.marble.png",
+185:          materialKey: "flooring-ceramic-60x60-cream",
+188:          textureUri: "/textures/60x60.creame.png",
+202:          materialKey: "flooring-ceramic-120x60-carara",
+205:          textureUri: "/textures/120x60.carara.marble.png",
+210:          materialKey: "flooring-ceramic-120x60-cream",
+213:          textureUri: "/textures/120x60.creame.png",
+307:          materialKey: "flooring-parquet-120x20",
+310:          textureUri: "/textures/120x20.parquet.png",
+
+================ CURRENT VIEWER3D =================
+345:  private applyTextureToMesh(
+366:    const texture = this.textureLoader.load(
+393:        Math.max(metersPerUnit / dimensions.w, 0.0001),
+394:        Math.max(metersPerUnit / dimensions.h, 0.0001)
+400:        Math.max(surfaceSize.width / dimensions.w, 0.01),
+401:        Math.max(surfaceSize.height / dimensions.h, 0.01)
+450:      this.applyTextureToMesh(
+
+================ UI TEXTURES =================
+00_frontend_skeleton/plano-ui/public/textures/120x20.parquet.png
+00_frontend_skeleton/plano-ui/public/textures/120x60.carara.marble.png
+00_frontend_skeleton/plano-ui/public/textures/120x60.creame.png
+00_frontend_skeleton/plano-ui/public/textures/60x60.carara.marble.png
+00_frontend_skeleton/plano-ui/public/textures/60x60.creame.png
+
+================ ENGINE TEXTURES =================
+02_react_planner/react-planner/demo/public/textures/120x20.parquet.png
+02_react_planner/react-planner/demo/public/textures/120x60.carara.marble.png
+02_react_planner/react-planner/demo/public/textures/120x60.creame.png
+02_react_planner/react-planner/demo/public/textures/60x60.carara.marble.png
+02_react_planner/react-planner/demo/public/textures/60x60.creame.png
+
+================ PLANO BUILD =================
+
+> plano-ui@0.0.0 build
+> tsc -b && vite build
+
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 1721 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:  0.29 kB
+dist/assets/index-BODWRmOM.css   18.62 kB │ gzip:  4.45 kB
+dist/assets/index-CvOIMgee.js   270.26 kB │ gzip: 84.89 kB
+✓ built in 1.35s
+
+================ ENGINE BUILD =================
+assets by status 9.27 MiB [cached] 108 assets
+assets by path ../../dist/ 310 KiB
+  assets by path ../../dist/src/ 189 KiB 159 assets
+  assets by path ../../dist/demo/ 121 KiB
+    assets by path ../../dist/demo/src/catalog_custom/ 60.9 KiB
+      assets by path ../../dist/demo/src/catalog_custom/items/ 52.1 KiB 63 assets
+      assets by path ../../dist/demo/src/catalog_custom/holes/ 8.16 KiB 10 assets
+      assets by path ../../dist/demo/src/catalog_custom/areas/ 303 bytes 3 assets
+      + 3 assets
+    assets by path ../../dist/demo/src/catalog/ 59.3 KiB 70 assets
+    asset ../../dist/demo/webpack.config.d.ts 1020 bytes [compared for emit]
+    asset ../../dist/demo/src/ui/toolbar-screenshot-button.d.ts 135 bytes [compared for emit]
+    asset ../../dist/demo/src/renderer.d.ts 11 bytes [compared for emit]
+asset app.js 27 MiB [emitted] (name: main)
+asset index.html 486 bytes [compared for emit]
+runtime modules 1.62 KiB 8 modules
+orphan modules 3.43 KiB [orphan] 6 modules
+javascript modules 8.93 MiB
+  cacheable modules 8.92 MiB 423 modules
+  ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ 540 bytes [built] [code generated]
+  ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ 2.37 KiB [built] [code generated]
+asset modules 10.7 MiB (asset) 1.03 MiB (javascript)
+  modules by path ./demo/src/catalog_custom/items/ 7.55 MiB (asset) 865 KiB (javascript) 100 modules
+  modules by path ./demo/src/catalog_custom/holes/ 538 KiB (asset) 193 KiB (javascript) 25 modules
+  modules by path ./demo/src/catalog_custom/lines/wall/ 1.63 MiB (asset) 252 bytes (javascript) 6 modules
+  modules by path ./demo/src/catalog_custom/areas/area/ 1.01 MiB (asset) 210 bytes (javascript)
+    ./demo/src/catalog_custom/areas/area/textures/parquet.jpg 240 KiB (asset) 42 bytes (javascript) [built] [code generated]
+    + 4 modules
+webpack 5.101.1 compiled successfully in 9741 ms

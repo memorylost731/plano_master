@@ -1,0 +1,933 @@
+PLANO TILES/PAINT PHASE VALIDATION
+GENERATED: 2026-03-22 18:04:39 CET
+ROOT: /home/ogi/project_root/plano_master
+
+============================================================
+FILE: 00_frontend_skeleton/plano-ui/src/config/areaServiceConfig.ts
+============================================================
+import type { AreaService } from "../state/plannerState";
+
+export type MaterialSwatchShape = "circle" | "square" | "rect";
+
+export type MaterialOption = {
+  materialKey: string;
+  materialLabel: string;
+  color: string | null;
+  swatch?: MaterialSwatchShape;
+  dimensions?: { w: number; h: number };
+};
+
+export type SubServiceGroup = {
+  groupKey: string;
+  groupLabel: string;
+  variant: "immediate" | "submenu";
+  defaultColor?: string | null;
+  dimensions?: { w: number; h: number };
+  materials: MaterialOption[];
+};
+
+export const AREA_SERVICE_CONFIG: Record<AreaService, SubServiceGroup[]> = {
+  painting: [
+    {
+      groupKey: "Internal paint",
+      groupLabel: "Internal paint",
+      variant: "submenu",
+      defaultColor: "#f5f5f5",
+      materials: [
+        {
+          materialKey: "paint-white",
+          materialLabel: "White",
+          color: "#f5f5f5",
+          swatch: "circle",
+        },
+        {
+          materialKey: "paint-grey",
+          materialLabel: "Grey",
+          color: "#b3b3b3",
+          swatch: "circle",
+        },
+        {
+          materialKey: "paint-beige",
+          materialLabel: "Beige",
+          color: "#d8c3a5",
+          swatch: "circle",
+        },
+        {
+          materialKey: "paint-sand",
+          materialLabel: "Sand",
+          color: "#cbb89d",
+          swatch: "circle",
+        },
+      ],
+    },
+    {
+      groupKey: "External paint",
+      groupLabel: "External paint",
+      variant: "submenu",
+      defaultColor: "#ece7de",
+      materials: [
+        {
+          materialKey: "paint-external-offwhite",
+          materialLabel: "Off white",
+          color: "#ece7de",
+          swatch: "circle",
+        },
+        {
+          materialKey: "paint-external-stone",
+          materialLabel: "Stone",
+          color: "#c9c1b2",
+          swatch: "circle",
+        },
+        {
+          materialKey: "paint-external-grey",
+          materialLabel: "Grey",
+          color: "#a7a4a0",
+          swatch: "circle",
+        },
+      ],
+    },
+  ],
+  flooring: [
+    {
+      groupKey: "Ceramic tiles 60×60",
+      groupLabel: "60×60",
+      variant: "immediate",
+      dimensions: { w: 0.6, h: 0.6 },
+      materials: [
+        {
+          materialKey: "flooring-ceramic-60x60",
+          materialLabel: "Ceramic 60×60",
+          color: "#d8d5cf",
+          swatch: "square",
+          dimensions: { w: 0.6, h: 0.6 },
+        },
+      ],
+    },
+    {
+      groupKey: "Ceramic tiles 120×60",
+      groupLabel: "120×60",
+      variant: "immediate",
+      dimensions: { w: 1.2, h: 0.6 },
+      materials: [
+        {
+          materialKey: "flooring-ceramic-120x60",
+          materialLabel: "Ceramic 120×60",
+          color: "#d3cec5",
+          swatch: "rect",
+          dimensions: { w: 1.2, h: 0.6 },
+        },
+      ],
+    },
+    {
+      groupKey: "Ceramic tiles custom",
+      groupLabel: "Custom tiles",
+      variant: "submenu",
+      materials: [
+        {
+          materialKey: "flooring-ceramic-75x75",
+          materialLabel: "75×75",
+          color: "#d9d4cb",
+          swatch: "square",
+          dimensions: { w: 0.75, h: 0.75 },
+        },
+        {
+          materialKey: "flooring-ceramic-90x90",
+          materialLabel: "90×90",
+          color: "#cfc9bf",
+          swatch: "square",
+          dimensions: { w: 0.9, h: 0.9 },
+        },
+        {
+          materialKey: "flooring-ceramic-120x120",
+          materialLabel: "120×120",
+          color: "#c8c2b9",
+          swatch: "square",
+          dimensions: { w: 1.2, h: 1.2 },
+        },
+      ],
+    },
+    {
+      groupKey: "Laminate",
+      groupLabel: "Laminate",
+      variant: "immediate",
+      materials: [
+        {
+          materialKey: "flooring-laminate",
+          materialLabel: "Laminate",
+          color: "#9a7b5f",
+          swatch: "rect",
+        },
+      ],
+    },
+    {
+      groupKey: "Microcement",
+      groupLabel: "Microcement",
+      variant: "submenu",
+      defaultColor: "#9a9a96",
+      materials: [
+        {
+          materialKey: "flooring-microcement-grey",
+          materialLabel: "Grey",
+          color: "#9a9a96",
+          swatch: "circle",
+        },
+        {
+          materialKey: "flooring-microcement-charcoal",
+          materialLabel: "Charcoal",
+          color: "#555555",
+          swatch: "circle",
+        },
+        {
+          materialKey: "flooring-microcement-sand",
+          materialLabel: "Sand",
+          color: "#c7b7a0",
+          swatch: "circle",
+        },
+      ],
+    },
+    {
+      groupKey: "Polished concrete",
+      groupLabel: "Concrete",
+      variant: "immediate",
+      materials: [
+        {
+          materialKey: "flooring-polished-concrete",
+          materialLabel: "Polished concrete",
+          color: "#8d8f93",
+          swatch: "rect",
+        },
+      ],
+    },
+    {
+      groupKey: "Parquet",
+      groupLabel: "Parquet",
+      variant: "immediate",
+      materials: [
+        {
+          materialKey: "flooring-parquet",
+          materialLabel: "Parquet",
+          color: "#8a6447",
+          swatch: "rect",
+        },
+      ],
+    },
+  ],
+  plastering: [
+    {
+      groupKey: "Internal (monacote+finittura)",
+      groupLabel: "Internal monacote",
+      variant: "immediate",
+      defaultColor: "#c8c0b8",
+      materials: [
+        {
+          materialKey: "plastering-monacote",
+          materialLabel: "Monacote",
+          color: "#c8c0b8",
+          swatch: "circle",
+        },
+      ],
+    },
+    {
+      groupKey: "Internal (microcement)",
+      groupLabel: "Microcement",
+      variant: "submenu",
+      defaultColor: "#999999",
+      materials: [
+        {
+          materialKey: "plastering-microcement-grey",
+          materialLabel: "Grey",
+          color: "#999999",
+          swatch: "circle",
+        },
+        {
+          materialKey: "plastering-microcement-charcoal",
+          materialLabel: "Charcoal",
+          color: "#4a4a4a",
+          swatch: "circle",
+        },
+        {
+          materialKey: "plastering-microcement-sand",
+          materialLabel: "Sand",
+          color: "#c9b99a",
+          swatch: "circle",
+        },
+      ],
+    },
+    {
+      groupKey: "External (GR1000)",
+      groupLabel: "External GR1000",
+      variant: "submenu",
+      defaultColor: "#d7d0c6",
+      materials: [
+        {
+          materialKey: "plastering-gr1000-offwhite",
+          materialLabel: "Off white",
+          color: "#d7d0c6",
+          swatch: "circle",
+        },
+        {
+          materialKey: "plastering-gr1000-stone",
+          materialLabel: "Stone",
+          color: "#bdb3a5",
+          swatch: "circle",
+        },
+        {
+          materialKey: "plastering-gr1000-grey",
+          materialLabel: "Grey",
+          color: "#9c9791",
+          swatch: "circle",
+        },
+      ],
+    },
+    {
+      groupKey: "External (silicato)",
+      groupLabel: "External silicato",
+      variant: "submenu",
+      defaultColor: "#ede5d8",
+      materials: [
+        {
+          materialKey: "plastering-silicato-cream",
+          materialLabel: "Cream",
+          color: "#ede5d8",
+          swatch: "circle",
+        },
+        {
+          materialKey: "plastering-silicato-sand",
+          materialLabel: "Sand",
+          color: "#d5c2a3",
+          swatch: "circle",
+        },
+        {
+          materialKey: "plastering-silicato-grey",
+          materialLabel: "Grey",
+          color: "#b0aca5",
+          swatch: "circle",
+        },
+      ],
+    },
+    {
+      groupKey: "Stone restoration",
+      groupLabel: "Stone restoration",
+      variant: "immediate",
+      defaultColor: "#d4b853",
+      materials: [
+        {
+          materialKey: "plastering-stone-restoration",
+          materialLabel: "Stone restoration",
+          color: "#d4b853",
+          swatch: "circle",
+        },
+      ],
+    },
+  ],
+  boards: [
+    {
+      groupKey: "Flat ceiling",
+      groupLabel: "Gypsum board",
+      variant: "immediate",
+      defaultColor: "#dcdcdc",
+      dimensions: { w: 2.4, h: 1.2 },
+      materials: [
+        {
+          materialKey: "boards-flat-ceiling",
+          materialLabel: "Gypsum board 2.4×1.2",
+          color: "#dcdcdc",
+          swatch: "rect",
+          dimensions: { w: 2.4, h: 1.2 },
+        },
+      ],
+    },
+  ],
+};
+
+============================================================
+FILE: 00_frontend_skeleton/plano-ui/src/components/planner/ServicePanel.tsx
+============================================================
+import type { AreaService } from "../../state/plannerState";
+import type { SubServiceGroup, MaterialOption } from "../../config/areaServiceConfig";
+
+type Props = {
+  service: AreaService;
+  groups: SubServiceGroup[];
+  openSubGroup: string | null;
+  activeSubService: string | null;
+  activeMaterialKey: string | null;
+  committedEntries: any[];
+  selectedCount: number;
+  totalM2: number;
+  canComplete: boolean;
+  onGroupClick: (service: AreaService, group: SubServiceGroup) => void;
+  onMaterialClick: (service: AreaService, group: SubServiceGroup, material: MaterialOption) => void;
+  onComplete: () => void;
+  onEntryClick: (entry: any) => void;
+};
+
+function getSwatchShapeClass(material: MaterialOption) {
+  if (material.swatch === "square") return "h-6 w-6 rounded-[4px]";
+  if (material.swatch === "rect") return "h-4 w-10 rounded-[4px]";
+  return "h-6 w-6 rounded-full";
+}
+
+function getGroupPreviewShapeClass(group: SubServiceGroup) {
+  const first = group.materials[0];
+  if (!first) return "h-3 w-3 rounded-full";
+  if (first.swatch === "square") return "h-3 w-3 rounded-[3px]";
+  if (first.swatch === "rect") return "h-2.5 w-6 rounded-[3px]";
+  return "h-3 w-3 rounded-full";
+}
+
+export default function ServicePanel({
+  service,
+  groups,
+  openSubGroup,
+  activeSubService,
+  activeMaterialKey,
+  committedEntries,
+  selectedCount,
+  totalM2,
+  canComplete,
+  onGroupClick,
+  onMaterialClick,
+  onComplete,
+  onEntryClick,
+}: Props) {
+  const openGroup = groups.find((g) => g.groupKey === openSubGroup) || null;
+
+  return (
+    <div className="pointer-events-none absolute right-4 top-20 z-40">
+      <div className="pointer-events-auto w-[300px] max-h-[75vh] overflow-y-auto rounded-xl bg-white/95 shadow-lg p-4">
+
+        {/* HEADER */}
+        <div className="text-sm font-semibold capitalize mb-3">
+          {service}
+        </div>
+
+        {/* GROUPS */}
+        <div className="flex flex-col gap-2">
+          {groups.map((group) => {
+            const isActive = activeSubService === group.groupKey;
+            const isOpen = openSubGroup === group.groupKey;
+            const isDisabled = group.materials.length === 0;
+
+            return (
+              <button
+                key={group.groupKey}
+                onClick={() => onGroupClick(service, group)}
+                disabled={isDisabled}
+                className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${
+                  isActive || isOpen ? "ring-2 ring-black" : ""
+                } ${isDisabled ? "opacity-40" : "hover:bg-gray-100"}`}
+              >
+                <div className="flex items-center gap-2">
+                  {group.defaultColor && (
+                    <span
+                      className={`border ${getGroupPreviewShapeClass(group)}`}
+                      style={{ backgroundColor: group.defaultColor }}
+                    />
+                  )}
+                  <span>{group.groupLabel}</span>
+                </div>
+
+                {group.variant === "submenu" && (
+                  <span>{isOpen ? "-" : "+"}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* MATERIALS */}
+        {openGroup && openGroup.materials.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {openGroup.materials.map((mat) => {
+              const isActive =
+                activeSubService === openGroup.groupKey &&
+                activeMaterialKey === mat.materialKey;
+
+              return (
+                <button
+                  key={mat.materialKey}
+                  onClick={() => onMaterialClick(service, openGroup, mat)}
+                  className={`flex items-center gap-2 px-2 py-1 rounded ${
+                    isActive ? "ring-2 ring-black" : "hover:bg-gray-100"
+                  }`}
+                >
+                  {mat.color && (
+                    <span
+                      className={`border ${getSwatchShapeClass(mat)}`}
+                      style={{ backgroundColor: mat.color }}
+                    />
+                  )}
+                  <span className="text-xs">{mat.materialLabel}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ACTIVE SUMMARY */}
+        <div className="mt-4 text-sm">
+          <div>{selectedCount} faces</div>
+          <div>{totalM2} m²</div>
+        </div>
+
+        {/* COMPLETE BUTTON */}
+        <button
+          onClick={onComplete}
+          disabled={!canComplete}
+          className={`mt-3 w-full py-2 rounded-lg text-sm font-semibold ${
+            canComplete
+              ? "bg-black text-white"
+              : "bg-gray-300 text-gray-500"
+          }`}
+        >
+          Complete Service
+        </button>
+
+        {/* COMMITTED */}
+        {committedEntries.length > 0 && (
+          <div className="mt-4 border-t pt-3">
+            <div className="text-xs font-semibold mb-2">Committed</div>
+
+            {committedEntries.map((entry, i) => (
+              <button
+                key={i}
+                onClick={() => onEntryClick(entry)}
+                className="flex justify-between w-full text-xs py-1 hover:bg-gray-100"
+              >
+                <span>{entry.materialLabel}</span>
+                <span>{entry.totalM2} m²</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+============================================================
+FILE: 02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx
+============================================================
+import React, { Component } from 'react';
+
+import convert from 'convert-units';
+import * as Three from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass';
+
+import { State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { diff } from '../../utils/history';
+
+import { parseData, PlanData, updateScene } from './scene-creator';
+import { disposeScene } from './three-memory-cleaner';
+
+interface Scene3DViewerProps {
+  state: State;
+  width: number;
+  height: number;
+}
+
+type HighlightEntry = {
+  mesh: Three.Mesh;
+  originalMaterial: Three.Material;
+};
+
+export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
+  static contextType = ReactPlannerContext;
+  declare context: React.ContextType<typeof ReactPlannerContext>;
+
+  lastMousePosition: { x: number; y: number } = { x: 0, y: 0 };
+  width: number;
+  height: number;
+  renderingID = 0;
+  renderer: Three.WebGLRenderer;
+  composer: EffectComposer | undefined;
+
+  canvasWrapper: React.RefObject<null | HTMLDivElement>;
+
+  camera: Three.PerspectiveCamera | undefined;
+  scene3D: Three.Scene | undefined;
+  planData: PlanData | undefined;
+  orbitController: OrbitControls | undefined;
+
+  highlightedMeshes: Map<string, HighlightEntry>;
+  highlightedSurfaceIds: Set<string>;
+  appliedSurfaceColors: Map<string, string>;
+  rawOriginalMaterials: Map<string, Three.Material>;
+
+  mouseDownEvent: undefined | ((event: MouseEvent) => void);
+  mouseUpEvent: undefined | ((event: MouseEvent) => void);
+  restoreHighlightsEvent: undefined | ((event: Event) => void);
+  applySurfaceColorsEvent: undefined | ((event: Event) => void);
+
+  constructor(props: Scene3DViewerProps) {
+    super(props);
+
+    this.width = props.width;
+    this.height = props.height;
+    this.canvasWrapper = React.createRef<HTMLDivElement>();
+    this.highlightedMeshes = new Map<string, HighlightEntry>();
+    this.highlightedSurfaceIds = new Set<string>();
+    this.appliedSurfaceColors = new Map<string, string>();
+    this.rawOriginalMaterials = new Map<string, Three.Material>();
+
+    this.renderer =
+      (window as any).__threeRenderer ||
+      new Three.WebGLRenderer({
+        preserveDrawingBuffer: true,
+        antialias: true,
+      });
+    (window as any).__threeRenderer = this.renderer;
+  }
+
+  private getMeshKey(mesh: Three.Mesh) {
+    return `${mesh.uuid}:${mesh.name}`;
+  }
+
+  private isSelectableFace(mesh: Three.Object3D): mesh is Three.Mesh {
+    return (
+      mesh instanceof Three.Mesh &&
+      (mesh.name === 'frontFace' ||
+        mesh.name === 'backFace' ||
+        mesh.name === 'floor') &&
+      !Array.isArray((mesh as Three.Mesh).material)
+    );
+  }
+
+  private getSurfaceIdForMesh(mesh: Three.Mesh) {
+    if (mesh.name === 'floor') {
+      const areaId = mesh.userData?.areaId;
+      return areaId ? `area::${areaId}` : null;
+    }
+
+    const wallId = mesh.userData?.wallId;
+    const surfaceType = mesh.userData?.surfaceType;
+
+    if (wallId && surfaceType) {
+      return `${wallId}:${surfaceType}`;
+    }
+
+    return null;
+  }
+
+  private createHighlightMaterial(
+    baseMaterial: Three.Material,
+    highlightColor: number | string = 0x2196f3
+  ) {
+    const highlightMaterial = (baseMaterial as any).clone();
+
+    if ('emissive' in highlightMaterial && highlightMaterial.emissive) {
+      highlightMaterial.emissive = new Three.Color(highlightColor as any);
+      highlightMaterial.emissiveIntensity = 0.28;
+    }
+
+    highlightMaterial.needsUpdate = true;
+    return highlightMaterial as Three.Material;
+  }
+
+  private createAppliedColorMaterial(
+    baseMaterial: Three.Material,
+    color: string
+  ) {
+    const appliedMaterial = (baseMaterial as any).clone();
+
+    const textureKeys = [
+      'map',
+      'normalMap',
+      'roughnessMap',
+      'metalnessMap',
+      'aoMap',
+      'bumpMap',
+      'alphaMap',
+      'displacementMap',
+      'emissiveMap',
+      'lightMap'
+    ];
+
+    textureKeys.forEach((key) => {
+      if (key in appliedMaterial) {
+        appliedMaterial[key] = null;
+      }
+    });
+
+    if ('color' in appliedMaterial && appliedMaterial.color) {
+      appliedMaterial.color = new Three.Color(color);
+    }
+
+    if ('emissive' in appliedMaterial && appliedMaterial.emissive) {
+      appliedMaterial.emissive = new Three.Color(0x000000);
+      appliedMaterial.emissiveIntensity = 0;
+    }
+
+    if ('roughness' in appliedMaterial) {
+      appliedMaterial.roughness = 0.88;
+    }
+
+    if ('metalness' in appliedMaterial) {
+      appliedMaterial.metalness = 0;
+    }
+
+    appliedMaterial.needsUpdate = true;
+    return appliedMaterial as Three.Material;
+  }
+
+  private clearAllHighlights(clearSurfaceIds: boolean = true) {
+    this.highlightedMeshes.forEach((entry) => {
+      entry.mesh.material = entry.originalMaterial;
+    });
+    this.highlightedMeshes.clear();
+
+    if (clearSurfaceIds) {
+      this.highlightedSurfaceIds.clear();
+    }
+  }
+
+  private removeHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+    const entry = this.highlightedMeshes.get(key);
+    if (!entry) return;
+
+    entry.mesh.material = entry.originalMaterial;
+    this.highlightedMeshes.delete(key);
+
+    const surfaceId = this.getSurfaceIdForMesh(mesh);
+    if (surfaceId) {
+      this.highlightedSurfaceIds.delete(surfaceId);
+    }
+  }
+
+  private addHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+    if (this.highlightedMeshes.has(key)) return;
+
+    const baseMaterial = mesh.material;
+    if (Array.isArray(baseMaterial) || !baseMaterial) return;
+
+    const highlightMaterial = this.createHighlightMaterial(baseMaterial);
+
+    this.highlightedMeshes.set(key, {
+      mesh,
+      originalMaterial: baseMaterial
+    });
+
+    const surfaceId = this.getSurfaceIdForMesh(mesh);
+    if (surfaceId) {
+      this.highlightedSurfaceIds.add(surfaceId);
+    }
+
+    mesh.material = highlightMaterial;
+  }
+
+  private toggleHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+
+    if (this.highlightedMeshes.has(key)) {
+      this.removeHighlight(mesh);
+    } else {
+      this.addHighlight(mesh);
+    }
+  }
+
+  private applyColorToMesh(mesh: Three.Mesh, surfaceId: string, color: string) {
+    const key = this.getMeshKey(mesh);
+    const highlightEntry = this.highlightedMeshes.get(key);
+    const currentBaseMaterial = highlightEntry?.originalMaterial || mesh.material;
+
+    if (Array.isArray(currentBaseMaterial) || !currentBaseMaterial) return;
+
+    if (!this.rawOriginalMaterials.has(surfaceId)) {
+      this.rawOriginalMaterials.set(surfaceId, currentBaseMaterial);
+    }
+
+    const rawOriginalMaterial =
+      this.rawOriginalMaterials.get(surfaceId) || currentBaseMaterial;
+
+    const appliedMaterial = this.createAppliedColorMaterial(
+      rawOriginalMaterial,
+      color
+    );
+
+    if (highlightEntry) {
+      highlightEntry.originalMaterial = appliedMaterial;
+      mesh.material = this.createHighlightMaterial(appliedMaterial);
+    } else {
+      mesh.material = appliedMaterial;
+    }
+  }
+
+  private clearAppliedColorFromMesh(mesh: Three.Mesh, surfaceId: string) {
+    const key = this.getMeshKey(mesh);
+    const highlightEntry = this.highlightedMeshes.get(key);
+    const rawOriginalMaterial = this.rawOriginalMaterials.get(surfaceId);
+
+    if (!rawOriginalMaterial) return;
+
+    if (highlightEntry) {
+      highlightEntry.originalMaterial = rawOriginalMaterial;
+      mesh.material = this.createHighlightMaterial(rawOriginalMaterial);
+    } else {
+      mesh.material = rawOriginalMaterial;
+    }
+
+    this.rawOriginalMaterials.delete(surfaceId);
+  }
+
+  private applySurfaceColors(colorMap: Record<string, string | null>) {
+    if (!this.planData || !this.planData.plan) return;
+
+    Object.entries(colorMap).forEach(([surfaceId, color]) => {
+      if (color) {
+        this.appliedSurfaceColors.set(surfaceId, color);
+      } else {
+        this.appliedSurfaceColors.delete(surfaceId);
+      }
+    });
+
+    this.planData.plan.traverse((obj) => {
+      if (!(obj instanceof Three.Mesh)) return;
+
+      const mesh = obj as Three.Mesh;
+      const material = mesh.material as any;
+      if (material) {
+        mesh.castShadow = true;
+        mesh.receiveShadow = mesh.name === 'floor';
+      }
+
+      if (!this.isSelectableFace(obj)) return;
+
+      const surfaceId = this.getSurfaceIdForMesh(obj);
+      if (!surfaceId) return;
+
+      if (Object.prototype.hasOwnProperty.call(colorMap, surfaceId)) {
+        const nextColor = colorMap[surfaceId];
+
+        if (nextColor) {
+          this.applyColorToMesh(obj, surfaceId, nextColor);
+        } else {
+          this.clearAppliedColorFromMesh(obj, surfaceId);
+        }
+
+        return;
+      }
+
+      const storedColor = this.appliedSurfaceColors.get(surfaceId);
+      if (storedColor) {
+        this.applyColorToMesh(obj, surfaceId, storedColor);
+      }
+    });
+  }
+
+  private reapplyStoredSurfaceColors() {
+    if (!this.planData || !this.planData.plan) return;
+    if (!this.appliedSurfaceColors.size) return;
+
+    this.planData.plan.traverse((obj) => {
+      if (!this.isSelectableFace(obj)) return;
+
+      const surfaceId = this.getSurfaceIdForMesh(obj);
+      if (!surfaceId) return;
+
+      const storedColor = this.appliedSurfaceColors.get(surfaceId);
+      if (!storedColor) return;
+
+      this.applyColorToMesh(obj, surfaceId, storedColor);
+    });
+  }
+
+  private restoreHighlightsBySurfaceIds(surfaceIds: string[]) {
+    this.clearAllHighlights(false);
+
+    if (!this.planData || !this.planData.plan) return;
+
+    this.highlightedSurfaceIds = new Set(surfaceIds);
+
+    if (!surfaceIds.length) return;
+
+    const wanted = new Set(surfaceIds);
+
+    this.planData.plan.traverse((obj) => {
+      if (!this.isSelectableFace(obj)) return;
+
+      const surfaceId = this.getSurfaceIdForMesh(obj);
+      if (!surfaceId) return;
+
+      if (wanted.has(surfaceId)) {
+        this.addHighlight(obj);
+      }
+    });
+  }
+
+  componentDidMount() {
+    const { state } = this.props;
+
+    const scene3D = new Three.Scene();
+
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.outputColorSpace = Three.SRGBColorSpace;
+    this.renderer.toneMapping = Three.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = Three.PCFSoftShadowMap;
+    this.renderer.setClearColor(new Three.Color('#e8e8e8'));
+    this.renderer.setSize(this.width, this.height);
+
+    const planData = parseData(state.scene, this.context);
+
+    scene3D.add(planData.plan);
+    scene3D.add(planData.grid);
+
+    const aspectRatio = this.width / this.height;
+    const camera = new Three.PerspectiveCamera(45, aspectRatio, 1, 300000);
+
+    scene3D.add(camera);
+
+    const cameraPositionX =
+      -(planData.boundingBox.max.x - planData.boundingBox.min.x) / 2;
+    const cameraPositionY =
+      ((planData.boundingBox.max.y - planData.boundingBox.min.y) / 2) * 10;
+    const cameraPositionZ =
+      (planData.boundingBox.max.z - planData.boundingBox.min.z) / 2;
+
+    camera.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    camera.up = new Three.Vector3(0, 1, 0);
+
+    const ambient = new Three.AmbientLight(0xffffff, 0.3);
+    scene3D.add(ambient);
+
+    const hemi = new Three.HemisphereLight(0xf0f0ff, 0xb0a090, 0.4);
+    scene3D.add(hemi);
+
+    const spotLight1 = new Three.SpotLight(0xffffff, 0.3);
+    spotLight1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    spotLight1.angle = Math.PI / 5;
+    spotLight1.penumbra = 0.35;
+    spotLight1.decay = 1.2;
+    scene3D.add(spotLight1);
+
+    const dirLight = new Three.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(
+      cameraPositionX + 300,
+      cameraPositionY + 400,
+      cameraPositionZ + 300
+    );
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    dirLight.shadow.camera.near = 1;
+    dirLight.shadow.camera.far = Math.max(cameraPositionY * 3, 2000);
+    const shadowExtent = Math.max(Math.abs(cameraPositionZ) * 2, 1500);
+    (dirLight.shadow.camera as Three.OrthographicCamera).left = -shadowExtent;
+    (dirLight.shadow.camera as Three.OrthographicCamera).right = shadowExtent;
+    (dirLight.shadow.camera as Three.OrthographicCamera).top = shadowExtent;
+    (dirLight.shadow.camera as Three.OrthographicCamera).bottom = -shadowExtent;
+    dirLight.shadow.bias = -0.0008;
+    scene3D.add(dirLight);
+
+
+

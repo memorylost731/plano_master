@@ -94,6 +94,8 @@ export type CommittedServiceEntry = {
   materialKey: string;
   materialLabel: string;
   color: string | null;
+  textureUri: string | null;
+  dimensions: { w: number; h: number } | null;
   surfaces: Map<string, SurfaceGeoEntry>;
   totalM2: number;
 };
@@ -131,6 +133,10 @@ type State = {
   setActiveAreaMaterialLabel: (value: string | null) => void;
   activeAreaMaterialColor: string | null;
   setActiveAreaMaterialColor: (value: string | null) => void;
+  activeAreaMaterialTextureUri: string | null;
+  setActiveAreaMaterialTextureUri: (value: string | null) => void;
+  activeAreaMaterialDimensions: { w: number; h: number } | null;
+  setActiveAreaMaterialDimensions: (value: { w: number; h: number } | null) => void;
 
   committedLedger: CommittedServiceEntry[];
   commitCurrentService: () => void;
@@ -214,6 +220,11 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
   const [activeAreaMaterialKey, setActiveAreaMaterialKey] = useState<string | null>(null);
   const [activeAreaMaterialLabel, setActiveAreaMaterialLabel] = useState<string | null>(null);
   const [activeAreaMaterialColor, setActiveAreaMaterialColor] = useState<string | null>(null);
+  const [activeAreaMaterialTextureUri, setActiveAreaMaterialTextureUri] = useState<string | null>(null);
+  const [activeAreaMaterialDimensions, setActiveAreaMaterialDimensions] = useState<{
+    w: number;
+    h: number;
+  } | null>(null);
 
   const [committedLedger, setCommittedLedger] = useState<CommittedServiceEntry[]>([]);
 
@@ -293,7 +304,30 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
     totalM2 = Math.round(totalM2 * 100) / 100;
 
     setCommittedLedger((prev) => {
-      const existingIndex = prev.findIndex(
+      const cleaned = prev
+        .map((entry) => {
+          if (entry.service !== activeMain) return entry;
+
+          const nextSurfaces = new Map(entry.surfaces);
+
+          committedSurfaces.forEach((_geo, surfaceId) => {
+            nextSurfaces.delete(surfaceId);
+          });
+
+          let nextTotalM2 = 0;
+          nextSurfaces.forEach((geo) => {
+            if (geo.areaM2 !== null) nextTotalM2 += geo.areaM2;
+          });
+
+          return {
+            ...entry,
+            surfaces: nextSurfaces,
+            totalM2: Math.round(nextTotalM2 * 100) / 100,
+          };
+        })
+        .filter((entry) => entry.surfaces.size > 0);
+
+      const existingIndex = cleaned.findIndex(
         (entry) =>
           entry.service === activeMain &&
           entry.subService === activeAreaSubService &&
@@ -301,21 +335,23 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
       );
 
       const nextEntry: CommittedServiceEntry = {
-        ledgerId: existingIndex >= 0 ? prev[existingIndex].ledgerId : crypto.randomUUID(),
+        ledgerId: existingIndex >= 0 ? cleaned[existingIndex].ledgerId : crypto.randomUUID(),
         service: activeMain,
         subService: activeAreaSubService,
         materialKey: activeAreaMaterialKey,
         materialLabel: activeAreaMaterialLabel,
         color: activeAreaMaterialColor,
+        textureUri: activeAreaMaterialTextureUri,
+        dimensions: activeAreaMaterialDimensions,
         surfaces: committedSurfaces,
         totalM2,
       };
 
       if (existingIndex >= 0) {
-        return prev.map((entry, index) => (index === existingIndex ? nextEntry : entry));
+        return cleaned.map((entry, index) => (index === existingIndex ? nextEntry : entry));
       }
 
-      return [...prev, nextEntry];
+      return [...cleaned, nextEntry];
     });
 
     clearSelectedSurfaces();
@@ -323,6 +359,8 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
     setActiveAreaMaterialKey(null);
     setActiveAreaMaterialLabel(null);
     setActiveAreaMaterialColor(null);
+    setActiveAreaMaterialTextureUri(null);
+    setActiveAreaMaterialDimensions(null);
   };
 
   useEffect(() => {
@@ -416,6 +454,10 @@ export function PlannerStateProvider({ children }: { children: React.ReactNode }
     setActiveAreaMaterialLabel,
     activeAreaMaterialColor,
     setActiveAreaMaterialColor,
+    activeAreaMaterialTextureUri,
+    setActiveAreaMaterialTextureUri,
+    activeAreaMaterialDimensions,
+    setActiveAreaMaterialDimensions,
     committedLedger,
     commitCurrentService,
     projectTotalM2,

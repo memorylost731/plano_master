@@ -24,7 +24,8 @@ export type PlannerCmd =
   | "LOAD_PROJECT_JSON"
   | "LOAD_RASTER_JSON"
   | "REQUEST_SCENE_JSON"
-  | "RESTORE_SURFACE_HIGHLIGHTS";
+  | "RESTORE_SURFACE_HIGHLIGHTS"
+  | "APPLY_SURFACE_COLORS";
 
 export type SurfaceSelectedPayload = {
   surfaceId: string;
@@ -56,21 +57,6 @@ type Props = {
   onSurfacesCleared?: () => void;
   onCatalogServiceSelected?: (payload: CatalogServiceSelectedPayload) => void;
 };
-
-function downloadJson(filename: string, data: any) {
-  const dataStr = JSON.stringify(data, null, 2);
-  const blob = new Blob([dataStr], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  URL.revokeObjectURL(url);
-}
 
 export default function PlannerFrame({
   onApi,
@@ -163,11 +149,9 @@ export default function PlannerFrame({
           payload &&
           typeof payload.surfaceId === "string" &&
           typeof payload.wallId === "string" &&
-          (
-            payload.surfaceType === "front" ||
+          (payload.surfaceType === "front" ||
             payload.surfaceType === "back" ||
-            payload.surfaceType === "floor"
-          )
+            payload.surfaceType === "floor")
         ) {
           onSurfaceSelected?.(payload);
         }

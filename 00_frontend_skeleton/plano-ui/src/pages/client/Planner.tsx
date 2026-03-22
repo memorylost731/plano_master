@@ -23,14 +23,36 @@ import PlannerFrame, {
   type CatalogServiceSelectedPayload,
   type SurfaceSelectedPayload,
 } from "../../components/planner/PlannerFrame";
+import ServicePanel from "../../components/planner/ServicePanel";
 
 import {
   MAIN_SERVICES,
   usePlannerState,
   type MainService,
+  type AreaService,
 } from "../../state/plannerState";
+import {
+  AREA_SERVICE_CONFIG,
+  type MaterialOption,
+  type SubServiceGroup,
+} from "../../config/areaServiceConfig";
 
 type ViewMode = "2D" | "3D";
+
+type SurfaceAppearance = {
+  color: string | null;
+  textureUri: string | null;
+  dimensions: { w: number; h: number } | null;
+};
+
+type ActiveAreaMaterialSelection = {
+  materialKey: string;
+  materialLabel: string;
+  subService: string;
+  color: string | null;
+  textureUri: string | null;
+  dimensions: { w: number; h: number } | null;
+};
 
 const ICONS: Record<MainService, LucideIcon> = {
   electricity: Bolt,
@@ -44,6 +66,15 @@ const ICONS: Record<MainService, LucideIcon> = {
 
 const SCENE_BACKUP_KEY = "plano_scene_backup";
 
+function isAreaService(service: MainService): service is AreaService {
+  return (
+    service === "painting" ||
+    service === "flooring" ||
+    service === "plastering" ||
+    service === "boards"
+  );
+}
+
 export default function Planner() {
   const navigate = useNavigate();
 
@@ -51,9 +82,12 @@ export default function Planner() {
   const didInitRef = useRef(false);
   const pendingEstimateNavRef = useRef(false);
   const restoreAttemptedRef = useRef(false);
+  const lastPushedSurfaceColorsRef = useRef<Record<string, SurfaceAppearance>>({});
 
   const [viewMode, setViewMode] = useState<ViewMode>("2D");
   const [engineMode, setEngineMode] = useState<string>("");
+  const [materialStripService, setMaterialStripService] = useState<AreaService | null>(null);
+  const [openSubGroup, setOpenSubGroup] = useState<string | null>(null);
 
   const selectedSurfacesRef = useRef<Set<string>>(new Set());
 
@@ -65,7 +99,6 @@ export default function Planner() {
     selectedSurfaces,
     surfaceGeoMap,
     selectedSurfaceTotalM2,
-    areaServiceDraft,
     toggleSurface,
     clearSelectedSurfaces,
     restoreFromLedgerEntry,
@@ -79,11 +112,59 @@ export default function Planner() {
     setActiveAreaMaterialKey,
     activeAreaMaterialLabel,
     setActiveAreaMaterialLabel,
-    activeAreaMaterialColor,
     setActiveAreaMaterialColor,
+    setActiveAreaMaterialTextureUri,
+    setActiveAreaMaterialDimensions,
   } = usePlannerState();
 
   selectedSurfacesRef.current = selectedSurfaces;
+
+  const buildCommittedSurfaceAppearanceMap = useCallback(() => {
+    const map: Record<string, SurfaceAppearance> = {};
+
+    committedLedger.forEach((entry) => {
+      entry.surfaces.forEach((_geo, surfaceId) => {
+        map[surfaceId] = {
+          color: entry.color,
+          textureUri: entry.textureUri,
+          dimensions: entry.dimensions,
+        };
+      });
+    });
+
+    return map;
+  }, [committedLedger]);
+
+  const pushCommittedSurfaceColors = useCallback(
+    (forceFull: boolean = false) => {
+      const nextMap = buildCommittedSurfaceAppearanceMap();
+      const prevMap = lastPushedSurfaceColorsRef.current;
+
+      const payload: Record<string, SurfaceAppearance | null> = {};
+
+      if (forceFull) {
+        Object.entries(nextMap).forEach(([surfaceId, appearance]) => {
+          payload[surfaceId] = appearance;
+        });
+      } else {
+        const allSurfaceIds = new Set([
+          ...Object.keys(prevMap),
+          ...Object.keys(nextMap),
+        ]);
+
+        allSurfaceIds.forEach((surfaceId) => {
+          payload[surfaceId] =
+            Object.prototype.hasOwnProperty.call(nextMap, surfaceId)
+              ? nextMap[surfaceId]
+              : null;
+        });
+      }
+
+      apiRef.current?.cmd("APPLY_SURFACE_COLORS", { surfaces: payload });
+      lastPushedSurfaceColorsRef.current = nextMap;
+    },
+    [buildCommittedSurfaceAppearanceMap]
+  );
 
   const handleApi = useCallback((api: PlannerApi) => {
     apiRef.current = api;
@@ -119,6 +200,11 @@ export default function Planner() {
   }, [navigate]);
 
   useEffect(() => {
+    if (!apiRef.current) return;
+    pushCommittedSurfaceColors(false);
+  }, [committedLedger, pushCommittedSurfaceColors]);
+
+  useEffect(() => {
     if (restoreAttemptedRef.current) return;
     if (!apiRef.current) return;
     if (!engineMode) return;
@@ -133,72 +219,99 @@ export default function Planner() {
       const scene = JSON.parse(storedScene);
       apiRef.current.cmd("LOAD_PROJECT_JSON", { scene });
       sessionStorage.removeItem(SCENE_BACKUP_KEY);
+
+      setTimeout(() => {
+        pushCommittedSurfaceColors(true);
+      }, 220);
     } catch (error) {
       console.error("Failed to restore saved planner scene", error);
       sessionStorage.removeItem(SCENE_BACKUP_KEY);
     } finally {
       restoreAttemptedRef.current = true;
     }
-  }, [engineMode]);
+  }, [engineMode, pushCommittedSurfaceColors]);
 
-  const handleCatalogServiceSelected = useCallback(
-    (payload: CatalogServiceSelectedPayload) => {
-      const areaServices: MainService[] = [
-        "painting",
-        "flooring",
-        "plastering",
-        "boards",
-      ];
+  useEffect(() => {
+    setOpenSubGroup(null);
+  }, [materialStripService]);
 
-      if (areaServices.includes(payload.mainService as MainService)) {
-        const nextMain = payload.mainService as MainService;
+  const restoreHighlights = useCallback((surfaceIds: string[]) => {
+    setTimeout(() => {
+      apiRef.current?.cmd("RESTORE_SURFACE_HIGHLIGHTS", { surfaceIds });
+    }, 120);
+  }, []);
 
-        setActiveMain(nextMain);
-        setActiveAreaSubService(payload.subService);
-        setActiveAreaMaterialKey(payload.materialKey);
-        setActiveAreaMaterialLabel(payload.materialLabel);
-        setActiveAreaMaterialColor(payload.color || null);
+  const activateAreaMaterial = useCallback(
+    (service: AreaService, option: ActiveAreaMaterialSelection) => {
+      setActiveMain(service);
+      setActiveAreaSubService(option.subService);
+      setActiveAreaMaterialKey(option.materialKey);
+      setActiveAreaMaterialLabel(option.materialLabel);
+      setActiveAreaMaterialColor(option.color);
+      setActiveAreaMaterialTextureUri(option.textureUri);
+      setActiveAreaMaterialDimensions(option.dimensions);
 
-        const existingEntry = committedLedger.find(
-          (entry) =>
-            entry.service === nextMain &&
-            entry.subService === payload.subService &&
-            entry.materialKey === payload.materialKey
-        );
+      const existingEntry = committedLedger.find(
+        (entry) =>
+          entry.service === service &&
+          entry.subService === option.subService &&
+          entry.materialKey === option.materialKey
+      );
 
-        if (existingEntry) {
-          restoreFromLedgerEntry(existingEntry);
+      if (existingEntry) {
+        restoreFromLedgerEntry(existingEntry);
+        setViewMode("3D");
+        apiRef.current?.cmd("VIEW_3D");
+        restoreHighlights(Array.from(existingEntry.surfaces.keys()));
 
-          setViewMode("3D");
-          apiRef.current?.cmd("VIEW_3D");
+        setTimeout(() => {
+          pushCommittedSurfaceColors(true);
+        }, 180);
+      } else {
+        clearSelectedSurfaces();
+        setViewMode("3D");
+        apiRef.current?.cmd("VIEW_3D");
+        restoreHighlights([]);
 
-          const surfaceIds = Array.from(existingEntry.surfaces.keys());
-
-          setTimeout(() => {
-            apiRef.current?.cmd("RESTORE_SURFACE_HIGHLIGHTS", { surfaceIds });
-          }, 120);
-        } else {
-          clearSelectedSurfaces();
-
-          setViewMode("3D");
-          apiRef.current?.cmd("VIEW_3D");
-
-          setTimeout(() => {
-            apiRef.current?.cmd("RESTORE_SURFACE_HIGHLIGHTS", { surfaceIds: [] });
-          }, 120);
-        }
+        setTimeout(() => {
+          pushCommittedSurfaceColors(true);
+        }, 180);
       }
     },
     [
       committedLedger,
       restoreFromLedgerEntry,
       clearSelectedSurfaces,
+      restoreHighlights,
+      pushCommittedSurfaceColors,
       setActiveMain,
       setActiveAreaSubService,
       setActiveAreaMaterialKey,
       setActiveAreaMaterialLabel,
       setActiveAreaMaterialColor,
+      setActiveAreaMaterialTextureUri,
+      setActiveAreaMaterialDimensions,
     ]
+  );
+
+  const handleCatalogServiceSelected = useCallback(
+    (payload: CatalogServiceSelectedPayload) => {
+      const main = payload.mainService as MainService;
+      if (!isAreaService(main)) return;
+
+      setMaterialStripService(main);
+      setOpenSubGroup(null);
+
+      activateAreaMaterial(main, {
+        materialKey: payload.materialKey,
+        materialLabel: payload.materialLabel,
+        subService: payload.subService,
+        color: payload.color || null,
+        textureUri: null,
+        dimensions: null,
+      });
+    },
+    [activateAreaMaterial]
   );
 
   const handleSurfaceSelected = useCallback(
@@ -223,15 +336,12 @@ export default function Planner() {
         areaM2: payload.areaM2 ?? null,
       };
 
-      const isAreaService =
+      const areaModeActive =
         !!activeAreaSubService &&
         !!activeAreaMaterialKey &&
-        (activeMain === "painting" ||
-          activeMain === "flooring" ||
-          activeMain === "plastering" ||
-          activeMain === "boards");
+        isAreaService(activeMain);
 
-      if (isAreaService) {
+      if (areaModeActive) {
         const wasSelected = selectedSurfacesRef.current.has(surfaceId);
 
         toggleSurface(surfaceId, geo);
@@ -267,8 +377,14 @@ export default function Planner() {
     selectedSurfacesRef.current = new Set();
   }, [clearSelectedSurfaces]);
 
+  const handleCommitCurrentService = useCallback(() => {
+    commitCurrentService();
+  }, [commitCurrentService]);
+
   const go2D = useCallback(() => {
     setViewMode("2D");
+    setMaterialStripService(null);
+    setOpenSubGroup(null);
     apiRef.current?.cmd("VIEW_2D");
     apiRef.current?.cmd("SELECT_TOOL_EDIT");
   }, []);
@@ -276,46 +392,133 @@ export default function Planner() {
   const go3D = useCallback(() => {
     setViewMode("3D");
     apiRef.current?.cmd("VIEW_3D");
-  }, []);
 
-  const openServiceCatalog = useCallback(
+    setTimeout(() => {
+      pushCommittedSurfaceColors(true);
+    }, 180);
+  }, [pushCommittedSurfaceColors]);
+
+  const openServiceEntry = useCallback(
     (service: MainService) => {
+      if (!isAreaService(service)) {
+        setMaterialStripService(null);
+        setOpenSubGroup(null);
+        setActiveMain(service);
+        apiRef.current?.cmd("OPEN_CATALOG");
+
+        setTimeout(() => {
+          apiRef.current?.cmd("CHANGE_CATALOG_PAGE", {
+            newPage: `plano_${service}`,
+            oldPage: "root",
+          });
+        }, 50);
+        return;
+      }
+
       setActiveMain(service);
-      apiRef.current?.cmd("OPEN_CATALOG");
+      setMaterialStripService(service);
+      setViewMode("3D");
+      apiRef.current?.cmd("VIEW_3D");
+
+      const serviceEntries = committedLedger.filter((entry) => entry.service === service);
 
       setTimeout(() => {
-        apiRef.current?.cmd("CHANGE_CATALOG_PAGE", {
-          newPage: `plano_${service}`,
-          oldPage: "root",
+        pushCommittedSurfaceColors(true);
+      }, 180);
+
+      if (serviceEntries.length === 1) {
+        const entry = serviceEntries[0];
+        activateAreaMaterial(service, {
+          materialKey: entry.materialKey,
+          materialLabel: entry.materialLabel,
+          subService: entry.subService,
+          color: entry.color,
+          textureUri: entry.textureUri,
+          dimensions: entry.dimensions,
         });
-      }, 50);
+      } else if (serviceEntries.length === 0) {
+        clearSelectedSurfaces();
+        restoreHighlights([]);
+      }
     },
-    [setActiveMain]
+    [
+      committedLedger,
+      activateAreaMaterial,
+      clearSelectedSurfaces,
+      restoreHighlights,
+      pushCommittedSurfaceColors,
+      setActiveMain,
+    ]
+  );
+
+  const handleGroupClick = useCallback(
+    (service: AreaService, group: SubServiceGroup) => {
+      if (group.materials.length === 0) return;
+
+      if (group.variant === "immediate") {
+        const material = group.materials[0];
+        setOpenSubGroup(null);
+
+        activateAreaMaterial(service, {
+          materialKey: material.materialKey,
+          materialLabel: material.materialLabel,
+          subService: group.groupKey,
+          color: material.color,
+          textureUri: material.textureUri || null,
+          dimensions: material.dimensions || null,
+        });
+        return;
+      }
+
+      setOpenSubGroup((prev) => (prev === group.groupKey ? null : group.groupKey));
+    },
+    [activateAreaMaterial]
+  );
+
+  const handleMaterialClick = useCallback(
+    (service: AreaService, group: SubServiceGroup, material: MaterialOption) => {
+      setOpenSubGroup(null);
+
+      activateAreaMaterial(service, {
+        materialKey: material.materialKey,
+        materialLabel: material.materialLabel,
+        subService: group.groupKey,
+        color: material.color,
+        textureUri: material.textureUri || null,
+        dimensions: material.dimensions || null,
+      });
+    },
+    [activateAreaMaterial]
+  );
+
+  const handleEntryClick = useCallback(
+    (entry: {
+      materialKey: string;
+      materialLabel: string;
+      subService: string;
+      color: string | null;
+      textureUri: string | null;
+      dimensions: { w: number; h: number } | null;
+    }) => {
+      if (!materialStripService) return;
+
+      activateAreaMaterial(materialStripService, {
+        materialKey: entry.materialKey,
+        materialLabel: entry.materialLabel,
+        subService: entry.subService,
+        color: entry.color,
+        textureUri: entry.textureUri,
+        dimensions: entry.dimensions,
+      });
+    },
+    [activateAreaMaterial, materialStripService]
   );
 
   const isCatalogOpen = engineMode === "MODE_VIEWING_CATALOG";
 
-  const currentServiceDraftCount = useMemo(() => {
-    if (
-      activeMain === "painting" ||
-      activeMain === "flooring" ||
-      activeMain === "plastering" ||
-      activeMain === "boards"
-    ) {
-      return areaServiceDraft[activeMain].size;
-    }
-    return 0;
-  }, [activeMain, areaServiceDraft]);
-
   const canCompleteService = useMemo(() => {
-    const isAreaService =
-      activeMain === "painting" ||
-      activeMain === "flooring" ||
-      activeMain === "plastering" ||
-      activeMain === "boards";
-
     return (
-      isAreaService &&
+      isAreaService(activeMain) &&
       !!activeAreaSubService &&
       !!activeAreaMaterialKey &&
       !!activeAreaMaterialLabel &&
@@ -331,23 +534,15 @@ export default function Planner() {
     surfaceGeoMap,
   ]);
 
-  const statusBox = useMemo(() => {
-    if (!activeAreaSubService || !activeAreaMaterialLabel) return null;
+  const activeServiceGroups = useMemo(() => {
+    if (!materialStripService) return [];
+    return AREA_SERVICE_CONFIG[materialStripService] || [];
+  }, [materialStripService]);
 
-    return {
-      service: activeMain,
-      subService: activeAreaSubService,
-      material: activeAreaMaterialLabel,
-      draftFaces: currentServiceDraftCount,
-      liveFaces: selectedSurfaces.size,
-    };
-  }, [
-    activeMain,
-    activeAreaSubService,
-    activeAreaMaterialLabel,
-    currentServiceDraftCount,
-    selectedSurfaces,
-  ]);
+  const activeServiceEntries = useMemo(() => {
+    if (!materialStripService) return [];
+    return committedLedger.filter((entry) => entry.service === materialStripService);
+  }, [committedLedger, materialStripService]);
 
   return (
     <div
@@ -387,7 +582,7 @@ export default function Planner() {
                       <button
                         key={s.key}
                         type="button"
-                        onClick={() => openServiceCatalog(s.key)}
+                        onClick={() => openServiceEntry(s.key)}
                         className={`plano-dock-item flex items-center gap-2 px-2 py-1 text-xs ${
                           isActive ? "ring-2 ring-white/70" : ""
                         }`}
@@ -434,6 +629,7 @@ export default function Planner() {
                   type="button"
                   onClick={() => apiRef.current?.cmd("OPEN_CATALOG")}
                   className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Open full catalog"
                 >
                   <Plus className="h-5 w-5" />
                 </button>
@@ -495,6 +691,24 @@ export default function Planner() {
         </div>
       </div>
 
+      {materialStripService && viewMode === "3D" && !isCatalogOpen && (
+        <ServicePanel
+          service={materialStripService}
+          groups={activeServiceGroups}
+          openSubGroup={openSubGroup}
+          activeSubService={activeAreaSubService}
+          activeMaterialKey={activeAreaMaterialKey}
+          committedEntries={activeServiceEntries}
+          selectedCount={surfaceGeoMap.size}
+          totalM2={selectedSurfaceTotalM2}
+          canComplete={canCompleteService}
+          onGroupClick={handleGroupClick}
+          onMaterialClick={handleMaterialClick}
+          onComplete={handleCommitCurrentService}
+          onEntryClick={handleEntryClick}
+        />
+      )}
+
       {!isCatalogOpen && liveSurfaceGeo ? (
         <div className="absolute left-4 top-20 z-40 rounded-xl bg-white/95 px-4 py-3 shadow-lg min-w-[220px]">
           <div className="text-sm font-semibold">PlanO selection</div>
@@ -517,33 +731,6 @@ export default function Planner() {
           <div className="text-sm font-semibold">
             Total: {selectedSurfaceTotalM2} m²
           </div>
-
-          {statusBox && (
-            <>
-              <div className="text-sm mt-2">Service: {statusBox.service}</div>
-              <div className="text-sm">Mode: {statusBox.subService}</div>
-              <div className="text-sm">Material: {statusBox.material}</div>
-              <div className="text-sm mt-2">
-                Draft faces: {statusBox.draftFaces}
-              </div>
-              <div className="text-sm">
-                Live clicked faces: {statusBox.liveFaces}
-              </div>
-
-              <button
-                type="button"
-                onClick={commitCurrentService}
-                disabled={!canCompleteService}
-                className={`mt-3 w-full rounded-lg px-3 py-2 text-sm font-semibold ${
-                  canCompleteService
-                    ? "bg-zinc-900 text-white"
-                    : "bg-zinc-300 text-zinc-500 cursor-not-allowed"
-                }`}
-              >
-                Complete Service
-              </button>
-            </>
-          )}
         </div>
       ) : null}
     </div>
