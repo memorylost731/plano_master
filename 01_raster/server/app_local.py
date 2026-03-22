@@ -45,6 +45,13 @@ app.add_middleware(
 OUTDIR = ROOT / "out"
 OUTDIR.mkdir(exist_ok=True)
 
+# Register AdS-CFT Geographic Engine
+try:
+    from server.ads_geo_engine import register_ads_routes
+    register_ads_routes(app)
+except ImportError:
+    pass  # ads_geo_engine not available
+
 
 @app.post("/upload-plan")
 async def upload_plan(file: UploadFile = File(...)):
