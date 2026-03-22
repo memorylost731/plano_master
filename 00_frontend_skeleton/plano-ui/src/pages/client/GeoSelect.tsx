@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, Link } from "react-router-dom";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -392,22 +392,35 @@ export default function GeoSelect() {
         onChangeStyle={handleStyleChange}
       />
 
-      {/* PlanO branding */}
+      {/* PlanO branding + TSCM link */}
       <div className="absolute top-4 left-4 z-20 hidden sm:flex items-center gap-2">
-        <div className="flex items-center gap-2 rounded-xl border border-white/30 bg-white/90 px-4 py-2.5 shadow-lg backdrop-blur-xl">
-          <svg
-            className="h-5 w-5 text-zinc-900"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="flex items-center gap-3 rounded-xl border border-white/30 bg-white/90 px-4 py-2.5 shadow-lg backdrop-blur-xl">
+          <div className="flex items-center gap-2">
+            <svg
+              className="h-5 w-5 text-zinc-900"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            <span className="text-sm font-bold text-zinc-900 tracking-tight">PlanO</span>
+          </div>
+          <div className="h-4 w-px bg-zinc-300" />
+          <Link
+            to="/tscm"
+            className="flex items-center gap-1.5 text-[11px] font-medium text-red-600 hover:text-red-700 transition-colors"
+            title="Counter-Surveillance Map"
           >
-            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-            <polyline points="9,22 9,12 15,12 15,22" />
-          </svg>
-          <span className="text-sm font-bold text-zinc-900 tracking-tight">PlanO</span>
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            TSCM
+          </Link>
         </div>
       </div>
 
