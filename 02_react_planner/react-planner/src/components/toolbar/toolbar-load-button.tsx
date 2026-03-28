@@ -44,7 +44,10 @@ export default function ToolbarLoadButton({ state }: ToolbarLoadButtonProps) {
         const form = new FormData();
         form.append('file', file);
 
-        const resp = await fetch('http://localhost:8010/upload-plan', {
+        // Rasta API: use relative path for production, env var for dev
+        const rastaUrl = (window as any).__PLANO_RASTA_URL__
+          || (window.location.hostname === 'hacking.eu' ? '/plano-api' : 'http://localhost:8011');
+        const resp = await fetch(`${rastaUrl}/upload-plan`, {
           method: 'POST',
           body: form
         });
