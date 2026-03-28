@@ -38,3 +38,9 @@ db_data/
 PAT.txt
 *.token
 *.pat
+
+# Trained model weights (large binaries)
+01_raster/models/*.pkl
+01_raster/models/*.pth
+01_raster/models/*.onnx
+*.db
