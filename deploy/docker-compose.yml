@@ -1,0 +1,22 @@
+# PlanO — Docker Compose
+#
+# hacking.eu:  docker compose -f deploy/docker-compose.yml up -d --build
+# AWS/cloud:   RASTA_HOST=rasta-service docker compose up -d
+
+services:
+  plano-app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: plano-app:latest
+    container_name: plano-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8031:80"
+    extra_hosts:
+      - "host-gateway:host-gateway"
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"

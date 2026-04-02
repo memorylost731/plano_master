@@ -52,12 +52,12 @@ function downloadJson(filename: string, data: any) {
 export default function PlannerFrame({ onApi, onModeChange }: Props) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
-  // IMPORTANT: Use '*' to avoid targetOrigin mismatch during dev.
-  // Engine validates event.origin.
+  const engineOrigin = new URL(ENGINE_URL, window.location.origin).origin;
+
   const postToEngine = (msg: any) => {
     const w = iframeRef.current?.contentWindow;
     if (!w) return;
-    w.postMessage(msg, ENGINE_URL);
+    w.postMessage(msg, engineOrigin);
   };
 
   const cmd = (c: PlannerCmd, payload?: any) => {

@@ -42,7 +42,8 @@ const store = configureStore({
 
 const plugins = [
   PlannerPlugins.Keyboard(),
-  PlannerPlugins.ConsoleDebugger()
+  PlannerPlugins.ConsoleDebugger(),
+  PlannerPlugins.PostMessageBridge()
 ];
 
 const toolbarButtons = [ToolbarScreenshotButton];
