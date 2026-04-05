@@ -1,18 +1,6 @@
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import { createRoot } from "react-dom/client";
-import { useNavigate, BrowserRouter } from "react-router-dom";
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import { useRef, useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { MapPin, Home, Building2, Wrench } from "lucide-react";
-
-import SearchBar from "../../components/map/SearchBar";
-import BuildingPopup from "../../components/map/BuildingPopup";
-import MapControls, {
-  STYLE_URLS,
-  type MapStyle,
-} from "../../components/map/MapControls";
-import { PlannerStateProvider } from "../../state/plannerState";
-import type { SelectedBuilding } from "../../types/building";
 
 /* ── Geo data (Ogi's location/pricing model) ── */
 
@@ -51,152 +39,157 @@ const CITY_COORDS: Record<string, [number, number]> = {
 
 type ServiceType = "refurbishing" | "new" | "individual";
 
-/* ── Map constants ── */
+/* ================================================================
+   MapBackground — lazy loaded, failure-tolerant
+   ================================================================ */
 
-const INITIAL_CENTER: [number, number] = [14.5146, 35.8989];
-const INITIAL_ZOOM = 16;
-const INITIAL_PITCH = 60;
-const INITIAL_BEARING = -20;
+function MapBackground({
+  country,
+  city,
+}: {
+  country: string;
+  city: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+  const [failed, setFailed] = useState(false);
 
-const BUILDING_SOURCE_LAYER = "building";
-const HIGHLIGHT_LAYER_ID = "building-3d-highlight";
-const BUILDINGS_LAYER_ID = "building-3d";
+  useEffect(() => {
+    if (!containerRef.current) return;
 
-/* ── Helpers ── */
+    let map: any;
+    let cancelled = false;
 
-function buildAddress(props: Record<string, unknown>): string {
-  const parts: string[] = [];
-  const street = props["addr:street"] as string | undefined;
-  const number = props["addr:housenumber"] as string | undefined;
-  const city = props["addr:city"] as string | undefined;
-  const postcode = props["addr:postcode"] as string | undefined;
-  if (number) parts.push(number);
-  if (street) parts.push(street);
-  if (city) parts.push(city);
-  if (postcode) parts.push(postcode);
-  return parts.join(", ");
-}
+    (async () => {
+      try {
+        const maplibregl = (await import("maplibre-gl")).default;
+        await import("maplibre-gl/dist/maplibre-gl.css");
 
-function featureToBuilding(
-  feature: maplibregl.MapGeoJSONFeature,
-  lngLat: maplibregl.LngLat,
-): SelectedBuilding {
-  const p = feature.properties as Record<string, unknown>;
-  return {
-    osmId: String(feature.id ?? p["osm_id"] ?? p["id"] ?? "unknown"),
-    osmType: (p["osm_type"] as "way" | "relation") || "way",
-    name: (p["name"] as string) || undefined,
-    buildingType: (p["building"] as string) || (p["type"] as string) || undefined,
-    levels: (p["building:levels"] as string) || (p["levels"] as string) || undefined,
-    height: (p["height"] as string) || (p["render_height"] as string) || undefined,
-    address: buildAddress(p) || undefined,
-    material: (p["building:material"] as string) || undefined,
-    lat: lngLat.lat,
-    lng: lngLat.lng,
-    properties: p,
-  };
-}
+        if (cancelled) return;
 
-/* ── 3D building layers ── */
+        map = new maplibregl.Map({
+          container: containerRef.current!,
+          style: "https://tiles.openfreemap.org/styles/liberty",
+          center: [14.5146, 35.8989],
+          zoom: 16,
+          pitch: 60,
+          bearing: -20,
+          maxPitch: 85,
+          attributionControl: {},
+        });
 
-function add3DBuildingLayers(map: maplibregl.Map) {
-  const style = map.getStyle();
-  if (!style?.sources) return;
+        map.addControl(
+          new maplibregl.NavigationControl({ visualizePitch: true }),
+          "top-left",
+        );
+        map.addControl(new maplibregl.ScaleControl({ maxWidth: 150, unit: "metric" }), "bottom-right");
 
-  const sourceId = Object.keys(style.sources).find((id) => {
-    const src = style.sources[id];
-    return src.type === "vector";
-  });
-  if (!sourceId) return;
+        map.on("style.load", () => {
+          // Add 3D buildings
+          const style = map.getStyle();
+          if (!style?.sources) return;
+          const sourceId = Object.keys(style.sources).find(
+            (id) => style.sources[id].type === "vector",
+          );
+          if (!sourceId) return;
 
-  if (map.getLayer(BUILDINGS_LAYER_ID)) map.removeLayer(BUILDINGS_LAYER_ID);
-  if (map.getLayer(HIGHLIGHT_LAYER_ID)) map.removeLayer(HIGHLIGHT_LAYER_ID);
+          const layers = style.layers || [];
+          let labelLayerId: string | undefined;
+          for (const layer of layers) {
+            if (layer.type === "symbol" && (layer as any)["source-layer"]) {
+              labelLayerId = layer.id;
+              break;
+            }
+          }
 
-  const layers = style.layers || [];
-  let labelLayerId: string | undefined;
-  for (const layer of layers) {
-    if (layer.type === "symbol" && (layer as Record<string, unknown>)["source-layer"]) {
-      labelLayerId = layer.id;
-      break;
-    }
-  }
+          map.addLayer(
+            {
+              id: "building-3d",
+              source: sourceId,
+              "source-layer": "building",
+              type: "fill-extrusion",
+              minzoom: 14,
+              paint: {
+                "fill-extrusion-color": [
+                  "interpolate", ["linear"],
+                  ["coalesce", ["get", "render_height"], ["get", "height"], 10],
+                  0, "#e8edf3", 10, "#c5cfe0", 20, "#8ea4c2",
+                  40, "#5a7ba8", 80, "#3d5a80", 150, "#1b3a5c",
+                ],
+                "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 10],
+                "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+                "fill-extrusion-opacity": 0.85,
+              },
+            },
+            labelLayerId,
+          );
+        });
 
-  map.addLayer(
-    {
-      id: BUILDINGS_LAYER_ID,
-      source: sourceId,
-      "source-layer": BUILDING_SOURCE_LAYER,
-      type: "fill-extrusion",
-      minzoom: 14,
-      filter: ["all", ["!=", "hide_3d", true]],
-      paint: {
-        "fill-extrusion-color": [
-          "interpolate", ["linear"],
-          ["coalesce", ["get", "render_height"], ["get", "height"], 10],
-          0, "#e8edf3", 10, "#c5cfe0", 20, "#8ea4c2",
-          40, "#5a7ba8", 80, "#3d5a80", 150, "#1b3a5c",
-        ],
-        "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 10],
-        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-        "fill-extrusion-opacity": 0.85,
-      },
-    },
-    labelLayerId,
-  );
+        map.on("load", () => {
+          if (!cancelled) mapRef.current = map;
+        });
 
-  map.addLayer(
-    {
-      id: HIGHLIGHT_LAYER_ID,
-      source: sourceId,
-      "source-layer": BUILDING_SOURCE_LAYER,
-      type: "fill-extrusion",
-      minzoom: 14,
-      filter: ["==", ["id"], ""],
-      paint: {
-        "fill-extrusion-color": "#3b82f6",
-        "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 10],
-        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-        "fill-extrusion-opacity": 0.9,
-      },
-    },
-    labelLayerId,
-  );
-}
+        map.on("error", () => {
+          if (!cancelled) setFailed(true);
+        });
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
 
-function addSkyLayer(map: maplibregl.Map) {
-  if (map.getLayer("sky")) return;
-  map.addLayer({
-    id: "sky",
-    type: "sky" as unknown as "background",
-    paint: {
-      "sky-type": "atmosphere",
-      "sky-atmosphere-sun": [0, 0],
-      "sky-atmosphere-sun-intensity": 15,
-    } as unknown as maplibregl.BackgroundLayerSpecification["paint"],
-  });
+    return () => {
+      cancelled = true;
+      if (map) {
+        try { map.remove(); } catch { /* ignore */ }
+      }
+      mapRef.current = null;
+    };
+  }, []);
+
+  // Fly on country/city change
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    try {
+      if (city && CITY_COORDS[city]) {
+        map.flyTo({ center: CITY_COORDS[city], zoom: 16, pitch: 60, bearing: -20, duration: 2000 });
+      } else if (country && GEO_DATA[country]) {
+        const geo = GEO_DATA[country];
+        map.flyTo({ center: geo.center, zoom: geo.zoom, pitch: geo.zoom >= 14 ? 60 : 30, bearing: -20, duration: 2000 });
+      }
+    } catch { /* ignore flyTo errors */ }
+  }, [country, city]);
+
+  if (failed) return null;
+
+  return <div ref={containerRef} className="absolute inset-0 w-full h-full" />;
 }
 
 /* ================================================================
-   GeoSelect — Ogi's form + 3D map
+   GeoSelect — Form-first, map as background enhancement
    ================================================================ */
 
 export default function GeoSelect() {
   const navigate = useNavigate();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
-  const popupRef = useRef<maplibregl.Popup | null>(null);
 
-  const [mapReady, setMapReady] = useState(false);
-  const [buildings3D, setBuildings3D] = useState(true);
-  const [currentStyle, setCurrentStyle] = useState<MapStyle>("liberty");
-  const [selectedFeatureId, setSelectedFeatureId] = useState<string | number | null>(null);
-
-  /* ── Ogi's form state ── */
   const countries = useMemo(() => Object.keys(GEO_DATA), []);
   const [country, setCountry] = useState("Malta");
   const cities = country ? GEO_DATA[country]?.cities ?? [] : [];
   const [city, setCity] = useState("");
   const [serviceType, setServiceType] = useState<ServiceType>("refurbishing");
+  const [mapSupported, setMapSupported] = useState(true);
+
+  // Check WebGL support on mount
+  useEffect(() => {
+    try {
+      const canvas = document.createElement("canvas");
+      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      if (!gl) setMapSupported(false);
+    } catch {
+      setMapSupported(false);
+    }
+  }, []);
 
   const canContinue =
     country.length > 0 &&
@@ -204,206 +197,18 @@ export default function GeoSelect() {
     !!serviceType;
 
   function handleContinue() {
-    if (serviceType === "individual") {
-      navigate("/planner");
-    } else {
-      navigate("/planner");
-    }
+    navigate("/planner");
   }
 
-  /* ── Fly map when country/city changes ── */
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-
-    if (city && CITY_COORDS[city]) {
-      map.flyTo({
-        center: CITY_COORDS[city],
-        zoom: 16,
-        pitch: 60,
-        bearing: -20,
-        duration: 2000,
-        essential: true,
-      });
-    } else if (country && GEO_DATA[country]) {
-      const geo = GEO_DATA[country];
-      map.flyTo({
-        center: geo.center,
-        zoom: geo.zoom,
-        pitch: geo.zoom >= 14 ? 60 : 30,
-        bearing: -20,
-        duration: 2000,
-        essential: true,
-      });
-    }
-  }, [country, city, mapReady]);
-
-  /* ── Initialize map ── */
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: STYLE_URLS[currentStyle],
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
-      pitch: INITIAL_PITCH,
-      bearing: INITIAL_BEARING,
-      maxPitch: 85,
-      attributionControl: {},
-    });
-
-    map.addControl(
-      new maplibregl.NavigationControl({ visualizePitch: true, showCompass: true, showZoom: true }),
-      "top-left",
-    );
-    map.addControl(
-      new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true }),
-      "top-left",
-    );
-    map.addControl(new maplibregl.FullscreenControl(), "top-left");
-    map.addControl(new maplibregl.ScaleControl({ maxWidth: 150, unit: "metric" }), "bottom-right");
-
-    map.on("style.load", () => {
-      if (buildings3D) add3DBuildingLayers(map);
-      addSkyLayer(map);
-    });
-
-    map.on("load", () => {
-      mapRef.current = map;
-      setMapReady(true);
-    });
-
-    return () => {
-      mapRef.current = null;
-      setMapReady(false);
-      map.remove();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /* ── Building click ── */
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-
-    const handleClick = (e: maplibregl.MapMouseEvent) => {
-      if (!map.getLayer(BUILDINGS_LAYER_ID)) return;
-
-      const features = map.queryRenderedFeatures(e.point, { layers: [BUILDINGS_LAYER_ID] });
-
-      if (popupRef.current) {
-        popupRef.current.remove();
-        popupRef.current = null;
-      }
-
-      if (!features.length) {
-        if (map.getLayer(HIGHLIGHT_LAYER_ID)) {
-          map.setFilter(HIGHLIGHT_LAYER_ID, ["==", ["id"], ""]);
-        }
-        setSelectedFeatureId(null);
-        return;
-      }
-
-      const feature = features[0];
-      const building = featureToBuilding(feature, e.lngLat);
-
-      const fid = feature.id;
-      if (fid != null && map.getLayer(HIGHLIGHT_LAYER_ID)) {
-        map.setFilter(HIGHLIGHT_LAYER_ID, ["==", ["id"], fid]);
-        setSelectedFeatureId(fid);
-      }
-
-      const popupNode = document.createElement("div");
-      const root = createRoot(popupNode);
-      root.render(
-        <BrowserRouter>
-          <PlannerStateProvider>
-            <BuildingPopup
-              building={building}
-              onClose={() => {
-                popup.remove();
-                if (map.getLayer(HIGHLIGHT_LAYER_ID)) {
-                  map.setFilter(HIGHLIGHT_LAYER_ID, ["==", ["id"], ""]);
-                }
-                setSelectedFeatureId(null);
-              }}
-            />
-          </PlannerStateProvider>
-        </BrowserRouter>,
-      );
-
-      const popup = new maplibregl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        maxWidth: "none",
-        offset: 10,
-        className: "plano-map-popup",
-      })
-        .setLngLat(e.lngLat)
-        .setDOMContent(popupNode)
-        .addTo(map);
-
-      popupRef.current = popup;
-    };
-
-    map.on("click", handleClick);
-
-    const handleMouseEnter = () => { map.getCanvas().style.cursor = "pointer"; };
-    const handleMouseLeave = () => { map.getCanvas().style.cursor = ""; };
-
-    if (map.getLayer(BUILDINGS_LAYER_ID)) {
-      map.on("mouseenter", BUILDINGS_LAYER_ID, handleMouseEnter);
-      map.on("mouseleave", BUILDINGS_LAYER_ID, handleMouseLeave);
-    }
-
-    return () => {
-      map.off("click", handleClick);
-      if (map.getLayer(BUILDINGS_LAYER_ID)) {
-        map.off("mouseenter", BUILDINGS_LAYER_ID, handleMouseEnter);
-        map.off("mouseleave", BUILDINGS_LAYER_ID, handleMouseLeave);
-      }
-    };
-  }, [mapReady, selectedFeatureId]);
-
-  /* ── Toggle 3D buildings ── */
-  const handleToggleBuildings = useCallback((on: boolean) => {
-    setBuildings3D(on);
-    const map = mapRef.current;
-    if (!map) return;
-    if (on) {
-      if (!map.getLayer(BUILDINGS_LAYER_ID)) add3DBuildingLayers(map);
-    } else {
-      if (map.getLayer(BUILDINGS_LAYER_ID)) map.removeLayer(BUILDINGS_LAYER_ID);
-      if (map.getLayer(HIGHLIGHT_LAYER_ID)) map.removeLayer(HIGHLIGHT_LAYER_ID);
-    }
-  }, []);
-
-  /* ── Style change ── */
-  const handleStyleChange = useCallback((style: MapStyle) => {
-    setCurrentStyle(style);
-    mapRef.current?.setStyle(STYLE_URLS[style]);
-  }, []);
-
   return (
-    <div className="fixed inset-0 w-screen h-screen">
-      {/* 3D Map (full background) */}
-      <div ref={containerRef} className="absolute inset-0 w-full h-full" />
+    <div className="fixed inset-0 w-screen h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-slate-200">
+      {/* Map background (lazy, optional) */}
+      {mapSupported && (
+        <MapBackground country={country} city={city} />
+      )}
 
-      {/* Search bar */}
-      <SearchBar map={mapReady ? mapRef.current : null} />
-
-      {/* Map controls */}
-      <MapControls
-        map={mapReady ? mapRef.current : null}
-        buildings3D={buildings3D}
-        onToggleBuildings={handleToggleBuildings}
-        currentStyle={currentStyle}
-        onChangeStyle={handleStyleChange}
-      />
-
-      {/* PlanO branding */}
-      <div className="absolute top-4 left-4 z-20 hidden sm:flex items-center gap-2">
+      {/* PlanO branding — always visible */}
+      <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
         <div className="flex items-center gap-2 rounded-xl border border-white/30 bg-white/90 px-4 py-2.5 shadow-lg backdrop-blur-xl">
           <svg
             className="h-5 w-5 text-zinc-900"
@@ -421,9 +226,9 @@ export default function GeoSelect() {
         </div>
       </div>
 
-      {/* ── Ogi's form panel (glass overlay, bottom-right) ── */}
+      {/* Form panel — ALWAYS visible, z-30 */}
       <div className="absolute bottom-6 right-4 z-30 w-[340px] sm:w-[380px]">
-        <div className="rounded-2xl border border-white/30 bg-white/90 shadow-2xl backdrop-blur-xl overflow-hidden">
+        <div className="rounded-2xl border border-zinc-200 bg-white shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="border-b border-zinc-100 px-5 py-3">
             <div className="flex items-center gap-2">
@@ -431,7 +236,7 @@ export default function GeoSelect() {
               <span className="text-sm font-semibold text-zinc-900">Location & Service</span>
             </div>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Select or click a building on the map
+              {mapSupported ? "Select or click a building on the map" : "Select your location and service type"}
             </p>
           </div>
 
@@ -507,16 +312,6 @@ export default function GeoSelect() {
           </div>
         </div>
       </div>
-
-      {/* Loading state */}
-      {!mapReady && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-900">
-          <div className="flex flex-col items-center gap-4">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-400 border-t-transparent" />
-            <p className="text-sm text-zinc-400 font-medium">Loading map...</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

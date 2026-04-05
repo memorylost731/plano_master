@@ -51,7 +51,7 @@ body {
 body {
   margin: 0;
   color: rgb(24 24 27);
-  background: #0b0f14; /* fallback behind images */
+  background: #f1f5f9; /* light fallback — never show black */
 }
 
 /* ---------------------------------------------------------
@@ -66,7 +66,7 @@ body {
     radial-gradient(900px 600px at 20% 0%, rgba(120, 170, 255, 0.20), transparent 55%),
     radial-gradient(700px 500px at 80% 10%, rgba(180, 120, 255, 0.14), transparent 60%),
     radial-gradient(900px 700px at 50% 100%, rgba(255, 220, 140, 0.10), transparent 60%),
-    #0b0f14;
+    #f1f5f9;
 }
 
 .plano-liquid::before {
@@ -208,7 +208,7 @@ body {
     radial-gradient(900px 600px at 20% 0%, rgba(120, 170, 255, 0.20), transparent 55%),
     radial-gradient(700px 500px at 80% 10%, rgba(180, 120, 255, 0.14), transparent 60%),
     radial-gradient(900px 700px at 50% 100%, rgba(255, 220, 140, 0.10), transparent 60%),
-    #0b0f14;
+    #f1f5f9;
 }
 
 .glass-panel {
