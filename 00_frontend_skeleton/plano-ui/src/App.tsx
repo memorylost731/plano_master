@@ -21,9 +21,11 @@ export default function App() {
         {/* SAAS DASHBOARD (for Ogi sprint) */}
         <Route path="/saas" element={<SaasDashboard />} />
 
+        {/* FULLSCREEN MAP — landing page (no layout chrome) */}
+        <Route path="/" element={<GeoSelect />} />
+
         {/* NORMAL PAGES (WITH LAYOUT) */}
         <Route element={<ClientLayout />}>
-          <Route path="/" element={<GeoSelect />} />
           <Route path="/estimate" element={<Estimate />} />
 
           <Route path="/login" element={<div>Client Login</div>} />
