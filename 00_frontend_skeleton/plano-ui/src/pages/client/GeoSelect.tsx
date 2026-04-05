@@ -11,7 +11,8 @@ import MapControls, {
   STYLE_URLS,
   type MapStyle,
 } from "../../components/map/MapControls";
-import { PlannerStateProvider, type SelectedBuilding } from "../../state/plannerState";
+import { PlannerStateProvider } from "../../state/plannerState";
+import type { SelectedBuilding } from "../../types/building";
 
 /* ── Geo data (Ogi's location/pricing model) ── */
 

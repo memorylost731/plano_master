@@ -31,7 +31,8 @@ COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=plano-ui-build /build/dist/ /usr/share/nginx/html/
 
 # React Planner engine → served at /engine/
-COPY --from=engine-build /build/demo/dist/ /usr/share/nginx/html/engine/
+# Webpack outputs to demo/ directly (app.js, index.html, assets)
+COPY --from=engine-build /build/demo/ /usr/share/nginx/html/engine/
 
 EXPOSE 80
 

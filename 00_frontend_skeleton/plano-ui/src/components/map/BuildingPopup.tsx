@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2, ExternalLink, Ruler, Layers, MapPin, Palette } from "lucide-react";
-import { usePlannerState, type SelectedBuilding } from "../../state/plannerState.tsx";
+import type { SelectedBuilding } from "../../types/building";
 
 interface BuildingPopupProps {
   building: SelectedBuilding;
@@ -10,12 +10,10 @@ interface BuildingPopupProps {
 
 export default function BuildingPopup({ building, onClose }: BuildingPopupProps) {
   const navigate = useNavigate();
-  const { setSelectedBuilding } = usePlannerState();
 
   const handleOpenInPlano = useCallback(() => {
-    setSelectedBuilding(building);
     navigate("/planner");
-  }, [building, navigate, setSelectedBuilding]);
+  }, [navigate]);
 
   const osmUrl = `https://www.openstreetmap.org/${building.osmType}/${building.osmId}`;
 
