@@ -6,35 +6,35 @@ import { MapPin, Home, Building2, Wrench } from "lucide-react";
 
 const GEO_DATA: Record<string, { cities: string[]; center: [number, number]; zoom: number }> = {
   Malta: {
-    cities: ["Valletta", "Sliema", "St Julian's", "Birkirkara", "Mosta"],
+    cities: ["Valletta", "Sliema", "St Julian's", "Birkirkara", "Mosta", "Gzira", "San Gwann", "Msida"],
     center: [14.5146, 35.8989],
     zoom: 14,
   },
-  Italy: {
-    cities: ["Rome", "Milan", "Turin", "Naples"],
-    center: [12.4964, 41.9028],
-    zoom: 12,
-  },
-  UK: {
-    cities: ["London", "Manchester", "Birmingham"],
-    center: [-0.1276, 51.5074],
+  Bulgaria: {
+    cities: ["Sofia", "Plovdiv", "Varna", "Burgas", "Stara Zagora", "Ruse", "Pleven"],
+    center: [23.3219, 42.6977],
     zoom: 12,
   },
 };
 
 const CITY_COORDS: Record<string, [number, number]> = {
+  // Malta
   Valletta: [14.5146, 35.8989],
   Sliema: [14.5020, 35.9116],
   "St Julian's": [14.4905, 35.9186],
   Birkirkara: [14.4615, 35.8969],
   Mosta: [14.4261, 35.9092],
-  Rome: [12.4964, 41.9028],
-  Milan: [9.1900, 45.4642],
-  Turin: [7.6869, 45.0703],
-  Naples: [14.2681, 40.8518],
-  London: [-0.1276, 51.5074],
-  Manchester: [-2.2426, 53.4808],
-  Birmingham: [-1.8904, 52.4862],
+  Gzira: [14.4946, 35.9060],
+  "San Gwann": [14.4752, 35.9048],
+  Msida: [14.4880, 35.8961],
+  // Bulgaria
+  Sofia: [23.3219, 42.6977],
+  Plovdiv: [24.7489, 42.1354],
+  Varna: [27.9147, 43.2141],
+  Burgas: [27.4626, 42.5048],
+  "Stara Zagora": [25.6255, 42.4258],
+  Ruse: [25.9657, 43.8486],
+  Pleven: [24.6167, 43.4170],
 };
 
 type ServiceType = "refurbishing" | "new" | "individual";

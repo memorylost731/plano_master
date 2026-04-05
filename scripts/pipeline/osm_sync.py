@@ -36,7 +36,8 @@ OVERPASS_TIMEOUT = 120  # seconds
 # Countries we sync (expand as we enter new markets)
 COUNTRIES = {
     "MT": {"name": "Malta", "iso": "MT", "area_tag": "ISO3166-1", "priority": 1},
-    "IT": {"name": "Italy", "iso": "IT", "area_tag": "ISO3166-1", "priority": 2},
+    "BG": {"name": "Bulgaria", "iso": "BG", "area_tag": "ISO3166-1", "priority": 2},
+    "IT": {"name": "Italy", "iso": "IT", "area_tag": "ISO3166-1", "priority": 3},
     "ES": {"name": "Spain", "iso": "ES", "area_tag": "ISO3166-1", "priority": 3},
     "FR": {"name": "France", "iso": "FR", "area_tag": "ISO3166-1", "priority": 4},
     "DE": {"name": "Germany", "iso": "DE", "area_tag": "ISO3166-1", "priority": 5},
