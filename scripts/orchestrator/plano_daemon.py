@@ -505,3 +505,13 @@ if __name__ == "__main__":
 
     else:
         print(__doc__)
+
+# ── ADDED: Trading tasks ──
+# These are appended to the TASKS list at runtime
+TRADING_TASKS = [
+    # Task("arb_scan", "Crypto arbitrage opportunity scan",
+    #      f"cd {BASE_DIR} && python3 scripts/trading/arb_scanner.py scan",
+    #      default_interval_min=5, min_interval_min=1, max_interval_min=30,
+    #      category="trading", priority=1),
+]
+# NOTE: Uncomment above when ready to activate trading scans in daemon
