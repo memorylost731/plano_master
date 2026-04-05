@@ -1,0 +1,101 @@
+name: PlanO Agent Cycles
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plano_agents.py'
+      - '.github/workflows/plano-agents.yml'
+  schedule:
+    # Engineering cycle: every 2 hours
+    - cron: '15 */2 * * *'
+    # Customer cycle: every 4 hours
+    - cron: '30 */4 * * *'
+    # Revenue cycle: every 6 hours
+    - cron: '45 */6 * * *'
+    # Executive cycle: every 12 hours
+    - cron: '0 6,18 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: 'Cycle to run (revenue|engineering|customer|executive|all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - revenue
+          - engineering
+          - customer
+          - executive
+          - all
+      agent:
+        description: 'Specific agent to run (optional, overrides cycle)'
+        required: false
+        type: string
+
+env:
+  OLLAMA_URL: http://100.71.235.99:11434/api/generate
+  PLANO_MODEL: huihui_ai/mistral-small-abliterated:24b-instruct-2501-q4_K_M
+
+jobs:
+  determine-cycle:
+    runs-on: ubuntu-latest
+    outputs:
+      cycle: ${{ steps.resolve.outputs.cycle }}
+      agent: ${{ steps.resolve.outputs.agent }}
+    steps:
+      - id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "cycle=${{ inputs.cycle }}" >> "$GITHUB_OUTPUT"
+            echo "agent=${{ inputs.agent }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            echo "cycle=engineering" >> "$GITHUB_OUTPUT"
+            echo "agent=" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            CRON="${{ github.event.schedule }}"
+            case "$CRON" in
+              '15 */2 * * *') echo "cycle=engineering" >> "$GITHUB_OUTPUT" ;;
+              '30 */4 * * *') echo "cycle=customer" >> "$GITHUB_OUTPUT" ;;
+              '45 */6 * * *') echo "cycle=revenue" >> "$GITHUB_OUTPUT" ;;
+              '0 6,18 * * *') echo "cycle=executive" >> "$GITHUB_OUTPUT" ;;
+              *) echo "cycle=all" >> "$GITHUB_OUTPUT" ;;
+            esac
+            echo "agent=" >> "$GITHUB_OUTPUT"
+          fi
+
+  run-agents:
+    needs: determine-cycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run agent cycle
+        run: |
+          if [ -n "${{ needs.determine-cycle.outputs.agent }}" ]; then
+            echo "Running single agent: ${{ needs.determine-cycle.outputs.agent }}"
+            python3 plano_agents.py run "${{ needs.determine-cycle.outputs.agent }}"
+          else
+            echo "Running cycle: ${{ needs.determine-cycle.outputs.cycle }}"
+            python3 plano_agents.py cycle "${{ needs.determine-cycle.outputs.cycle }}"
+          fi
+
+      - name: Show status
+        if: always()
+        run: |
+          python3 plano_agents.py status
+          echo "---"
+          python3 plano_agents.py metrics
+
+      - name: Upload agent database
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plano-agents-db-${{ github.run_number }}
+          path: plano_agents.db
+          retention-days: 30

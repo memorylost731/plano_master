@@ -5,6 +5,7 @@ import GeoSelect from "./pages/client/GeoSelect.tsx";
 
 import Planner from "./pages/client/Planner.tsx";
 import Estimate from "./pages/client/Estimate.tsx";
+import SaasDashboard from "./pages/saas/Dashboard.tsx";
 
 export default function App() {
   return (
@@ -19,6 +20,9 @@ export default function App() {
         {/* Backward compatibility: old URLs redirect to the single planner */}
         <Route path="/planner/2d" element={<Navigate to="/planner" replace />} />
         <Route path="/planner/3d" element={<Navigate to="/planner" replace />} />
+
+        {/* SAAS DASHBOARD (for Ogi sprint) */}
+        <Route path="/saas" element={<SaasDashboard />} />
 
         {/* NORMAL PAGES (WITH LAYOUT) */}
         <Route element={<ClientLayout />}>
