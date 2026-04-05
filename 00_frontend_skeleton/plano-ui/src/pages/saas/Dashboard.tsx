@@ -151,17 +151,17 @@ const ARCHITECTURE = [
 
 function StatusDot({ status }: { status: ServiceStatus }) {
   const colors: Record<ServiceStatus, string> = {
-    online: "bg-emerald-400",
+    online: "bg-emerald-400 saas-pulse",
     degraded: "bg-amber-400",
     offline: "bg-red-400",
-    loading: "bg-zinc-300 animate-pulse",
+    loading: "bg-slate-500 animate-pulse",
   };
   return <span className={`inline-block h-2.5 w-2.5 rounded-full ${colors[status]}`} />;
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${className}`}>
+    <div className={`rounded-2xl border border-slate-700/50 bg-[#1E293B] p-5 shadow-lg shadow-black/20 saas-card-glow ${className}`}>
       {children}
     </div>
   );
@@ -171,7 +171,7 @@ function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string })
   return (
     <div className="flex items-center gap-2 mb-4">
       {icon}
-      <h2 className="text-lg font-semibold text-zinc-900">{title}</h2>
+      <h2 className="font-display text-lg font-semibold text-slate-100">{title}</h2>
     </div>
   );
 }
@@ -240,31 +240,31 @@ export default function SaasDashboard() {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
+    <div className="min-h-screen bg-[#0F172A] text-slate-200">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b bg-white/80 backdrop-blur-lg">
+      <header className="sticky top-0 z-30 border-b border-slate-700/50 bg-[#0F172A]/95 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              <span className="font-bold">PlanO</span>
+            <Link to="/" className="flex items-center gap-2 group">
+              <Building2 className="h-5 w-5 text-amber-500" />
+              <span className="font-display font-bold text-white">PlanO</span>
             </Link>
-            <span className="text-zinc-300">/</span>
-            <span className="text-sm font-medium text-zinc-600">SaaS Dashboard</span>
+            <span className="text-slate-600">/</span>
+            <span className="text-sm font-medium text-slate-400">SaaS Dashboard</span>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               onClick={checkHealth}
               disabled={refreshing}
-              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs hover:bg-zinc-50 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 hover:border-slate-500 disabled:opacity-50 transition-colors"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
               Refresh
             </button>
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs text-white hover:bg-zinc-800"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500 transition-colors"
             >
               <Globe className="h-3.5 w-3.5" />
               Live App
@@ -274,16 +274,16 @@ export default function SaasDashboard() {
       </header>
 
       {/* Tab Bar */}
-      <div className="border-b bg-white">
-        <div className="mx-auto flex max-w-7xl gap-1 px-4 py-1">
+      <div className="border-b border-slate-700/50 bg-[#0F172A]">
+        <div className="mx-auto flex max-w-7xl gap-1 px-4 py-1.5">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
                 activeTab === tab.key
-                  ? "bg-zinc-900 text-white"
-                  : "text-zinc-600 hover:bg-zinc-100"
+                  ? "saas-tab-active"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
               }`}
             >
               {tab.icon}
@@ -324,50 +324,50 @@ function OverviewTab({ health }: { health: SystemHealth }) {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <div className="saas-kpi-card bg-[#1E293B] p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-zinc-500">System Health</p>
-              <p className="text-2xl font-bold">{onlineCount}/{services.length}</p>
+              <p className="text-xs text-slate-400 uppercase tracking-wider">System Health</p>
+              <p className="font-display text-3xl font-bold text-white mt-1">{onlineCount}/{services.length}</p>
             </div>
-            <div className="rounded-xl bg-emerald-50 p-2.5">
-              <Heart className="h-5 w-5 text-emerald-600" />
+            <div className="rounded-xl bg-emerald-500/15 p-3">
+              <Heart className="h-6 w-6 text-emerald-400" />
             </div>
           </div>
-        </Card>
-        <Card>
+        </div>
+        <div className="saas-kpi-card bg-[#1E293B] p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-zinc-500">AI Agents</p>
-              <p className="text-2xl font-bold">15</p>
+              <p className="text-xs text-slate-400 uppercase tracking-wider">AI Agents</p>
+              <p className="font-display text-3xl font-bold text-white mt-1">15</p>
             </div>
-            <div className="rounded-xl bg-blue-50 p-2.5">
-              <Bot className="h-5 w-5 text-blue-600" />
+            <div className="rounded-xl bg-blue-500/15 p-3">
+              <Bot className="h-6 w-6 text-blue-400" />
             </div>
           </div>
-        </Card>
-        <Card>
+        </div>
+        <div className="saas-kpi-card bg-[#1E293B] p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-zinc-500">Monthly Cost</p>
-              <p className="text-2xl font-bold">~$1</p>
+              <p className="text-xs text-slate-400 uppercase tracking-wider">Monthly Cost</p>
+              <p className="font-display text-3xl font-bold text-amber-500 mt-1">~$1</p>
             </div>
-            <div className="rounded-xl bg-amber-50 p-2.5">
-              <DollarSign className="h-5 w-5 text-amber-600" />
+            <div className="rounded-xl bg-amber-500/15 p-3">
+              <DollarSign className="h-6 w-6 text-amber-400" />
             </div>
           </div>
-        </Card>
-        <Card>
+        </div>
+        <div className="saas-kpi-card bg-[#1E293B] p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-zinc-500">Break-even</p>
-              <p className="text-2xl font-bold">1 user</p>
+              <p className="text-xs text-slate-400 uppercase tracking-wider">Break-even</p>
+              <p className="font-display text-3xl font-bold text-amber-500 mt-1">1 user</p>
             </div>
-            <div className="rounded-xl bg-purple-50 p-2.5">
-              <TrendingUp className="h-5 w-5 text-purple-600" />
+            <div className="rounded-xl bg-purple-500/15 p-3">
+              <TrendingUp className="h-6 w-6 text-purple-400" />
             </div>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Services Health */}
