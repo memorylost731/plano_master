@@ -16,7 +16,9 @@ COPY 02_react_planner/react-planner/package*.json ./
 COPY 02_react_planner/react-planner/yarn.lock* ./
 RUN npm ci --ignore-scripts
 COPY 02_react_planner/react-planner/ ./
-RUN npm run build-demo
+# Set publicPath for /engine/ subpath in production
+RUN sed -i "s|publicPath: '/'|publicPath: '/engine/'|" demo/webpack.config.js && \
+    npm run build-demo
 
 # ── Stage 3: Runtime (nginx) ─────────────────────────────────────────────────
 FROM nginx:1.27-alpine
