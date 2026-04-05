@@ -9,7 +9,7 @@ import SaasDashboard from "./pages/saas/Dashboard";
 
 export default function App() {
   return (
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
+    <BrowserRouter basename={import.meta.env.VITE_BASE_PATH || "/"}>
       <Routes>
         {/* FULLSCREEN EDITOR ROUTE (NO LAYOUT) */}
         <Route path="/planner" element={<Planner />} />
