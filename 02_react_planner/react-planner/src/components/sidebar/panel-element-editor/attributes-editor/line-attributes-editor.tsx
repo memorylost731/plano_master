@@ -82,9 +82,10 @@ export default function LineAttributesEditor({
             <td style={firstTdStyle}>{translator.t('Name')}</td>
             <td>
               <FormTextInput
-                value={name}
-                onChange={(event) => onUpdate('name', event.target.value)}
+                value={wallSurfaceDisplay ? `${wallSurfaceDisplay} m²` : ''}
+                onChange={() => {}}
                 style={inputStyle}
+                readOnly
               />
             </td>
           </tr>
@@ -92,15 +93,7 @@ export default function LineAttributesEditor({
           <tr>
             <td style={firstTdStyle}>{translator.t('Surface')}</td>
             <td>
-              <div style={measureRowWrapStyle}>
-                <FormTextInput
-                  value={wallSurfaceDisplay}
-                  onChange={() => {}}
-                  style={readOnlyInputStyle}
-                  readOnly
-                />
-                <div style={unitBoxStyle}>m²</div>
-              </div>
+              
             </td>
           </tr>
         </tbody>

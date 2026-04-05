@@ -1,7 +1,53 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { FileText } from "lucide-react";
 
+import {
+  MAIN_SERVICES,
+  usePlannerState,
+} from "../../state/plannerState";
+
+type EstimateRow = {
+  key: string;
+  description: string;
+  unit: string;
+  qty: number;
+  rate: number;
+  amount: number;
+};
+
+function formatNumber(value: number) {
+  return (Math.round(value * 100) / 100).toFixed(2);
+}
+
 export default function Estimate() {
+  const { committedLedger, projectTotalM2 } = usePlannerState();
+
+  const rows = useMemo<EstimateRow[]>(() => {
+    return committedLedger.map((entry) => {
+      const serviceLabel =
+        MAIN_SERVICES.find((service) => service.key === entry.service)?.label ||
+        entry.service;
+
+      const rate = 0;
+      const amount = entry.totalM2 * rate;
+
+      return {
+        key: entry.ledgerId,
+        description: `${serviceLabel} — ${entry.subService} — ${entry.materialLabel}`,
+        unit: "m²",
+        qty: entry.totalM2,
+        rate,
+        amount,
+      };
+    });
+  }, [committedLedger]);
+
+  const totalAmount = useMemo(() => {
+    const sum = rows.reduce((acc, row) => acc + row.amount, 0);
+    return Math.round(sum * 100) / 100;
+  }, [rows]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -11,7 +57,7 @@ export default function Estimate() {
         <div>
           <h1 className="text-2xl font-semibold">Estimate</h1>
           <div className="text-sm text-zinc-600">
-            BOQ / cost breakdown (UI only)
+            Ledger-driven BOQ / cost breakdown
           </div>
         </div>
       </div>
@@ -32,28 +78,53 @@ export default function Estimate() {
                 <th className="px-3 py-2 text-right">Amount</th>
               </tr>
             </thead>
+
             <tbody>
-              <tr className="border-t">
-                <td className="px-3 py-2">Sample: Painting (internal)</td>
-                <td className="px-3 py-2 text-center">m²</td>
-                <td className="px-3 py-2 text-center">10</td>
-                <td className="px-3 py-2 text-center">12</td>
-                <td className="px-3 py-2 text-right">120</td>
-              </tr>
-              <tr className="border-t">
-                <td className="px-3 py-2">Sample: Floor tiles (60×60)</td>
-                <td className="px-3 py-2 text-center">m²</td>
-                <td className="px-3 py-2 text-center">6</td>
-                <td className="px-3 py-2 text-center">35</td>
-                <td className="px-3 py-2 text-right">210</td>
-              </tr>
-              <tr className="border-t">
-                <td className="px-3 py-2 font-semibold">Total</td>
-                <td className="px-3 py-2" />
-                <td className="px-3 py-2" />
-                <td className="px-3 py-2" />
-                <td className="px-3 py-2 text-right font-semibold">330</td>
-              </tr>
+              {rows.length === 0 ? (
+                <tr className="border-t">
+                  <td className="px-3 py-4 text-zinc-500" colSpan={5}>
+                    No committed services yet.
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {rows.map((row) => (
+                    <tr key={row.key} className="border-t">
+                      <td className="px-3 py-2">{row.description}</td>
+                      <td className="px-3 py-2 text-center">{row.unit}</td>
+                      <td className="px-3 py-2 text-center">
+                        {formatNumber(row.qty)}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        {formatNumber(row.rate)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {formatNumber(row.amount)}
+                      </td>
+                    </tr>
+                  ))}
+
+                  <tr className="border-t bg-zinc-50/60">
+                    <td className="px-3 py-2 font-semibold">Total m²</td>
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2 text-center font-semibold">
+                      {formatNumber(projectTotalM2)}
+                    </td>
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2" />
+                  </tr>
+
+                  <tr className="border-t">
+                    <td className="px-3 py-2 font-semibold">Grand Total</td>
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2 text-right font-semibold">
+                      {formatNumber(totalAmount)}
+                    </td>
+                  </tr>
+                </>
+              )}
             </tbody>
           </table>
         </div>

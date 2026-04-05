@@ -1,14 +1,16 @@
 import { useEffect, useRef } from "react";
 
 const ENGINE_URL = import.meta.env.VITE_ENGINE_URL || "http://localhost:5173";
+const ENGINE_ORIGIN = new URL(ENGINE_URL, window.location.origin).origin;
 const PROTOCOL_VERSION = 1;
 
-// Raster engine — proxied through Vite to GPU server (hadrien-skoed-mt)
+// Raster engine — proxied through nginx to GPU Rasta backend
 const RASTER_URL = import.meta.env.VITE_RASTER_URL || "/api/raster";
 
 export type PlannerCmd =
   | "NEW_PROJECT"
   | "OPEN_CATALOG"
+  | "CHANGE_CATALOG_PAGE"
   | "VIEW_2D"
   | "VIEW_3D"
   | "VIEW_3D_FIRST_PERSON"
@@ -21,7 +23,26 @@ export type PlannerCmd =
   | "UNSELECT_ALL"
   | "LOAD_PROJECT_JSON"
   | "LOAD_RASTER_JSON"
-  | "REQUEST_SCENE_JSON";
+  | "REQUEST_SCENE_JSON"
+  | "RESTORE_SURFACE_HIGHLIGHTS"
+  | "APPLY_SURFACE_COLORS";
+
+export type SurfaceSelectedPayload = {
+  surfaceId: string;
+  wallId: string;
+  surfaceType: "front" | "back" | "floor";
+  lengthM?: number;
+  heightM?: number;
+  areaM2?: number;
+};
+
+export type CatalogServiceSelectedPayload = {
+  mainService: string;
+  subService: string;
+  materialKey: string;
+  materialLabel: string;
+  color: string | null;
+};
 
 export type PlannerApi = {
   cmd: (c: PlannerCmd, payload?: any) => void;
@@ -32,36 +53,33 @@ export type PlannerApi = {
 type Props = {
   onApi?: (api: PlannerApi) => void;
   onModeChange?: (mode: string) => void;
+  onSurfaceSelected?: (payload: SurfaceSelectedPayload) => void;
+  onSurfacesCleared?: () => void;
+  onCatalogServiceSelected?: (payload: CatalogServiceSelectedPayload) => void;
 };
 
-function downloadJson(filename: string, data: any) {
-  const dataStr = JSON.stringify(data, null, 2);
-  const blob = new Blob([dataStr], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  URL.revokeObjectURL(url);
-}
-
-export default function PlannerFrame({ onApi, onModeChange }: Props) {
+export default function PlannerFrame({
+  onApi,
+  onModeChange,
+  onSurfaceSelected,
+  onSurfacesCleared,
+  onCatalogServiceSelected,
+}: Props) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-
-  const engineOrigin = new URL(ENGINE_URL, window.location.origin).origin;
 
   const postToEngine = (msg: any) => {
     const w = iframeRef.current?.contentWindow;
     if (!w) return;
-    w.postMessage(msg, engineOrigin);
+    w.postMessage(msg, ENGINE_ORIGIN);
   };
 
   const cmd = (c: PlannerCmd, payload?: any) => {
-    postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "CMD", cmd: c, payload });
+    postToEngine({
+      protocolVersion: PROTOCOL_VERSION,
+      type: "CMD",
+      cmd: c,
+      payload,
+    });
   };
 
   const loadProjectPicker = () => {
@@ -109,29 +127,75 @@ export default function PlannerFrame({ onApi, onModeChange }: Props) {
     onApi?.({ cmd, loadProjectPicker, saveProjectDownload });
 
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== new URL(ENGINE_URL, window.location.origin).origin) return;
+      if (event.origin !== ENGINE_ORIGIN) return;
 
       const data: any = event.data;
       if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
 
-      if (data.type === "ERROR") console.error("[ENGINE ERROR]", data.message);
+      if (data.type === "ERROR") {
+        console.error("[ENGINE ERROR]", data.message);
+        return;
+      }
 
-      // ONLY CHANGE: allow PlanO to know when catalog mode is active
       if (data.type === "MODE_CHANGED") {
         const mode = data?.payload?.mode;
         if (typeof mode === "string") onModeChange?.(mode);
         return;
       }
 
+      if (data.type === "SURFACE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.surfaceId === "string" &&
+          typeof payload.wallId === "string" &&
+          (payload.surfaceType === "front" ||
+            payload.surfaceType === "back" ||
+            payload.surfaceType === "floor")
+        ) {
+          onSurfaceSelected?.(payload);
+        }
+        return;
+      }
+
+      if (data.type === "SURFACES_CLEARED") {
+        onSurfacesCleared?.();
+        return;
+      }
+
+      if (data.type === "CATALOG_SERVICE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.mainService === "string" &&
+          typeof payload.subService === "string" &&
+          typeof payload.materialKey === "string" &&
+          typeof payload.materialLabel === "string"
+        ) {
+          onCatalogServiceSelected?.(payload);
+        }
+        return;
+      }
+
       if (data.type === "SCENE_JSON") {
         const scene = data?.payload?.scene;
-        if (scene) downloadJson("plano_scene.json", scene);
+        if (scene) {
+          window.dispatchEvent(
+            new CustomEvent("PLANO_SCENE_SAVED", { detail: scene })
+          );
+        }
       }
     };
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [onApi, onModeChange]);
+  }, [
+    onApi,
+    onModeChange,
+    onSurfaceSelected,
+    onSurfacesCleared,
+    onCatalogServiceSelected,
+  ]);
 
   return (
     <iframe
@@ -148,7 +212,9 @@ export default function PlannerFrame({ onApi, onModeChange }: Props) {
         zIndex: 1,
         background: "#fff",
       }}
-      onLoad={() => postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "PING" })}
+      onLoad={() =>
+        postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "PING" })
+      }
     />
   );
 }

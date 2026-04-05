@@ -1,0 +1,2360 @@
+===== FILE 1: viewer3d.tsx =====
+import React, { Component } from 'react';
+
+import convert from 'convert-units';
+import * as Three from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+
+import { State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { diff } from '../../utils/history';
+
+import { parseData, PlanData, updateScene } from './scene-creator';
+import { disposeScene } from './three-memory-cleaner';
+
+interface Scene3DViewerProps {
+  state: State;
+  width: number;
+  height: number;
+}
+
+type HighlightEntry = {
+  mesh: Three.Mesh;
+  originalMaterial: Three.Material;
+};
+
+export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
+  static contextType = ReactPlannerContext;
+  declare context: React.ContextType<typeof ReactPlannerContext>;
+
+  lastMousePosition: { x: number; y: number } = { x: 0, y: 0 };
+  width: number;
+  height: number;
+  renderingID = 0;
+  renderer: Three.WebGLRenderer;
+
+  canvasWrapper: React.RefObject<null | HTMLDivElement>;
+
+  camera: Three.PerspectiveCamera | undefined;
+  scene3D: Three.Scene | undefined;
+  planData: PlanData | undefined;
+  orbitController: OrbitControls | undefined;
+
+  highlightedMeshes: Map<string, HighlightEntry>;
+
+  mouseDownEvent: undefined | ((event: MouseEvent) => void);
+  mouseUpEvent: undefined | ((event: MouseEvent) => void);
+
+  constructor(props: Scene3DViewerProps) {
+    super(props);
+
+    this.width = props.width;
+    this.height = props.height;
+    this.canvasWrapper = React.createRef<HTMLDivElement>();
+    this.highlightedMeshes = new Map<string, HighlightEntry>();
+
+    this.renderer =
+      (window as any).__threeRenderer ||
+      new Three.WebGLRenderer({ preserveDrawingBuffer: true });
+    (window as any).__threeRenderer = this.renderer;
+  }
+
+  private getMeshKey(mesh: Three.Mesh) {
+    return `${mesh.uuid}:${mesh.name}`;
+  }
+
+  private isSelectableFace(mesh: Three.Object3D): mesh is Three.Mesh {
+    return (
+      mesh instanceof Three.Mesh &&
+      (
+        mesh.name === 'frontFace' ||
+        mesh.name === 'backFace' ||
+        mesh.name === 'floor'
+      ) &&
+      !Array.isArray((mesh as Three.Mesh).material)
+    );
+  }
+
+  private clearAllHighlights() {
+    this.highlightedMeshes.forEach((entry) => {
+      entry.mesh.material = entry.originalMaterial;
+    });
+    this.highlightedMeshes.clear();
+  }
+
+  private removeHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+    const entry = this.highlightedMeshes.get(key);
+    if (!entry) return;
+
+    entry.mesh.material = entry.originalMaterial;
+    this.highlightedMeshes.delete(key);
+  }
+
+  private addHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+    if (this.highlightedMeshes.has(key)) return;
+
+    const baseMaterial = mesh.material;
+    if (Array.isArray(baseMaterial) || !baseMaterial) return;
+
+    const highlightMaterial = (baseMaterial as Three.MeshPhongMaterial).clone();
+    highlightMaterial.emissive = new Three.Color(0x2196f3);
+    highlightMaterial.emissiveIntensity = 0.4;
+
+    this.highlightedMeshes.set(key, {
+      mesh,
+      originalMaterial: baseMaterial
+    });
+
+    mesh.material = highlightMaterial;
+  }
+
+  private toggleHighlight(mesh: Three.Mesh) {
+    const key = this.getMeshKey(mesh);
+
+    if (this.highlightedMeshes.has(key)) {
+      this.removeHighlight(mesh);
+    } else {
+      this.addHighlight(mesh);
+    }
+  }
+
+  componentDidMount() {
+    const { state } = this.props;
+
+    const scene3D = new Three.Scene();
+
+    this.renderer.setClearColor(new Three.Color(SharedStyle.COLORS.white));
+    this.renderer.setSize(this.width, this.height);
+
+    const planData = parseData(state.scene, this.context);
+
+    scene3D.add(planData.plan);
+    scene3D.add(planData.grid);
+
+    const aspectRatio = this.width / this.height;
+    const camera = new Three.PerspectiveCamera(45, aspectRatio, 1, 300000);
+
+    scene3D.add(camera);
+
+    const cameraPositionX =
+      -(planData.boundingBox.max.x - planData.boundingBox.min.x) / 2;
+    const cameraPositionY =
+      ((planData.boundingBox.max.y - planData.boundingBox.min.y) / 2) * 10;
+    const cameraPositionZ =
+      (planData.boundingBox.max.z - planData.boundingBox.min.z) / 2;
+
+    camera.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    camera.up = new Three.Vector3(0, 1, 0);
+
+    const ambient = new Three.AmbientLight(0xffffff, 0.45);
+    scene3D.add(ambient);
+
+    const hemi = new Three.HemisphereLight(0xffffff, 0x666666, 0.5);
+    scene3D.add(hemi);
+
+    const spotLight1 = new Three.SpotLight(SharedStyle.COLORS.white, 1.0);
+    spotLight1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    scene3D.add(spotLight1);
+
+    const dirLight = new Three.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(
+      cameraPositionX + 300,
+      cameraPositionY + 400,
+      cameraPositionZ + 300
+    );
+    scene3D.add(dirLight);
+
+    const toIntersect = [planData.plan];
+    const mouse = new Three.Vector2();
+    const raycaster = new Three.Raycaster();
+
+    const notifySurfacesCleared = () => {
+      window.parent?.postMessage(
+        {
+          protocolVersion: 1,
+          type: 'SURFACES_CLEARED',
+          payload: {}
+        },
+        '*'
+      );
+    };
+
+    this.mouseDownEvent = (event: MouseEvent) => {
+      this.lastMousePosition.x = (event.offsetX / this.width) * 2 - 1;
+      this.lastMousePosition.y = (-event.offsetY / this.height) * 2 + 1;
+    };
+
+    this.mouseUpEvent = (event: MouseEvent) => {
+      event.preventDefault();
+
+      mouse.x = (event.offsetX / this.width) * 2 - 1;
+      mouse.y = -(event.offsetY / this.height) * 2 + 1;
+
+      if (
+        Math.abs(mouse.x - this.lastMousePosition.x) <= 0.02 &&
+        Math.abs(mouse.y - this.lastMousePosition.y) <= 0.02
+      ) {
+        raycaster.setFromCamera(mouse, camera);
+
+        const intersects = raycaster.intersectObjects(toIntersect, true);
+
+        if (intersects.length > 0 && !isNaN(intersects[0].distance)) {
+          const object = intersects[0].object as any;
+
+          if (this.isSelectableFace(object)) {
+            this.toggleHighlight(object);
+
+            const mesh = object as Three.Mesh;
+            const unit = this.context.catalog.unit;
+            const metersPerUnit = convert(1).from(unit).to('m');
+
+            if (mesh.name === 'floor') {
+              const areaId = mesh.userData?.areaId;
+              const sceneArea = mesh.userData?.sceneArea;
+
+              if (areaId && typeof sceneArea === 'number') {
+                const areaM2 =
+                  Math.round(sceneArea * metersPerUnit * metersPerUnit * 100) /
+                  100;
+
+                window.parent?.postMessage(
+                  {
+                    protocolVersion: 1,
+                    type: 'SURFACE_SELECTED',
+                    payload: {
+                      surfaceId: `area::${areaId}`,
+                      wallId: areaId,
+                      surfaceType: 'floor',
+                      areaM2
+                    }
+                  },
+                  '*'
+                );
+              }
+
+              return;
+            }
+
+            const wallId = mesh.userData?.wallId;
+            const surfaceType = mesh.userData?.surfaceType;
+            const wallLength = mesh.userData?.wallLength;
+            const wallHeight = mesh.userData?.wallHeight;
+
+            if (wallId && surfaceType) {
+              const surfaceId = `${wallId}:${surfaceType}`;
+
+              let lengthM: number | undefined;
+              let heightM: number | undefined;
+              let areaM2: number | undefined;
+
+              if (
+                typeof wallLength === 'number' &&
+                typeof wallHeight === 'number'
+              ) {
+                lengthM = Math.round(wallLength * metersPerUnit * 100) / 100;
+                heightM = Math.round(wallHeight * metersPerUnit * 100) / 100;
+                areaM2 = Math.round(lengthM * heightM * 100) / 100;
+              }
+
+              window.parent?.postMessage(
+                {
+                  protocolVersion: 1,
+                  type: 'SURFACE_SELECTED',
+                  payload: {
+                    surfaceId,
+                    wallId,
+                    surfaceType,
+                    lengthM,
+                    heightM,
+                    areaM2
+                  }
+                },
+                '*'
+              );
+            }
+
+            //const interactable = mesh as Three.Mesh & { interact?: () => void };
+            //interactable.interact?.();
+          } else {
+            this.clearAllHighlights();
+            notifySurfacesCleared();
+            this.context.projectActions.unselectAll();
+          }
+        } else {
+          this.clearAllHighlights();
+          notifySurfacesCleared();
+          this.context.projectActions.unselectAll();
+        }
+      }
+    };
+
+    if (this.mouseDownEvent) {
+      this.renderer.domElement.addEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    }
+
+    if (this.mouseUpEvent) {
+      this.renderer.domElement.addEventListener(
+        'mouseup',
+        this.mouseUpEvent
+      );
+    }
+
+    this.renderer.domElement.style.display = 'block';
+
+    if (this.canvasWrapper.current) {
+      this.canvasWrapper.current.appendChild(this.renderer.domElement);
+    }
+
+    const orbitController = new OrbitControls(camera, this.renderer.domElement);
+
+    const spotLightTarget = new Three.Object3D();
+    spotLightTarget.name = 'spotLightTarget';
+
+    spotLightTarget.position.set(
+      orbitController.target.x,
+      orbitController.target.y,
+      orbitController.target.z
+    );
+
+    scene3D.add(spotLightTarget);
+    spotLight1.target = spotLightTarget;
+
+    const render = () => {
+      orbitController.update();
+
+      spotLight1.position.set(
+        camera.position.x,
+        camera.position.y,
+        camera.position.z
+      );
+
+      spotLightTarget.position.set(
+        orbitController.target.x,
+        orbitController.target.y,
+        orbitController.target.z
+      );
+
+      camera.updateMatrix();
+      camera.updateMatrixWorld();
+
+      for (const elemID in planData.sceneGraph.LODs) {
+        planData.sceneGraph.LODs[elemID].update(camera);
+      }
+
+      this.renderer.render(scene3D, camera);
+
+      this.renderingID = requestAnimationFrame(render);
+    };
+
+    render();
+
+    this.camera = camera;
+    this.scene3D = scene3D;
+    this.orbitController = orbitController;
+    this.planData = planData;
+  }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this.renderingID);
+    this.orbitController?.dispose();
+
+    this.clearAllHighlights();
+
+    if (this.mouseDownEvent) {
+      this.renderer.domElement.removeEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    }
+
+    if (this.mouseUpEvent) {
+      this.renderer.domElement.removeEventListener(
+        'mouseup',
+        this.mouseUpEvent
+      );
+    }
+
+    if (this.scene3D) {
+      disposeScene(this.scene3D);
+
+      if (this.planData) {
+        this.scene3D.remove(this.planData.plan);
+        this.scene3D.remove(this.planData.grid);
+      }
+    }
+
+    this.scene3D = undefined;
+    this.planData = undefined;
+    this.camera = undefined;
+    this.orbitController = undefined;
+
+    this.renderer.renderLists.dispose();
+  }
+
+  componentDidUpdate(prevProps: Scene3DViewerProps) {
+    const { width, height } = this.props;
+
+    this.width = width;
+    this.height = height;
+
+    if (this.camera) {
+      this.camera.aspect = width / height;
+      this.camera.updateProjectionMatrix();
+    }
+
+    if (prevProps && this.props.state.scene !== prevProps.state.scene) {
+      const changedValues = diff(prevProps.state.scene, this.props.state.scene);
+
+      if (this.planData) {
+        updateScene(
+          this.planData,
+          this.props.state.scene,
+          prevProps.state.scene,
+          changedValues,
+          this.context
+        );
+      }
+    }
+
+    this.renderer.setSize(width, height);
+  }
+
+  render() {
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div ref={this.canvasWrapper} />
+      </div>
+    );
+  }
+}
+===== FILE 2: wall-factory-3d.ts =====
+import {
+  BackSide,
+  BoxGeometry,
+  BufferGeometry,
+  DoubleSide,
+  Float32BufferAttribute,
+  FrontSide,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  Object3D,
+  Object3DEventMap,
+  RepeatWrapping,
+  SRGBColorSpace,
+  Texture,
+  TextureLoader,
+  Vector2,
+  Vector3
+} from 'three';
+import { CSG } from 'three-csg-ts';
+
+import { Layer, Line, Scene } from '../../models';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElementTextures } from '../../types';
+import { verticesDistance } from '../../utils/geometry';
+
+import { calcLineEnd } from './utils/calcPolygon';
+
+const halfPI = Math.PI / 2;
+
+const baseTextureCache: Record<string, Texture> = {};
+const loaderSingleton = new TextureLoader();
+
+function getBaseTexture(uri: string): Texture {
+  if (!uri) return null as any;
+  if (baseTextureCache[uri]) return baseTextureCache[uri];
+  const tex = loaderSingleton.load(uri);
+  tex.colorSpace = SRGBColorSpace;
+  baseTextureCache[uri] = tex;
+  return tex;
+}
+
+const applyTexture = (
+  texture: CatalogElementTextures[string],
+  length: number,
+  height: number
+) => {
+  const material = new MeshStandardMaterial();
+
+  const setupMap = (
+    base: Texture,
+    repeatL: number,
+    repeatH: number,
+    assign: (t: Texture) => void,
+    extra?: (t: Texture) => void
+  ) => {
+    if (!base) return;
+
+    const cloneAndAssign = () => {
+      if (!base.image || !base.image.width) {
+        requestAnimationFrame(cloneAndAssign);
+        return;
+      }
+      const map = base.clone();
+      map.image = base.image;
+      map.wrapS = RepeatWrapping;
+      map.wrapT = RepeatWrapping;
+      map.repeat.set(repeatL, repeatH);
+      map.needsUpdate = true;
+      assign(map);
+      if (extra) extra(map);
+      material.needsUpdate = true;
+    };
+
+    cloneAndAssign();
+  };
+
+  if (texture) {
+    const base = getBaseTexture(texture.uri);
+    setupMap(
+      base,
+      length * texture.lengthRepeatScale,
+      height * texture.heightRepeatScale,
+      (m) => {
+        material.map = m;
+      }
+    );
+
+    const normal = texture.normal;
+    if (normal) {
+      const baseNormal = getBaseTexture(normal.uri);
+      setupMap(
+        baseNormal,
+        length * normal.lengthRepeatScale,
+        height * normal.heightRepeatScale,
+        (m) => {
+          material.normalMap = m;
+        },
+        () => {
+          material.normalScale = new Vector2(
+            normal.normalScaleX,
+            normal.normalScaleY
+          );
+        }
+      );
+    }
+  }
+
+  return material;
+};
+
+export function buildWall(
+  element: Line,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures
+) {
+  // Get the two vertices of the wall
+  let vertex0 = layer.vertices[element.vertices[0]];
+  let vertex1 = layer.vertices[element.vertices[1]];
+  let inverted = false;
+
+  // The first vertex is the smaller one
+  if (vertex0.x > vertex1.x) {
+    const app = vertex0;
+    vertex0 = vertex1;
+    vertex1 = app;
+    inverted = true;
+  }
+  // Get height and thickness of the wall converting them into the current scene units
+  const height = element.properties.height.length;
+  const thickness = element.properties.thickness.length;
+  const opacity = element.properties.opacity;
+  const faceThickness = 0.2; // thickness of decorative textured panel
+  const faceDistance = 0.5; // no artificial gap; panels will be shifted just outside the wall body
+
+  const distance = verticesDistance(vertex0, vertex1);
+
+  const points1 = calcLineEnd(
+    layer,
+    element.id,
+    element.vertices[0],
+    thickness
+  );
+  const rawPoints2 = calcLineEnd(
+    layer,
+    element.id,
+    element.vertices[1],
+    thickness
+  );
+  const points2 = rawPoints2.map((p) => ({ x: distance - p.x, y: p.y }));
+
+  // Robustly pair front/back ends to avoid twists: match end corner closest (in plan y) to the start corner
+  const endA = points2[0];
+  const endB = points2[points2.length - 1];
+  const frontEnd =
+    Math.abs(endA.y - points1[0].y) <= Math.abs(endB.y - points1[0].y)
+      ? endA
+      : endB;
+  const backEnd = frontEnd === endA ? endB : endA;
+
+  const frontPoints = [points1[0], frontEnd].map((p) => {
+    return { y: p.y * -1, x: p.x };
+  });
+  const backPoints = [points1[points1.length - 1], backEnd].map((p) => {
+    return { y: p.y * -1, x: p.x };
+  });
+
+  const halfDistance = distance / 2;
+
+  // Build a custom prism geometry using the four plan-view corners (front/back at start/end)
+  const fStart = frontPoints[0];
+  const fEnd = frontPoints[1];
+  const bStart = backPoints[0];
+  const bEnd = backPoints[1];
+
+  const bottomY = -height / 2;
+  const topY = height / 2;
+
+  const xLocal = (x: number) => x - halfDistance; // center geometry on X=0 like BoxGeometry
+  const uFromX = (x: number) => x / distance; // normalize along length for UVs
+
+  // 8 corner points (bottom and top)
+  const v0 = { x: xLocal(fEnd.x), y: bottomY, z: fEnd.y }; // front start bottom
+  const v1 = { x: xLocal(fStart.x), y: bottomY, z: fStart.y }; // front end bottom
+  const v2 = { x: xLocal(bStart.x), y: bottomY, z: bStart.y }; // back end bottom
+  const v3 = { x: xLocal(bEnd.x), y: bottomY, z: bEnd.y }; // back start bottom
+
+  const v4 = { x: v0.x, y: topY, z: v0.z }; // front start top
+  const v5 = { x: v1.x, y: topY, z: v1.z }; // front end top
+  const v6 = { x: v2.x, y: topY, z: v2.z }; // back end top
+  const v7 = { x: v3.x, y: topY, z: v3.z }; // back start top
+
+  const positions: number[] = [];
+  const uvs: number[] = [];
+
+  const push = (vx: { x: number; y: number; z: number }, ux = 0, vy = 0) => {
+    positions.push(vx.x, vx.y, vx.z);
+    uvs.push(ux, vy);
+  };
+
+  const tri = (
+    a: { x: number; y: number; z: number },
+    b: { x: number; y: number; z: number },
+    c: { x: number; y: number; z: number },
+    au = 0,
+    av = 0,
+    bu = 0,
+    bv = 0,
+    cu = 0,
+    cv = 0
+  ) => {
+    push(a, au, av);
+    push(b, bu, bv);
+    push(c, cu, cv);
+  };
+
+  // Front long face (map UVs: u along length [0..1], v along height [0..1])
+  const uF0 = uFromX(fStart.x),
+    uF1 = uFromX(fEnd.x);
+  tri(v0, v1, v5, uF0, 0, uF1, 0, uF1, 1);
+  tri(v0, v5, v4, uF0, 0, uF1, 1, uF0, 1);
+
+  // Back long face (UVs)
+  const uB0 = uFromX(bStart.x),
+    uB1 = uFromX(bEnd.x);
+  tri(v2, v3, v7, uB1, 0, uB0, 0, uB0, 1);
+  tri(v2, v7, v6, uB1, 0, uB0, 1, uB1, 1);
+
+  // Start end face (no UVs needed)
+  tri(v3, v0, v4);
+  tri(v3, v4, v7);
+
+  // End end face (no UVs needed)
+  tri(v1, v2, v6);
+  tri(v1, v6, v5);
+
+  // Bottom face (close the prism)
+  tri(v0, v2, v1);
+  tri(v0, v3, v2);
+
+  // Top face
+  tri(v4, v5, v6);
+  tri(v4, v6, v7);
+
+  const soulGeometry = new BufferGeometry();
+  soulGeometry.setAttribute(
+    'position',
+    new Float32BufferAttribute(positions, 3)
+  );
+  soulGeometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  soulGeometry.computeVertexNormals();
+
+  // Triangles order (each 2 tris): front(0-1), back(2-3), start(4-5), end(6-7), bottom(8-9), top(10-11)
+  // Each triangle adds 3 vertices
+  const frontVertCount = 2 * 3; // 6
+  const backVertCount = 2 * 3; // 6
+  const remainingVertCount =
+    positions.length / 3 - frontVertCount - backVertCount;
+
+  soulGeometry.clearGroups();
+  soulGeometry.addGroup(0, frontVertCount, 0); // front hidden
+  soulGeometry.addGroup(frontVertCount, backVertCount, 1); // back hidden
+  soulGeometry.addGroup(frontVertCount + backVertCount, remainingVertCount, 2); // visible sides/top/bottom
+
+  // Hidden faces fully transparent
+  const frontHiddenMat = new MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    side: BackSide
+  });
+  const backHiddenMat = new MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    side: FrontSide
+  });
+  // Visible faces adopt the opacity property
+  const sideVisibleMat = new MeshBasicMaterial({
+    color: element.selected ? SharedStyle.MESH_SELECTED : 0xd3d3d3,
+    side: DoubleSide,
+    opacity,
+    transparent: true
+  });
+
+  let soul: Mesh = new Mesh(soulGeometry, [
+    frontHiddenMat,
+    backHiddenMat,
+    sideVisibleMat
+  ]);
+
+  const alpha = Math.asin((vertex1.y - vertex0.y) / distance);
+
+  const sinAlpha = Math.sin(alpha);
+  const cosAlpha = Math.cos(alpha);
+
+  element.holes.forEach((holeID) => {
+    const holeData = layer.holes[holeID];
+
+    const holeWidth = holeData.properties.width.length;
+    const holeHeight = holeData.properties.height.length;
+    const holeAltitude = holeData.properties.altitude.length;
+    const offset = inverted ? 1 - holeData.offset : holeData.offset;
+    const holeDistance = offset * distance;
+
+    const holeGeometry = new BoxGeometry(holeWidth, holeHeight, thickness);
+    const holeMesh = new Mesh(holeGeometry);
+
+    // Work in wall local space
+    holeMesh.position.set(
+      holeDistance - distance / 2,
+      -(height / 2) + holeAltitude + holeHeight / 2,
+      0
+    );
+
+    holeMesh.updateMatrix();
+
+    soul = CSG.subtract(soul, holeMesh);
+  });
+
+  soul.position.y += height / 2;
+  soul.position.x += halfDistance * cosAlpha;
+  soul.position.z -= halfDistance * sinAlpha;
+
+  soul.rotation.y = alpha;
+  soul.name = 'soul';
+
+  const frontMaterial = applyTexture(
+    textures[element.properties.textureB],
+    distance,
+    height
+  );
+  const backMaterial = applyTexture(
+    textures[element.properties.textureA],
+    distance,
+    height
+  );
+
+  [frontMaterial, backMaterial].forEach((mat) => {
+    mat.opacity = opacity;
+    if (opacity < 1) mat.transparent = true;
+  });
+
+  // Build proper thin face panels from actual face quads, offset outward along face normal
+  // Helper to build a thin extruded quad geometry with UVs along length (u) and height (v)
+  const buildExtrudedQuad = (
+    a: { x: number; y: number; z: number },
+    b: { x: number; y: number; z: number },
+    c: { x: number; y: number; z: number },
+    d: { x: number; y: number; z: number },
+    thicknessLocal: number,
+    uA: number,
+    uB: number
+  ) => {
+    // Convert to arrays for convenience
+    const ax = a.x,
+      ay = a.y,
+      az = a.z;
+    const bx = b.x,
+      by = b.y,
+      bz = b.z;
+    const cx = c.x,
+      cy = c.y,
+      cz = c.z;
+    const dx = d.x,
+      dy = d.y,
+      dz = d.z;
+
+    // Compute face normal (a->b) x (a->d)
+    const abx = bx - ax,
+      aby = by - ay,
+      abz = bz - az;
+    const adx = dx - ax,
+      ady = dy - ay,
+      adz = dz - az;
+    // cross(ab, ad)
+    let nx = aby * adz - abz * ady;
+    let ny = abz * adx - abx * adz;
+    let nz = abx * ady - aby * adx;
+    const nLen = Math.hypot(nx, ny, nz) || 1;
+    nx /= nLen;
+    ny /= nLen;
+    nz /= nLen;
+
+    const halfT = thicknessLocal / 2;
+
+    // Offset the quad along +/- normal to create a thin volume
+    const aF = [ax + nx * halfT, ay + ny * halfT, az + nz * halfT]; // +normal side
+    const bF = [bx + nx * halfT, by + ny * halfT, bz + nz * halfT];
+    const cF = [cx + nx * halfT, cy + ny * halfT, cz + nz * halfT];
+    const dF = [dx + nx * halfT, dy + ny * halfT, dz + nz * halfT];
+
+    const aB = [ax - nx * halfT, ay - ny * halfT, az - nz * halfT]; // -normal side
+    const bB = [bx - nx * halfT, by - ny * halfT, bz - nz * halfT];
+    const cB = [cx - nx * halfT, cy - ny * halfT, cz - nz * halfT];
+    const dB = [dx - nx * halfT, dy - ny * halfT, dz - nz * halfT];
+
+    const pos: number[] = [];
+    const uv: number[] = [];
+
+    const pushV = (v: number[], u = 0, vT = 0) => {
+      pos.push(v[0], v[1], v[2]);
+      uv.push(u, vT);
+    };
+    const triV = (
+      A: number[],
+      B: number[],
+      C: number[],
+      Au = 0,
+      Av = 0,
+      Bu = 0,
+      Bv = 0,
+      Cu = 0,
+      Cv = 0
+    ) => {
+      pushV(A, Au, Av);
+      pushV(B, Bu, Bv);
+      pushV(C, Cu, Cv);
+    };
+
+    // Front face (+normal side) with UVs
+    triV(aF, bF, cF, uA, 0, uB, 0, uB, 1);
+    triV(aF, cF, dF, uA, 0, uB, 1, uA, 1);
+
+    // Back face (-normal side) UVs can be mirrored or default
+    triV(bB, aB, dB);
+    triV(bB, dB, cB);
+
+    // Sides (no UVs needed)
+    // Edge AB
+    triV(aB, aF, bF);
+    triV(aB, bF, bB);
+    // Edge BC
+    triV(bB, bF, cF);
+    triV(bB, cF, cB);
+    // Edge CD
+    triV(cB, cF, dF);
+    triV(cB, dF, dB);
+    // Edge DA
+    triV(dB, dF, aF);
+    triV(dB, aF, aB);
+
+    const g = new BufferGeometry();
+    g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new Float32BufferAttribute(uv, 2));
+    g.computeVertexNormals();
+    return g;
+  };
+
+  // Build face quads from existing corners
+  const uFrontA = uFromX(fStart.x),
+    uFrontB = uFromX(fEnd.x);
+  const frontGeom = buildExtrudedQuad(
+    v0,
+    v1,
+    v5,
+    v4,
+    faceThickness,
+    uFrontA,
+    uFrontB
+  );
+
+  const uBackA = uFromX(bStart.x),
+    uBackB = uFromX(bEnd.x);
+  const backGeom = buildExtrudedQuad(
+    v2,
+    v3,
+    v7,
+    v6,
+    faceThickness,
+    uBackB,
+    uBackA
+  ); // note reversed to keep u increasing along length
+
+  let frontFace: Mesh = new Mesh(frontGeom, frontMaterial);
+  let backFace: Mesh = new Mesh(backGeom, backMaterial);
+
+  // Compute outward normals based on center-to-center vector so panels always sit fully outside
+  const frontCenter = new Vector3(
+    (v0.x + v1.x + v5.x + v4.x) / 4,
+    (v0.y + v1.y + v5.y + v4.y) / 4,
+    (v0.z + v1.z + v5.z + v4.z) / 4
+  );
+  const backCenter = new Vector3(
+    (v2.x + v3.x + v7.x + v6.x) / 4,
+    (v2.y + v3.y + v7.y + v6.y) / 4,
+    (v2.z + v3.z + v7.z + v6.z) / 4
+  );
+  const centerVector = new Vector3().subVectors(backCenter, frontCenter); // from front to back
+  const thicknessDir = centerVector.clone().normalize();
+  // Invert previous direction: move front along +thicknessDir and back along -thicknessDir
+  const frontOutward = thicknessDir.clone();
+  const backOutward = thicknessDir.clone().multiplyScalar(1);
+  const outwardShift = faceThickness / 2 + faceDistance; // ensure panel sits fully outside + epsilon
+  const inwardShift = faceThickness / 2 - faceDistance; // ensure panel sits fully outside + epsilon
+
+  // Subtract holes from the face panels as well to avoid panels crossing openings
+  element.holes.forEach((holeID) => {
+    const holeData = layer.holes[holeID];
+
+    const holeWidth = holeData.properties.width.length;
+    const holeHeight = holeData.properties.height.length;
+    const holeAltitude = holeData.properties.altitude.length;
+    const offset = inverted ? 1 - holeData.offset : holeData.offset;
+    const holeDistance = offset * distance;
+
+    const holeGeometry = new BoxGeometry(
+      holeWidth,
+      holeHeight,
+      thickness + faceThickness * 2 + faceDistance * 2
+    );
+    const holeMesh = new Mesh(holeGeometry);
+
+    holeMesh.position.set(
+      holeDistance - distance / 2,
+      -(height / 2) + holeAltitude + holeHeight / 2,
+      0
+    );
+
+    holeMesh.updateMatrix();
+
+    // Front face
+    frontFace = CSG.subtract(frontFace, holeMesh);
+
+    // Back face
+    backFace = CSG.subtract(backFace, holeMesh);
+  });
+
+  // Position/rotate like soul
+  [frontFace, backFace].forEach((face) => {
+    face.position.y += height / 2;
+    face.position.x += halfDistance * cosAlpha;
+    face.position.z -= halfDistance * sinAlpha;
+    face.rotation.y = alpha;
+  });
+
+  frontFace.translateOnAxis(frontOutward, inwardShift);
+  backFace.translateOnAxis(backOutward, outwardShift);
+
+  frontFace.name = 'frontFace';
+  backFace.name = 'backFace';
+
+  (frontFace as any).userData = {
+    surfaceType: 'front',
+    wallId: element.id,
+    wallLength: distance,
+    wallHeight: height,
+  };
+
+  (backFace as any).userData = {
+    surfaceType: 'back',
+    wallId: element.id,
+    wallLength: distance,
+    wallHeight: height,
+  };
+
+
+  const merged = new Group();
+  merged.add(soul, frontFace, backFace);
+
+  return merged;
+}
+
+export function updatedWall(
+  element: Line,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures,
+  mesh: Object3D<Object3DEventMap>,
+  oldElement: Line,
+  differences: string[],
+  selfDestroy: () => void,
+  selfBuild: () => void
+) {
+  const noPerf = () => {
+    selfDestroy();
+    return selfBuild();
+  };
+
+  const soul = mesh.getObjectByName('soul') as Mesh;
+  const frontFace = mesh.getObjectByName('frontFace') as Mesh;
+  const backFace = mesh.getObjectByName('backFace') as Mesh;
+
+  if (differences[0] == 'selected') {
+    const soulMesh = soul as Mesh;
+    if (Array.isArray(soulMesh.material)) {
+      const sideMat = soulMesh.material[2] as MeshBasicMaterial;
+      sideMat.color.set(
+        element.selected ? SharedStyle.MESH_SELECTED : 0xd3d3d3
+      );
+      sideMat.needsUpdate = true;
+    }
+  } else if (differences[0] == 'properties') {
+    if (differences[1] == 'thickness') {
+      const newThickness = element.properties.thickness.length;
+      const oldThickness = oldElement.properties.thickness.length;
+      const halfNewThickness = newThickness / 2;
+      const texturedFaceDistance = halfNewThickness + 1;
+      const originalThickness = oldThickness / soul.scale.z;
+      const alpha = soul.rotation.y;
+
+      const xTemp = texturedFaceDistance * Math.cos(alpha - halfPI);
+      const zTemp = texturedFaceDistance * Math.sin(alpha - halfPI);
+
+      soul.scale.set(1, 1, newThickness / originalThickness);
+
+      frontFace.position.x = soul.position.x + xTemp;
+      frontFace.position.z = soul.position.z + zTemp;
+
+      backFace.position.x = soul.position.x - xTemp;
+      backFace.position.z = soul.position.z - zTemp;
+      return noPerf();
+    } else return noPerf();
+  } else return noPerf();
+
+  return mesh;
+}
+
+===== FILE 3: area-factory-3d.ts =====
+import {
+  Box3,
+  DoubleSide,
+  Mesh,
+  MeshBasicMaterial,
+  MeshPhongMaterial,
+  Object3D,
+  Object3DEventMap,
+  RepeatWrapping,
+  Shape,
+  ShapeGeometry,
+  TextureLoader,
+  Vector2
+} from 'three';
+
+import { Area, Layer, Scene, Vertex } from '../../models';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElementTextures } from '../../types';
+
+/**
+ * Apply a texture to a wall face
+ * @param material: The material of the face
+ * @param texture: The texture to load
+ * @param length: The lenght of the face
+ * @param height: The height of the face
+ */
+const applyTexture = (
+  material: MeshPhongMaterial,
+  texture: CatalogElementTextures[string],
+  length: number,
+  height: number
+) => {
+  const loader = new TextureLoader();
+
+  if (texture) {
+    material.map = loader.load(texture.uri);
+    material.needsUpdate = true;
+    material.map.wrapS = RepeatWrapping;
+    material.map.wrapT = RepeatWrapping;
+    material.map.repeat.set(
+      length * texture.lengthRepeatScale,
+      height * texture.heightRepeatScale
+    );
+
+    if (texture.normal) {
+      material.normalMap = loader.load(texture.normal.uri);
+      material.normalScale = new Vector2(
+        texture.normal.normalScaleX,
+        texture.normal.normalScaleY
+      );
+      material.normalMap.wrapS = RepeatWrapping;
+      material.normalMap.wrapT = RepeatWrapping;
+      material.normalMap.repeat.set(
+        length * texture.normal.lengthRepeatScale,
+        height * texture.normal.heightRepeatScale
+      );
+    }
+  }
+};
+
+/**
+ * Function that assign UV coordinates to a geometry
+ * @param geometry
+ */
+/*
+const assignUVs = (geometry: BufferGeometry) => {
+  geometry.computeBoundingBox();
+
+  const { min, max } = geometry.boundingBox as Box3;
+
+  const offset = new Vector2(0 - min.x, 0 - min.y);
+  const range = new Vector2(max.x - min.x, max.y - min.y);
+
+  geometry.faceVertexUvs[0] = geometry.faces.map((face) => {
+
+    const v1 = geometry.vertices[face.a];
+    const v2 = geometry.vertices[face.b];
+    const v3 = geometry.vertices[face.c];
+
+    return [
+      new Vector2((v1.x + offset.x) / range.x, (v1.y + offset.y) / range.y),
+      new Vector2((v2.x + offset.x) / range.x, (v2.y + offset.y) / range.y),
+      new Vector2((v3.x + offset.x) / range.x, (v3.y + offset.y) / range.y)
+    ];
+
+  });
+
+  geometry.uvsNeedUpdate = true;
+};
+*/
+
+export function createArea(
+  element: Area,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures
+) {
+  const vertices: Vertex[] = [];
+
+  element.vertices.forEach((vertexID) => {
+    vertices.push(layer.vertices[vertexID]);
+  });
+
+  const textureName = element.properties.texture;
+  let color = element.properties.patternColor;
+
+  if (element.selected) {
+    color = SharedStyle.AREA_MESH_COLOR.selected;
+  } else if (textureName && textureName !== 'none') {
+    color = SharedStyle.AREA_MESH_COLOR.unselected;
+  }
+
+  const shape = new Shape();
+  shape.moveTo(vertices[0].x, vertices[0].y);
+  for (let i = 1; i < vertices.length; i++) {
+    shape.lineTo(vertices[i].x, vertices[i].y);
+  }
+
+  const areaMaterial = new MeshPhongMaterial({ side: DoubleSide, color });
+
+  /* Create holes for the area */
+  element.holes.forEach((holeID) => {
+    let holeCoords: [number, number][] = [];
+    layer.areas[holeID].vertices.forEach((vertexID) => {
+      const { x, y } = layer.vertices[vertexID];
+      holeCoords.push([x, y]);
+    });
+    holeCoords = holeCoords.reverse();
+    const holeShape = createShape(holeCoords);
+    shape.holes.push(holeShape);
+  });
+
+  const shapeGeometry = new ShapeGeometry(shape);
+  //assignUVs(shapeGeometry);
+
+  const boundingBox = new Box3().setFromObject(
+    new Mesh(shapeGeometry, new MeshBasicMaterial())
+  );
+
+  const width = boundingBox.max.x - boundingBox.min.x;
+  const height = boundingBox.max.y - boundingBox.min.y;
+
+  const texture = textures[textureName];
+
+  applyTexture(areaMaterial, texture, width, height);
+
+  const area = new Mesh(shapeGeometry, areaMaterial);
+
+  const sceneArea =
+    Math.abs(
+      vertices.reduce((sum, v, i) => {
+        const j = (i + 1) % vertices.length;
+        return sum + v.x * vertices[j].y - vertices[j].x * v.y;
+      }, 0)
+    ) / 2;
+
+  area.rotation.x -= Math.PI / 2;
+  area.name = 'floor';
+  area.userData = {
+    areaId: element.id,
+    sceneArea
+  };
+
+  return area;
+}
+
+export function updatedArea(
+  element: Area,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures,
+  mesh: Object3D<Object3DEventMap>,
+  oldElement: Area,
+  differences: string[],
+  selfDestroy: () => void,
+  selfBuild: () => void
+) {
+  const noPerf = () => {
+    selfDestroy();
+    return selfBuild();
+  };
+  const floor = mesh.getObjectByName('floor');
+
+  if (differences[0] == 'selected') {
+    const color = element.selected
+      ? SharedStyle.AREA_MESH_COLOR.selected
+      : element.properties.patternColor ||
+      SharedStyle.AREA_MESH_COLOR.unselected;
+    ((floor as Mesh).material as MeshPhongMaterial).color.set(color);
+  } else if (differences[0] == 'properties') {
+    if (differences[1] === 'texture') {
+      return noPerf();
+    }
+  } else return noPerf();
+
+  return mesh;
+}
+
+/**
+ * This function will create a shape given a list of coordinates
+ * @param shapeCoords
+ * @returns {Shape}
+ */
+const createShape = (shapeCoords: [number, number][]): Shape => {
+  const shape = new Shape();
+  shape.moveTo(shapeCoords[0][0], shapeCoords[0][1]);
+  for (let i = 1; i < shapeCoords.length; i++) {
+    shape.lineTo(shapeCoords[i][0], shapeCoords[i][1]);
+  }
+  return shape;
+};
+
+===== FILE 4: Planner.tsx =====
+import { useMemo, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bolt,
+  Wrench,
+  Paintbrush,
+  Grid3X3,
+  Layers,
+  Boxes,
+  MoreHorizontal,
+  FilePlus,
+  FolderOpen,
+  Save,
+  Plus,
+  Undo2,
+  Settings,
+  FileText,
+} from "lucide-react";
+
+import PlannerFrame, {
+  type PlannerApi,
+  type CatalogServiceSelectedPayload,
+  type SurfaceSelectedPayload,
+} from "../../components/planner/PlannerFrame";
+
+import {
+  MAIN_SERVICES,
+  usePlannerState,
+  type MainService,
+} from "../../state/plannerState";
+
+type ViewMode = "2D" | "3D";
+
+const ICONS: Record<MainService, LucideIcon> = {
+  electricity: Bolt,
+  plumbing: Wrench,
+  painting: Paintbrush,
+  flooring: Grid3X3,
+  plastering: Layers,
+  boards: Boxes,
+  other: MoreHorizontal,
+};
+
+export default function Planner() {
+  const navigate = useNavigate();
+
+  const apiRef = useRef<PlannerApi | null>(null);
+  const didInitRef = useRef(false);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("2D");
+  const [engineMode, setEngineMode] = useState<string>("");
+
+  const selectedSurfacesRef = useRef<Set<string>>(new Set());
+
+  const {
+    activeMain,
+    setActiveMain,
+    hasAnySelection,
+    selectedSurfaces,
+    surfaceGeoMap,
+    selectedSurfaceTotalM2,
+    areaServiceDraft,
+    toggleSurface,
+    clearSelectedSurfaces,
+    liveSurfaceGeo,
+    setLiveSurfaceGeo,
+    applyAreaService,
+    removeSurfaceFromAreaService,
+    activeAreaSubService,
+    setActiveAreaSubService,
+    activeAreaMaterialKey,
+    setActiveAreaMaterialKey,
+    activeAreaMaterialLabel,
+    setActiveAreaMaterialLabel,
+    activeAreaMaterialColor,
+    setActiveAreaMaterialColor,
+  } = usePlannerState();
+
+  selectedSurfacesRef.current = selectedSurfaces;
+
+  const handleApi = useCallback((api: PlannerApi) => {
+    apiRef.current = api;
+
+    if (!didInitRef.current) {
+      didInitRef.current = true;
+      api.cmd("VIEW_2D");
+      api.cmd("SELECT_TOOL_EDIT");
+      setViewMode("2D");
+    }
+  }, []);
+
+  const handleCatalogServiceSelected = useCallback(
+    (payload: CatalogServiceSelectedPayload) => {
+      if (payload.mainService === "painting") {
+        setActiveMain("painting");
+        setActiveAreaSubService(payload.subService);
+        setActiveAreaMaterialKey(payload.materialKey);
+        setActiveAreaMaterialLabel(payload.materialLabel);
+        setActiveAreaMaterialColor(payload.color || null);
+        setViewMode("3D");
+        apiRef.current?.cmd("VIEW_3D");
+      }
+    },
+    [
+      setActiveMain,
+      setActiveAreaSubService,
+      setActiveAreaMaterialKey,
+      setActiveAreaMaterialLabel,
+      setActiveAreaMaterialColor,
+    ]
+  );
+
+  const handleSurfaceSelected = useCallback(
+    (payload: SurfaceSelectedPayload) => {
+      const surfaceId = payload?.surfaceId;
+      if (!surfaceId) return;
+
+      setLiveSurfaceGeo({
+        surfaceId,
+        wallId: payload.wallId,
+        surfaceType: payload.surfaceType,
+        lengthM: payload.lengthM ?? null,
+        heightM: payload.heightM ?? null,
+        areaM2: payload.areaM2 ?? null,
+      });
+
+      const geo = {
+        wallId: payload.wallId,
+        surfaceType: payload.surfaceType,
+        lengthM: payload.lengthM ?? null,
+        heightM: payload.heightM ?? null,
+        areaM2: payload.areaM2 ?? null,
+      };
+
+      const isAreaService =
+        !!activeAreaSubService &&
+        !!activeAreaMaterialKey &&
+        (activeMain === "painting" ||
+          activeMain === "flooring" ||
+          activeMain === "plastering" ||
+          activeMain === "boards");
+
+      if (isAreaService) {
+        const wasSelected = selectedSurfacesRef.current.has(surfaceId);
+
+        toggleSurface(surfaceId, geo);
+
+        const next = new Set(selectedSurfacesRef.current);
+
+        if (wasSelected) {
+          next.delete(surfaceId);
+          selectedSurfacesRef.current = next;
+          removeSurfaceFromAreaService(activeMain, surfaceId);
+        } else {
+          next.add(surfaceId);
+          selectedSurfacesRef.current = next;
+          applyAreaService(activeMain, surfaceId);
+        }
+      } else {
+        toggleSurface(surfaceId, geo);
+      }
+    },
+    [
+      toggleSurface,
+      applyAreaService,
+      removeSurfaceFromAreaService,
+      activeMain,
+      activeAreaSubService,
+      activeAreaMaterialKey,
+      setLiveSurfaceGeo,
+    ]
+  );
+
+  const handleSurfacesCleared = useCallback(() => {
+    clearSelectedSurfaces();
+    selectedSurfacesRef.current = new Set();
+  }, [clearSelectedSurfaces]);
+
+  const go2D = useCallback(() => {
+    setViewMode("2D");
+    apiRef.current?.cmd("VIEW_2D");
+    apiRef.current?.cmd("SELECT_TOOL_EDIT");
+  }, []);
+
+  const go3D = useCallback(() => {
+    setViewMode("3D");
+    apiRef.current?.cmd("VIEW_3D");
+  }, []);
+
+  const openServiceCatalog = useCallback(
+    (service: MainService) => {
+      setActiveMain(service);
+      apiRef.current?.cmd("OPEN_CATALOG");
+
+      setTimeout(() => {
+        apiRef.current?.cmd("CHANGE_CATALOG_PAGE", {
+          newPage: `plano_${service}`,
+          oldPage: "root",
+        });
+      }, 50);
+    },
+    [setActiveMain]
+  );
+
+  const isCatalogOpen = engineMode === "MODE_VIEWING_CATALOG";
+
+  const currentServiceDraftCount = useMemo(() => {
+    if (
+      activeMain === "painting" ||
+      activeMain === "flooring" ||
+      activeMain === "plastering" ||
+      activeMain === "boards"
+    ) {
+      return areaServiceDraft[activeMain].size;
+    }
+    return 0;
+  }, [activeMain, areaServiceDraft]);
+
+  const statusBox = useMemo(() => {
+    if (!activeAreaSubService || !activeAreaMaterialLabel) return null;
+
+    return {
+      service: activeMain,
+      subService: activeAreaSubService,
+      material: activeAreaMaterialLabel,
+      draftFaces: currentServiceDraftCount,
+      liveFaces: selectedSurfaces.size,
+    };
+  }, [
+    activeMain,
+    activeAreaSubService,
+    activeAreaMaterialLabel,
+    currentServiceDraftCount,
+    selectedSurfaces,
+  ]);
+
+  return (
+    <div
+      className={`${
+        viewMode === "2D" ? "planner2d-bg" : "planner3d-bg"
+      } fixed inset-0 text-zinc-900`}
+    >
+      <PlannerFrame
+        onApi={handleApi}
+        onModeChange={setEngineMode}
+        onSurfaceSelected={handleSurfaceSelected}
+        onSurfacesCleared={handleSurfacesCleared}
+        onCatalogServiceSelected={handleCatalogServiceSelected}
+      />
+
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex justify-center p-2">
+        <div className="pointer-events-auto glass-panel w-[calc(100vw-24px)] px-4 py-1">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 font-semibold"
+            >
+              <span className="text-base">PlanO</span>
+            </button>
+
+            {viewMode === "3D" && !isCatalogOpen ? (
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 justify-center px-1">
+                  {MAIN_SERVICES.map((s) => {
+                    const Icon = ICONS[s.key];
+                    const isActive = activeMain === s.key;
+
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => openServiceCatalog(s.key)}
+                        className={`plano-dock-item flex items-center gap-2 px-2 py-1 text-xs ${
+                          isActive ? "ring-2 ring-white/70" : ""
+                        }`}
+                        title={s.label}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="hidden lg:inline">{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            {!isCatalogOpen && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("NEW_PROJECT")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <FilePlus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.saveProjectDownload()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Save className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.loadProjectPicker()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <FolderOpen className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_CATALOG")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go3D}
+                  className={`plano-glass-btn px-4 py-2 text-sm ${
+                    viewMode === "3D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                >
+                  3D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go2D}
+                  className={`plano-glass-btn px-4 py-2 text-sm ${
+                    viewMode === "2D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                >
+                  2D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("UNDO")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Undo2 className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")
+                  }
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/estimate")}
+                  disabled={!hasAnySelection}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    hasAnySelection ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                >
+                  <FileText className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {!isCatalogOpen && liveSurfaceGeo ? (
+        <div className="absolute left-4 top-20 z-40 rounded-xl bg-white/95 px-4 py-3 shadow-lg min-w-[220px]">
+          <div className="text-sm font-semibold">PlanO selection</div>
+
+          <div className="text-sm mt-1">Wall: {liveSurfaceGeo.wallId}</div>
+          <div className="text-sm">Face: {liveSurfaceGeo.surfaceType}</div>
+          <div className="text-sm">
+            Length: {liveSurfaceGeo.lengthM ?? "-"} m
+          </div>
+          <div className="text-sm">
+            Height: {liveSurfaceGeo.heightM ?? "-"} m
+          </div>
+          <div className="text-sm font-semibold">
+            Area: {liveSurfaceGeo.areaM2 ?? "-"} m²
+          </div>
+
+          <div className="text-sm mt-2">
+            Selected: {surfaceGeoMap.size} faces
+          </div>
+          <div className="text-sm font-semibold">
+            Total: {selectedSurfaceTotalM2} m²
+          </div>
+
+          {statusBox && (
+            <>
+              <div className="text-sm mt-2">Service: {statusBox.service}</div>
+              <div className="text-sm">Mode: {statusBox.subService}</div>
+              <div className="text-sm">Material: {statusBox.material}</div>
+              <div className="text-sm mt-2">
+                Draft faces: {statusBox.draftFaces}
+              </div>
+              <div className="text-sm">
+                Live clicked faces: {statusBox.liveFaces}
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+===== FILE 5: plannerState.tsx =====
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+export type MainService =
+  | "electricity"
+  | "plumbing"
+  | "painting"
+  | "flooring"
+  | "plastering"
+  | "boards"
+  | "other";
+
+export const MAIN_SERVICES: Array<{ key: MainService; label: string }> = [
+  { key: "electricity", label: "Electricity" },
+  { key: "plumbing", label: "Plumbing" },
+  { key: "painting", label: "Painting" },
+  { key: "flooring", label: "Flooring" },
+  { key: "plastering", label: "Plastering" },
+  { key: "boards", label: "Boards" },
+  { key: "other", label: "Other" },
+];
+
+export const SUBSERVICES: Record<MainService, string[]> = {
+  electricity: [
+    "Switches & plugs",
+    "Overlaps with plumbing",
+    "Oven",
+    "Hob",
+    "Fridge freezer",
+    "Microwave",
+    "AC",
+  ],
+  plumbing: [
+    "Floor drain",
+    "Shower cubical",
+    "Bathroom sink",
+    "Mixers",
+    "Kitchen sink",
+    "Water heater",
+    "Washing machine",
+    "Dishwasher",
+    "Tap for water",
+  ],
+  painting: ["Internal paint", "External paint"],
+  flooring: [
+    "Ceramic tiles 60×60",
+    "Ceramic tiles 120×60",
+    "Ceramic tiles custom",
+    "Laminate",
+    "Microcement",
+    "Polished concrete",
+    "Parquet",
+  ],
+  plastering: [
+    "Internal (monacote+finittura)",
+    "Internal (microcement)",
+    "External (GR1000)",
+    "External (silicato)",
+    "Stone restoration",
+  ],
+  boards: ["Flat ceiling", "L-shape bulkhead", "U-shape bulkhead", "Custom shapes"],
+  other: ["To be defined", "Custom request", "Special works"],
+};
+
+type AreaService = "painting" | "flooring" | "plastering" | "boards";
+
+type AreaServiceDraft = {
+  painting: Set<string>;
+  flooring: Set<string>;
+  plastering: Set<string>;
+  boards: Set<string>;
+};
+
+type LiveSurfaceGeo = {
+  surfaceId: string;
+  wallId: string;
+  surfaceType: "front" | "back" | "floor";
+  lengthM: number | null;
+  heightM: number | null;
+  areaM2: number | null;
+} | null;
+
+type SurfaceGeoEntry = {
+  wallId: string;
+  surfaceType: "front" | "back" | "floor";
+  lengthM: number | null;
+  heightM: number | null;
+  areaM2: number | null;
+};
+
+type State = {
+  activeMain: MainService;
+  setActiveMain: (s: MainService) => void;
+
+  selected: Record<MainService, Set<string>>;
+  toggleSub: (main: MainService, sub: string) => void;
+  clearAll: () => void;
+
+  hasAnySelection: boolean;
+  selectedCount: number;
+
+  selectedSurfaces: Set<string>;
+  surfaceGeoMap: Map<string, SurfaceGeoEntry>;
+  selectedSurfaceTotalM2: number;
+  toggleSurface: (surfaceId: string, geo?: SurfaceGeoEntry) => void;
+  clearSelectedSurfaces: () => void;
+
+  liveSurfaceGeo: LiveSurfaceGeo;
+  setLiveSurfaceGeo: (value: LiveSurfaceGeo) => void;
+
+  areaServiceDraft: AreaServiceDraft;
+  applyAreaService: (service: AreaService, surfaceId: string) => void;
+  removeSurfaceFromAreaService: (service: AreaService, surfaceId: string) => void;
+
+  activeAreaSubService: string | null;
+  setActiveAreaSubService: (value: string | null) => void;
+  activeAreaMaterialKey: string | null;
+  setActiveAreaMaterialKey: (value: string | null) => void;
+  activeAreaMaterialLabel: string | null;
+  setActiveAreaMaterialLabel: (value: string | null) => void;
+  activeAreaMaterialColor: string | null;
+  setActiveAreaMaterialColor: (value: string | null) => void;
+};
+
+const KEY = "plano:plannerSelections:v1";
+const Ctx = createContext<State | null>(null);
+
+function load(): { activeMain: MainService; selected: Record<MainService, string[]> } | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const activeMain = (parsed.activeMain as MainService) || "electricity";
+    const sel = (parsed.selected as Record<string, string[]>) || {};
+
+    const out: Record<MainService, string[]> = {
+      electricity: sel.electricity || [],
+      plumbing: sel.plumbing || [],
+      painting: sel.painting || [],
+      flooring: sel.flooring || [],
+      plastering: sel.plastering || [],
+      boards: sel.boards || [],
+      other: sel.other || [],
+    };
+
+    return { activeMain, selected: out };
+  } catch {
+    return null;
+  }
+}
+
+function save(activeMain: MainService, selected: Record<MainService, Set<string>>) {
+  const payload = {
+    activeMain,
+    selected: {
+      electricity: Array.from(selected.electricity),
+      plumbing: Array.from(selected.plumbing),
+      painting: Array.from(selected.painting),
+      flooring: Array.from(selected.flooring),
+      plastering: Array.from(selected.plastering),
+      boards: Array.from(selected.boards),
+      other: Array.from(selected.other),
+    },
+  };
+
+  localStorage.setItem(KEY, JSON.stringify(payload));
+}
+
+export function PlannerStateProvider({ children }: { children: React.ReactNode }) {
+  const initial = load();
+
+  const [activeMain, setActiveMain] = useState<MainService>(initial?.activeMain || "electricity");
+
+  const [selected, setSelected] = useState<Record<MainService, Set<string>>>(() => ({
+    electricity: new Set(initial?.selected.electricity || []),
+    plumbing: new Set(initial?.selected.plumbing || []),
+    painting: new Set(initial?.selected.painting || []),
+    flooring: new Set(initial?.selected.flooring || []),
+    plastering: new Set(initial?.selected.plastering || []),
+    boards: new Set(initial?.selected.boards || []),
+    other: new Set(initial?.selected.other || []),
+  }));
+
+  const [selectedSurfaces, setSelectedSurfaces] = useState<Set<string>>(new Set());
+  const [surfaceGeoMap, setSurfaceGeoMap] = useState<Map<string, SurfaceGeoEntry>>(new Map());
+  const [liveSurfaceGeo, setLiveSurfaceGeo] = useState<LiveSurfaceGeo>(null);
+
+  const [areaServiceDraft, setAreaServiceDraft] = useState<AreaServiceDraft>({
+    painting: new Set(),
+    flooring: new Set(),
+    plastering: new Set(),
+    boards: new Set(),
+  });
+
+  const [activeAreaSubService, setActiveAreaSubService] = useState<string | null>(null);
+  const [activeAreaMaterialKey, setActiveAreaMaterialKey] = useState<string | null>(null);
+  const [activeAreaMaterialLabel, setActiveAreaMaterialLabel] = useState<string | null>(null);
+  const [activeAreaMaterialColor, setActiveAreaMaterialColor] = useState<string | null>(null);
+
+  const toggleSurface = (surfaceId: string, geo?: SurfaceGeoEntry) => {
+    setSelectedSurfaces((prev) => {
+      const next = new Set(prev);
+      if (next.has(surfaceId)) next.delete(surfaceId);
+      else next.add(surfaceId);
+      return next;
+    });
+
+    setSurfaceGeoMap((prev) => {
+      const next = new Map(prev);
+      if (next.has(surfaceId)) next.delete(surfaceId);
+      else if (geo) next.set(surfaceId, geo);
+      return next;
+    });
+  };
+
+  const clearSelectedSurfaces = () => {
+    setSelectedSurfaces(new Set());
+    setSurfaceGeoMap(new Map());
+    setLiveSurfaceGeo(null);
+  };
+
+  const applyAreaService = (service: AreaService, surfaceId: string) => {
+    setAreaServiceDraft((prev) => {
+      const next: AreaServiceDraft = {
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+      };
+
+      next[service].add(surfaceId);
+      return next;
+    });
+  };
+
+  const removeSurfaceFromAreaService = (service: AreaService, surfaceId: string) => {
+    setAreaServiceDraft((prev) => {
+      const next: AreaServiceDraft = {
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+      };
+
+      next[service].delete(surfaceId);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    save(activeMain, selected);
+  }, [activeMain, selected]);
+
+  const toggleSub = (main: MainService, sub: string) => {
+    setSelected((prev) => {
+      const next: Record<MainService, Set<string>> = {
+        electricity: new Set(prev.electricity),
+        plumbing: new Set(prev.plumbing),
+        painting: new Set(prev.painting),
+        flooring: new Set(prev.flooring),
+        plastering: new Set(prev.plastering),
+        boards: new Set(prev.boards),
+        other: new Set(prev.other),
+      };
+
+      if (next[main].has(sub)) next[main].delete(sub);
+      else next[main].add(sub);
+
+      return next;
+    });
+  };
+
+  const clearAll = () => {
+    setSelected({
+      electricity: new Set(),
+      plumbing: new Set(),
+      painting: new Set(),
+      flooring: new Set(),
+      plastering: new Set(),
+      boards: new Set(),
+      other: new Set(),
+    });
+
+    clearSelectedSurfaces();
+  };
+
+  const selectedCount = useMemo(() => {
+    return (
+      selected.electricity.size +
+      selected.plumbing.size +
+      selected.painting.size +
+      selected.flooring.size +
+      selected.plastering.size +
+      selected.boards.size +
+      selected.other.size
+    );
+  }, [selected]);
+
+  const selectedSurfaceTotalM2 = useMemo(() => {
+    let sum = 0;
+    surfaceGeoMap.forEach((entry) => {
+      if (entry.areaM2 !== null) sum += entry.areaM2;
+    });
+    return Math.round(sum * 100) / 100;
+  }, [surfaceGeoMap]);
+
+  const hasAnySelection = selectedCount > 0;
+
+  const value: State = {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    clearAll,
+    hasAnySelection,
+    selectedCount,
+    selectedSurfaces,
+    surfaceGeoMap,
+    selectedSurfaceTotalM2,
+    toggleSurface,
+    clearSelectedSurfaces,
+    liveSurfaceGeo,
+    setLiveSurfaceGeo,
+    areaServiceDraft,
+    applyAreaService,
+    removeSurfaceFromAreaService,
+    activeAreaSubService,
+    setActiveAreaSubService,
+    activeAreaMaterialKey,
+    setActiveAreaMaterialKey,
+    activeAreaMaterialLabel,
+    setActiveAreaMaterialLabel,
+    activeAreaMaterialColor,
+    setActiveAreaMaterialColor,
+  };
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function usePlannerState() {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("usePlannerState must be used inside PlannerStateProvider");
+  return ctx;
+}
+===== FILE 6: PlannerFrame.tsx =====
+import { useEffect, useRef } from "react";
+
+const ENGINE_URL = import.meta.env.VITE_ENGINE_URL || "http://localhost:5173";
+const ENGINE_ORIGIN = new URL(ENGINE_URL).origin;
+const PROTOCOL_VERSION = 1;
+
+const RASTER_URL =
+  import.meta.env.VITE_RASTER_URL || "http://localhost:8000/upload-plan";
+
+export type PlannerCmd =
+  | "NEW_PROJECT"
+  | "OPEN_CATALOG"
+  | "CHANGE_CATALOG_PAGE"
+  | "VIEW_2D"
+  | "VIEW_3D"
+  | "VIEW_3D_FIRST_PERSON"
+  | "UNDO"
+  | "OPEN_PROJECT_CONFIGURATOR"
+  | "TOOL_PAN"
+  | "TOOL_ZOOM_IN"
+  | "TOOL_ZOOM_OUT"
+  | "SELECT_TOOL_EDIT"
+  | "UNSELECT_ALL"
+  | "LOAD_PROJECT_JSON"
+  | "LOAD_RASTER_JSON"
+  | "REQUEST_SCENE_JSON";
+
+export type SurfaceSelectedPayload = {
+  surfaceId: string;
+  wallId: string;
+  surfaceType: "front" | "back" | "floor";
+  lengthM?: number;
+  heightM?: number;
+  areaM2?: number;
+};
+
+export type CatalogServiceSelectedPayload = {
+  mainService: string;
+  subService: string;
+  materialKey: string;
+  materialLabel: string;
+  color: string | null;
+};
+
+export type PlannerApi = {
+  cmd: (c: PlannerCmd, payload?: any) => void;
+  loadProjectPicker: () => void;
+  saveProjectDownload: () => void;
+};
+
+type Props = {
+  onApi?: (api: PlannerApi) => void;
+  onModeChange?: (mode: string) => void;
+  onSurfaceSelected?: (payload: SurfaceSelectedPayload) => void;
+  onSurfacesCleared?: () => void;
+  onCatalogServiceSelected?: (payload: CatalogServiceSelectedPayload) => void;
+};
+
+function downloadJson(filename: string, data: any) {
+  const dataStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+export default function PlannerFrame({
+  onApi,
+  onModeChange,
+  onSurfaceSelected,
+  onSurfacesCleared,
+  onCatalogServiceSelected,
+}: Props) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  const postToEngine = (msg: any) => {
+    const w = iframeRef.current?.contentWindow;
+    if (!w) return;
+    w.postMessage(msg, "*");
+  };
+
+  const cmd = (c: PlannerCmd, payload?: any) => {
+    postToEngine({
+      protocolVersion: PROTOCOL_VERSION,
+      type: "CMD",
+      cmd: c,
+      payload,
+    });
+  };
+
+  const loadProjectPicker = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json,.png,.jpg,.jpeg,application/pdf";
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      try {
+        if (file.name.toLowerCase().endsWith(".json")) {
+          const text = await file.text();
+          const scene = JSON.parse(text);
+          cmd("LOAD_PROJECT_JSON", { scene });
+          return;
+        }
+
+        const form = new FormData();
+        form.append("file", file);
+
+        const resp = await fetch(RASTER_URL, { method: "POST", body: form });
+        if (!resp.ok) {
+          const msg = await resp.text();
+          throw new Error(`Raster upload failed (${resp.status}): ${msg}`);
+        }
+
+        const raw = await resp.json();
+        cmd("LOAD_RASTER_JSON", { raw });
+      } catch (e: any) {
+        alert(e?.message || String(e));
+        console.error(e);
+      }
+    };
+
+    input.click();
+  };
+
+  const saveProjectDownload = () => {
+    cmd("REQUEST_SCENE_JSON");
+  };
+
+  useEffect(() => {
+    onApi?.({ cmd, loadProjectPicker, saveProjectDownload });
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== ENGINE_ORIGIN) return;
+
+      const data: any = event.data;
+      if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
+
+      if (data.type === "ERROR") {
+        console.error("[ENGINE ERROR]", data.message);
+        return;
+      }
+
+      if (data.type === "MODE_CHANGED") {
+        const mode = data?.payload?.mode;
+        if (typeof mode === "string") onModeChange?.(mode);
+        return;
+      }
+
+      if (data.type === "SURFACE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.surfaceId === "string" &&
+          typeof payload.wallId === "string" &&
+          (
+            payload.surfaceType === "front" ||
+            payload.surfaceType === "back" ||
+            payload.surfaceType === "floor"
+          )
+        ) {
+          onSurfaceSelected?.(payload);
+        }
+        return;
+      }
+
+      if (data.type === "SURFACES_CLEARED") {
+        onSurfacesCleared?.();
+        return;
+      }
+
+      if (data.type === "CATALOG_SERVICE_SELECTED") {
+        const payload = data?.payload;
+        if (
+          payload &&
+          typeof payload.mainService === "string" &&
+          typeof payload.subService === "string" &&
+          typeof payload.materialKey === "string" &&
+          typeof payload.materialLabel === "string"
+        ) {
+          onCatalogServiceSelected?.(payload);
+        }
+        return;
+      }
+
+      if (data.type === "SCENE_JSON") {
+        const scene = data?.payload?.scene;
+        if (scene) downloadJson("plano_scene.json", scene);
+      }
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [
+    onApi,
+    onModeChange,
+    onSurfaceSelected,
+    onSurfacesCleared,
+    onCatalogServiceSelected,
+  ]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      src={ENGINE_URL}
+      title="React Planner Engine"
+      allow="clipboard-read; clipboard-write"
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100vh",
+        border: 0,
+        zIndex: 1,
+        background: "#fff",
+      }}
+      onLoad={() =>
+        postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "PING" })
+      }
+    />
+  );
+}
+===== GREP CHECK =====
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts:6:  MeshPhongMaterial,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts:27:const applyTexture = (
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts:28:  material: MeshPhongMaterial,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts:119:  const areaMaterial = new MeshPhongMaterial({ side: DoubleSide, color });
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts:145:  applyTexture(areaMaterial, texture, width, height);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts:158:  area.name = 'floor';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts:182:  const floor = mesh.getObjectByName('floor');
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts:189:    ((floor as Mesh).material as MeshPhongMaterial).color.set(color);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:44:const applyTexture = (
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:330:  const frontMaterial = applyTexture(
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:331:    textures[element.properties.textureB],
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:335:  const backMaterial = applyTexture(
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:336:    textures[element.properties.textureA],
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:477:  let frontFace: Mesh = new Mesh(frontGeom, frontMaterial);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:478:  let backFace: Mesh = new Mesh(backGeom, backMaterial);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:525:    frontFace = CSG.subtract(frontFace, holeMesh);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:528:    backFace = CSG.subtract(backFace, holeMesh);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:532:  [frontFace, backFace].forEach((face) => {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:539:  frontFace.translateOnAxis(frontOutward, inwardShift);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:540:  backFace.translateOnAxis(backOutward, outwardShift);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:542:  frontFace.name = 'frontFace';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:543:  backFace.name = 'backFace';
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:545:  (frontFace as any).userData = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:552:  (backFace as any).userData = {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:561:  merged.add(soul, frontFace, backFace);
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:583:  const frontFace = mesh.getObjectByName('frontFace') as Mesh;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:584:  const backFace = mesh.getObjectByName('backFace') as Mesh;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:609:      frontFace.position.x = soul.position.x + xTemp;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:610:      frontFace.position.z = soul.position.z + zTemp;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:612:      backFace.position.x = soul.position.x - xTemp;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts:613:      backFace.position.z = soul.position.z - zTemp;
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx:91:      textureA: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/catalog/factories/wall-factory.tsx:97:      textureB: {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx:157:            materialLabel: element.info.title,
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:70:        mesh.name === 'frontFace' ||
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:71:        mesh.name === 'backFace' ||
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:72:        mesh.name === 'floor'
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:101:    const highlightMaterial = (baseMaterial as Three.MeshPhongMaterial).clone();
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:213:            if (mesh.name === 'floor') {
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:225:                    type: 'SURFACE_SELECTED',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:229:                      surfaceType: 'floor',
+/home/ogi/project_root/plano_master/02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx:264:                  type: 'SURFACE_SELECTED',
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Landing.tsx:23:                Upload PDF / JPG / PNG floor plan
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner3D.tsx:29:  flooring: Grid3X3,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Estimate.tsx:44:                <td className="px-3 py-2">Sample: Floor tiles (60×60)</td>
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:39:  flooring: Grid3X3,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:74:    activeAreaMaterialLabel,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:75:    setActiveAreaMaterialLabel,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:76:    activeAreaMaterialColor,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:77:    setActiveAreaMaterialColor,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:99:        setActiveAreaMaterialLabel(payload.materialLabel);
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:100:        setActiveAreaMaterialColor(payload.color || null);
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:109:      setActiveAreaMaterialLabel,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:110:      setActiveAreaMaterialColor,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:140:          activeMain === "flooring" ||
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:211:      activeMain === "flooring" ||
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:221:    if (!activeAreaSubService || !activeAreaMaterialLabel) return null;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:226:      material: activeAreaMaterialLabel,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx:233:    activeAreaMaterialLabel,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx:31:  surfaceType: "front" | "back" | "floor";
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx:41:  materialLabel: string;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx:159:      if (data.type === "SURFACE_SELECTED") {
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx:168:            payload.surfaceType === "floor"
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx:188:          typeof payload.materialLabel === "string"
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:7:  | "flooring"
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:16:  { key: "flooring", label: "Flooring" },
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:33:    "Floor drain",
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:44:  flooring: [
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:64:type AreaService = "painting" | "flooring" | "plastering" | "boards";
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:68:  flooring: Set<string>;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:76:  surfaceType: "front" | "back" | "floor";
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:84:  surfaceType: "front" | "back" | "floor";
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:118:  activeAreaMaterialLabel: string | null;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:119:  setActiveAreaMaterialLabel: (value: string | null) => void;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:120:  activeAreaMaterialColor: string | null;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:121:  setActiveAreaMaterialColor: (value: string | null) => void;
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:142:      flooring: sel.flooring || [],
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:161:      flooring: Array.from(selected.flooring),
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:180:    flooring: new Set(initial?.selected.flooring || []),
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:192:    flooring: new Set(),
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:199:  const [activeAreaMaterialLabel, setActiveAreaMaterialLabel] = useState<string | null>(null);
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:200:  const [activeAreaMaterialColor, setActiveAreaMaterialColor] = useState<string | null>(null);
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:228:        flooring: new Set(prev.flooring),
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:242:        flooring: new Set(prev.flooring),
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:262:        flooring: new Set(prev.flooring),
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:280:      flooring: new Set(),
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:294:      selected.flooring.size +
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:333:    activeAreaMaterialLabel,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:334:    setActiveAreaMaterialLabel,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:335:    activeAreaMaterialColor,
+/home/ogi/project_root/plano_master/00_frontend_skeleton/plano-ui/src/state/plannerState.tsx:336:    setActiveAreaMaterialColor,

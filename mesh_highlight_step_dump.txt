@@ -1,0 +1,1918 @@
+===== FILE INVENTORY =====
+02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx
+02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts
+02_react_planner/react-planner/src/components/viewer3d/viewer3d-first-person.tsx
+02_react_planner/react-planner/demo/src/renderer.tsx
+00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx
+00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx
+
+==================== FILE: 02_react_planner/react-planner/src/components/viewer3d/viewer3d.tsx ====================
+import React, { Component } from 'react';
+
+import convert from 'convert-units';
+import * as Three from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+
+import { State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { diff } from '../../utils/history';
+
+import { parseData, PlanData, updateScene } from './scene-creator';
+import { disposeScene } from './three-memory-cleaner';
+
+interface Scene3DViewerProps {
+  state: State;
+  width: number;
+  height: number;
+}
+
+const hudStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 12,
+  bottom: 12,
+  zIndex: 10000,
+  background: 'rgba(0,0,0,0.65)',
+  color: '#fff',
+  padding: '8px 10px',
+  borderRadius: 8,
+  fontSize: 13,
+  lineHeight: 1.2,
+  pointerEvents: 'none',
+  userSelect: 'none'
+};
+
+export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
+  static contextType = ReactPlannerContext;
+  declare context: React.ContextType<typeof ReactPlannerContext>;
+
+  lastMousePosition: { x: number; y: number } = { x: 0, y: 0 };
+  width: number;
+  height: number;
+  renderingID = 0;
+  renderer: Three.WebGLRenderer;
+
+  canvasWrapper: React.RefObject<null | HTMLDivElement>;
+
+  camera: Three.PerspectiveCamera | undefined;
+  scene3D: Three.Scene | undefined;
+  planData: PlanData | undefined;
+  orbitController: OrbitControls | undefined;
+
+  mouseDownEvent: undefined | ((event: MouseEvent) => void);
+  mouseUpEvent: undefined | ((event: MouseEvent) => void);
+
+  constructor(props: Scene3DViewerProps) {
+    super(props);
+
+    this.width = props.width;
+    this.height = props.height;
+    this.canvasWrapper = React.createRef<HTMLDivElement>();
+
+    this.renderer =
+      (window as any).__threeRenderer ||
+      new Three.WebGLRenderer({ preserveDrawingBuffer: true });
+    (window as any).__threeRenderer = this.renderer;
+  }
+
+  private computeSelectedAreaM2(): number | null {
+    const { state } = this.props;
+    const unit = this.context.catalog.unit; // usually "cm"
+    const selectedLayerID = state.scene.selectedLayer;
+    if (!selectedLayerID) return null;
+
+    const layer: any = state.scene.layers[selectedLayerID];
+    if (!layer) return null;
+
+    const selectedAreaIDs: string[] = layer.selected?.areas || [];
+    if (!selectedAreaIDs.length) return null;
+
+    const metersPerUnit = convert(1).from(unit).to('m');
+
+    let totalM2 = 0;
+
+    for (const areaID of selectedAreaIDs) {
+      const area: any = layer.areas?.[areaID];
+      if (!area) continue;
+
+      const verts: string[] = area.vertices;
+      if (!Array.isArray(verts) || verts.length < 3) continue;
+
+      const pts = verts
+        .map((vid) => layer.vertices?.[vid])
+        .filter(Boolean)
+        .map((v: any) => ({ x: v.x, y: v.y }));
+
+      if (pts.length < 3) continue;
+
+      // shoelace in unit^2
+      let sum = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const j = (i + 1) % pts.length;
+        sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+      }
+      const areaUnit2 = Math.abs(sum) / 2;
+      const areaM2 = areaUnit2 * metersPerUnit * metersPerUnit;
+
+      totalM2 += areaM2;
+    }
+
+    if (!isFinite(totalM2) || totalM2 <= 0) return null;
+    return Math.round(totalM2 * 100) / 100; // 2 decimals
+  }
+
+  componentDidMount() {
+    const { state } = this.props;
+
+    const scene3D = new Three.Scene();
+
+    // RENDERER
+    this.renderer.setClearColor(new Three.Color(SharedStyle.COLORS.white));
+    this.renderer.setSize(this.width, this.height);
+
+    // LOAD DATA
+    const planData = parseData(state.scene, this.context);
+
+    scene3D.add(planData.plan);
+    scene3D.add(planData.grid);
+
+    const aspectRatio = this.width / this.height;
+    const camera = new Three.PerspectiveCamera(45, aspectRatio, 1, 300000);
+
+    scene3D.add(camera);
+
+    // Set position for the camera
+    const cameraPositionX =
+      -(planData.boundingBox.max.x - planData.boundingBox.min.x) / 2;
+    const cameraPositionY =
+      ((planData.boundingBox.max.y - planData.boundingBox.min.y) / 2) * 10;
+    const cameraPositionZ =
+      (planData.boundingBox.max.z - planData.boundingBox.min.z) / 2;
+
+    camera.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    camera.up = new Three.Vector3(0, 1, 0);
+
+    // LIGHT
+    const ambient = new Three.AmbientLight(0xffffff, 0.45);
+    scene3D.add(ambient);
+    const hemi = new Three.HemisphereLight(0xffffff, 0x666666, 0.5);
+    scene3D.add(hemi);
+    const spotLight1 = new Three.SpotLight(SharedStyle.COLORS.white, 1.0);
+    spotLight1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    scene3D.add(spotLight1);
+    const dirLight = new Three.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(
+      cameraPositionX + 300,
+      cameraPositionY + 400,
+      cameraPositionZ + 300
+    );
+    scene3D.add(dirLight);
+
+    // OBJECT PICKING
+    const toIntersect = [planData.plan];
+    const mouse = new Three.Vector2();
+    const raycaster = new Three.Raycaster();
+
+    this.mouseDownEvent = (event: MouseEvent) => {
+      this.lastMousePosition.x = (event.offsetX / this.width) * 2 - 1;
+      this.lastMousePosition.y = (-event.offsetY / this.height) * 2 + 1;
+    };
+    this.mouseUpEvent = (event: MouseEvent) => {
+      event.preventDefault();
+      mouse.x = (event.offsetX / this.width) * 2 - 1;
+      mouse.y = -(event.offsetY / this.height) * 2 + 1;
+
+      if (
+        Math.abs(mouse.x - this.lastMousePosition.x) <= 0.02 &&
+        Math.abs(mouse.y - this.lastMousePosition.y) <= 0.02
+      ) {
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(toIntersect, true);
+
+        if (intersects.length > 0 && !isNaN(intersects[0].distance)) {
+          const object = intersects[0].object as any;
+          object.interact && object.interact();
+        } else {
+          this.context.projectActions.unselectAll();
+        }
+      }
+    };
+
+    if (this.mouseDownEvent)
+      this.renderer.domElement.addEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    if (this.mouseUpEvent)
+      this.renderer.domElement.addEventListener('mouseup', this.mouseUpEvent);
+    this.renderer.domElement.style.display = 'block';
+
+    if (this.canvasWrapper.current)
+      this.canvasWrapper.current.appendChild(this.renderer.domElement);
+
+    // create orbit controls
+    const orbitController = new OrbitControls(camera, this.renderer.domElement);
+    const spotLightTarget = new Three.Object3D();
+    spotLightTarget.name = 'spotLightTarget';
+    spotLightTarget.position.set(
+      orbitController.target.x,
+      orbitController.target.y,
+      orbitController.target.z
+    );
+    scene3D.add(spotLightTarget);
+    spotLight1.target = spotLightTarget;
+
+    const render = () => {
+      orbitController.update();
+      spotLight1.position.set(
+        camera.position.x,
+        camera.position.y,
+        camera.position.z
+      );
+      spotLightTarget.position.set(
+        orbitController.target.x,
+        orbitController.target.y,
+        orbitController.target.z
+      );
+      camera.updateMatrix();
+      camera.updateMatrixWorld();
+
+      for (const elemID in planData.sceneGraph.LODs) {
+        planData.sceneGraph.LODs[elemID].update(camera);
+      }
+
+      this.renderer.render(scene3D, camera);
+
+      this.renderingID = requestAnimationFrame(render);
+    };
+
+    render();
+
+    this.camera = camera;
+    this.scene3D = scene3D;
+    this.orbitController = orbitController;
+    this.planData = planData;
+  }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this.renderingID);
+    this.orbitController?.dispose();
+
+    if (this.mouseDownEvent)
+      this.renderer.domElement.removeEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    if (this.mouseUpEvent)
+      this.renderer.domElement.removeEventListener(
+        'mouseup',
+        this.mouseUpEvent
+      );
+
+    if (this.scene3D) {
+      disposeScene(this.scene3D);
+      if (this.planData) {
+        this.scene3D.remove(this.planData.plan);
+        this.scene3D.remove(this.planData.grid);
+      }
+    }
+
+    this.scene3D = undefined;
+    this.planData = undefined;
+    this.camera = undefined;
+    this.orbitController = undefined;
+    this.renderer.renderLists.dispose();
+  }
+
+  componentDidUpdate(prevProps: Scene3DViewerProps) {
+    const { width, height } = this.props;
+    this.width = width;
+    this.height = height;
+    if (this.camera) {
+      this.camera.aspect = width / height;
+      this.camera.updateProjectionMatrix();
+    }
+
+    if (prevProps && this.props.state.scene !== prevProps.state.scene) {
+      const changedValues = diff(prevProps.state.scene, this.props.state.scene);
+      if (this.planData) {
+        updateScene(
+          this.planData,
+          this.props.state.scene,
+          prevProps.state.scene,
+          changedValues,
+          this.context
+        );
+      }
+    }
+    this.renderer.setSize(width, height);
+  }
+
+  render() {
+    const areaM2 = this.computeSelectedAreaM2();
+
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        {areaM2 !== null ? (
+          <div style={hudStyle}>Selected area: {areaM2} m²</div>
+        ) : null}
+        <div ref={this.canvasWrapper} />
+      </div>
+    );
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts ====================
+import {
+  BackSide,
+  BoxGeometry,
+  BufferGeometry,
+  DoubleSide,
+  Float32BufferAttribute,
+  FrontSide,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  Object3D,
+  Object3DEventMap,
+  RepeatWrapping,
+  SRGBColorSpace,
+  Texture,
+  TextureLoader,
+  Vector2,
+  Vector3
+} from 'three';
+import { CSG } from 'three-csg-ts';
+
+import { Layer, Line, Scene } from '../../models';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElementTextures } from '../../types';
+import { verticesDistance } from '../../utils/geometry';
+
+import { calcLineEnd } from './utils/calcPolygon';
+
+const halfPI = Math.PI / 2;
+
+const baseTextureCache: Record<string, Texture> = {};
+const loaderSingleton = new TextureLoader();
+
+function getBaseTexture(uri: string): Texture {
+  if (!uri) return null as any;
+  if (baseTextureCache[uri]) return baseTextureCache[uri];
+  const tex = loaderSingleton.load(uri);
+  tex.colorSpace = SRGBColorSpace;
+  baseTextureCache[uri] = tex;
+  return tex;
+}
+
+const applyTexture = (
+  texture: CatalogElementTextures[string],
+  length: number,
+  height: number
+) => {
+  const material = new MeshStandardMaterial();
+
+  const setupMap = (
+    base: Texture,
+    repeatL: number,
+    repeatH: number,
+    assign: (t: Texture) => void,
+    extra?: (t: Texture) => void
+  ) => {
+    if (!base) return;
+
+    const cloneAndAssign = () => {
+      if (!base.image || !base.image.width) {
+        requestAnimationFrame(cloneAndAssign);
+        return;
+      }
+      const map = base.clone();
+      map.image = base.image;
+      map.wrapS = RepeatWrapping;
+      map.wrapT = RepeatWrapping;
+      map.repeat.set(repeatL, repeatH);
+      map.needsUpdate = true;
+      assign(map);
+      if (extra) extra(map);
+      material.needsUpdate = true;
+    };
+
+    cloneAndAssign();
+  };
+
+  if (texture) {
+    const base = getBaseTexture(texture.uri);
+    setupMap(
+      base,
+      length * texture.lengthRepeatScale,
+      height * texture.heightRepeatScale,
+      (m) => {
+        material.map = m;
+      }
+    );
+
+    const normal = texture.normal;
+    if (normal) {
+      const baseNormal = getBaseTexture(normal.uri);
+      setupMap(
+        baseNormal,
+        length * normal.lengthRepeatScale,
+        height * normal.heightRepeatScale,
+        (m) => {
+          material.normalMap = m;
+        },
+        () => {
+          material.normalScale = new Vector2(
+            normal.normalScaleX,
+            normal.normalScaleY
+          );
+        }
+      );
+    }
+  }
+
+  return material;
+};
+
+export function buildWall(
+  element: Line,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures
+) {
+  // Get the two vertices of the wall
+  let vertex0 = layer.vertices[element.vertices[0]];
+  let vertex1 = layer.vertices[element.vertices[1]];
+  let inverted = false;
+
+  // The first vertex is the smaller one
+  if (vertex0.x > vertex1.x) {
+    const app = vertex0;
+    vertex0 = vertex1;
+    vertex1 = app;
+    inverted = true;
+  }
+  // Get height and thickness of the wall converting them into the current scene units
+  const height = element.properties.height.length;
+  const thickness = element.properties.thickness.length;
+  const opacity = element.properties.opacity;
+  const faceThickness = 0.2; // thickness of decorative textured panel
+  const faceDistance = 0.5; // no artificial gap; panels will be shifted just outside the wall body
+
+  const distance = verticesDistance(vertex0, vertex1);
+
+  const points1 = calcLineEnd(
+    layer,
+    element.id,
+    element.vertices[0],
+    thickness
+  );
+  const rawPoints2 = calcLineEnd(
+    layer,
+    element.id,
+    element.vertices[1],
+    thickness
+  );
+  const points2 = rawPoints2.map((p) => ({ x: distance - p.x, y: p.y }));
+
+  // Robustly pair front/back ends to avoid twists: match end corner closest (in plan y) to the start corner
+  const endA = points2[0];
+  const endB = points2[points2.length - 1];
+  const frontEnd =
+    Math.abs(endA.y - points1[0].y) <= Math.abs(endB.y - points1[0].y)
+      ? endA
+      : endB;
+  const backEnd = frontEnd === endA ? endB : endA;
+
+  const frontPoints = [points1[0], frontEnd].map((p) => {
+    return { y: p.y * -1, x: p.x };
+  });
+  const backPoints = [points1[points1.length - 1], backEnd].map((p) => {
+    return { y: p.y * -1, x: p.x };
+  });
+
+  const halfDistance = distance / 2;
+
+  // Build a custom prism geometry using the four plan-view corners (front/back at start/end)
+  const fStart = frontPoints[0];
+  const fEnd = frontPoints[1];
+  const bStart = backPoints[0];
+  const bEnd = backPoints[1];
+
+  const bottomY = -height / 2;
+  const topY = height / 2;
+
+  const xLocal = (x: number) => x - halfDistance; // center geometry on X=0 like BoxGeometry
+  const uFromX = (x: number) => x / distance; // normalize along length for UVs
+
+  // 8 corner points (bottom and top)
+  const v0 = { x: xLocal(fEnd.x), y: bottomY, z: fEnd.y }; // front start bottom
+  const v1 = { x: xLocal(fStart.x), y: bottomY, z: fStart.y }; // front end bottom
+  const v2 = { x: xLocal(bStart.x), y: bottomY, z: bStart.y }; // back end bottom
+  const v3 = { x: xLocal(bEnd.x), y: bottomY, z: bEnd.y }; // back start bottom
+
+  const v4 = { x: v0.x, y: topY, z: v0.z }; // front start top
+  const v5 = { x: v1.x, y: topY, z: v1.z }; // front end top
+  const v6 = { x: v2.x, y: topY, z: v2.z }; // back end top
+  const v7 = { x: v3.x, y: topY, z: v3.z }; // back start top
+
+  const positions: number[] = [];
+  const uvs: number[] = [];
+
+  const push = (vx: { x: number; y: number; z: number }, ux = 0, vy = 0) => {
+    positions.push(vx.x, vx.y, vx.z);
+    uvs.push(ux, vy);
+  };
+
+  const tri = (
+    a: { x: number; y: number; z: number },
+    b: { x: number; y: number; z: number },
+    c: { x: number; y: number; z: number },
+    au = 0,
+    av = 0,
+    bu = 0,
+    bv = 0,
+    cu = 0,
+    cv = 0
+  ) => {
+    push(a, au, av);
+    push(b, bu, bv);
+    push(c, cu, cv);
+  };
+
+  // Front long face (map UVs: u along length [0..1], v along height [0..1])
+  const uF0 = uFromX(fStart.x),
+    uF1 = uFromX(fEnd.x);
+  tri(v0, v1, v5, uF0, 0, uF1, 0, uF1, 1);
+  tri(v0, v5, v4, uF0, 0, uF1, 1, uF0, 1);
+
+  // Back long face (UVs)
+  const uB0 = uFromX(bStart.x),
+    uB1 = uFromX(bEnd.x);
+  tri(v2, v3, v7, uB1, 0, uB0, 0, uB0, 1);
+  tri(v2, v7, v6, uB1, 0, uB0, 1, uB1, 1);
+
+  // Start end face (no UVs needed)
+  tri(v3, v0, v4);
+  tri(v3, v4, v7);
+
+  // End end face (no UVs needed)
+  tri(v1, v2, v6);
+  tri(v1, v6, v5);
+
+  // Bottom face (close the prism)
+  tri(v0, v2, v1);
+  tri(v0, v3, v2);
+
+  // Top face
+  tri(v4, v5, v6);
+  tri(v4, v6, v7);
+
+  const soulGeometry = new BufferGeometry();
+  soulGeometry.setAttribute(
+    'position',
+    new Float32BufferAttribute(positions, 3)
+  );
+  soulGeometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  soulGeometry.computeVertexNormals();
+
+  // Triangles order (each 2 tris): front(0-1), back(2-3), start(4-5), end(6-7), bottom(8-9), top(10-11)
+  // Each triangle adds 3 vertices
+  const frontVertCount = 2 * 3; // 6
+  const backVertCount = 2 * 3; // 6
+  const remainingVertCount =
+    positions.length / 3 - frontVertCount - backVertCount;
+
+  soulGeometry.clearGroups();
+  soulGeometry.addGroup(0, frontVertCount, 0); // front hidden
+  soulGeometry.addGroup(frontVertCount, backVertCount, 1); // back hidden
+  soulGeometry.addGroup(frontVertCount + backVertCount, remainingVertCount, 2); // visible sides/top/bottom
+
+  // Hidden faces fully transparent
+  const frontHiddenMat = new MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    side: BackSide
+  });
+  const backHiddenMat = new MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    side: FrontSide
+  });
+  // Visible faces adopt the opacity property
+  const sideVisibleMat = new MeshBasicMaterial({
+    color: element.selected ? SharedStyle.MESH_SELECTED : 0xd3d3d3,
+    side: DoubleSide,
+    opacity,
+    transparent: true
+  });
+
+  let soul: Mesh = new Mesh(soulGeometry, [
+    frontHiddenMat,
+    backHiddenMat,
+    sideVisibleMat
+  ]);
+
+  const alpha = Math.asin((vertex1.y - vertex0.y) / distance);
+
+  const sinAlpha = Math.sin(alpha);
+  const cosAlpha = Math.cos(alpha);
+
+  element.holes.forEach((holeID) => {
+    const holeData = layer.holes[holeID];
+
+    const holeWidth = holeData.properties.width.length;
+    const holeHeight = holeData.properties.height.length;
+    const holeAltitude = holeData.properties.altitude.length;
+    const offset = inverted ? 1 - holeData.offset : holeData.offset;
+    const holeDistance = offset * distance;
+
+    const holeGeometry = new BoxGeometry(holeWidth, holeHeight, thickness);
+    const holeMesh = new Mesh(holeGeometry);
+
+    // Work in wall local space
+    holeMesh.position.set(
+      holeDistance - distance / 2,
+      -(height / 2) + holeAltitude + holeHeight / 2,
+      0
+    );
+
+    holeMesh.updateMatrix();
+
+    soul = CSG.subtract(soul, holeMesh);
+  });
+
+  soul.position.y += height / 2;
+  soul.position.x += halfDistance * cosAlpha;
+  soul.position.z -= halfDistance * sinAlpha;
+
+  soul.rotation.y = alpha;
+  soul.name = 'soul';
+
+  const frontMaterial = applyTexture(
+    textures[element.properties.textureB],
+    distance,
+    height
+  );
+  const backMaterial = applyTexture(
+    textures[element.properties.textureA],
+    distance,
+    height
+  );
+
+  [frontMaterial, backMaterial].forEach((mat) => {
+    mat.opacity = opacity;
+    if (opacity < 1) mat.transparent = true;
+  });
+
+  // Build proper thin face panels from actual face quads, offset outward along face normal
+  // Helper to build a thin extruded quad geometry with UVs along length (u) and height (v)
+  const buildExtrudedQuad = (
+    a: { x: number; y: number; z: number },
+    b: { x: number; y: number; z: number },
+    c: { x: number; y: number; z: number },
+    d: { x: number; y: number; z: number },
+    thicknessLocal: number,
+    uA: number,
+    uB: number
+  ) => {
+    // Convert to arrays for convenience
+    const ax = a.x,
+      ay = a.y,
+      az = a.z;
+    const bx = b.x,
+      by = b.y,
+      bz = b.z;
+    const cx = c.x,
+      cy = c.y,
+      cz = c.z;
+    const dx = d.x,
+      dy = d.y,
+      dz = d.z;
+
+    // Compute face normal (a->b) x (a->d)
+    const abx = bx - ax,
+      aby = by - ay,
+      abz = bz - az;
+    const adx = dx - ax,
+      ady = dy - ay,
+      adz = dz - az;
+    // cross(ab, ad)
+    let nx = aby * adz - abz * ady;
+    let ny = abz * adx - abx * adz;
+    let nz = abx * ady - aby * adx;
+    const nLen = Math.hypot(nx, ny, nz) || 1;
+    nx /= nLen;
+    ny /= nLen;
+    nz /= nLen;
+
+    const halfT = thicknessLocal / 2;
+
+    // Offset the quad along +/- normal to create a thin volume
+    const aF = [ax + nx * halfT, ay + ny * halfT, az + nz * halfT]; // +normal side
+    const bF = [bx + nx * halfT, by + ny * halfT, bz + nz * halfT];
+    const cF = [cx + nx * halfT, cy + ny * halfT, cz + nz * halfT];
+    const dF = [dx + nx * halfT, dy + ny * halfT, dz + nz * halfT];
+
+    const aB = [ax - nx * halfT, ay - ny * halfT, az - nz * halfT]; // -normal side
+    const bB = [bx - nx * halfT, by - ny * halfT, bz - nz * halfT];
+    const cB = [cx - nx * halfT, cy - ny * halfT, cz - nz * halfT];
+    const dB = [dx - nx * halfT, dy - ny * halfT, dz - nz * halfT];
+
+    const pos: number[] = [];
+    const uv: number[] = [];
+
+    const pushV = (v: number[], u = 0, vT = 0) => {
+      pos.push(v[0], v[1], v[2]);
+      uv.push(u, vT);
+    };
+    const triV = (
+      A: number[],
+      B: number[],
+      C: number[],
+      Au = 0,
+      Av = 0,
+      Bu = 0,
+      Bv = 0,
+      Cu = 0,
+      Cv = 0
+    ) => {
+      pushV(A, Au, Av);
+      pushV(B, Bu, Bv);
+      pushV(C, Cu, Cv);
+    };
+
+    // Front face (+normal side) with UVs
+    triV(aF, bF, cF, uA, 0, uB, 0, uB, 1);
+    triV(aF, cF, dF, uA, 0, uB, 1, uA, 1);
+
+    // Back face (-normal side) UVs can be mirrored or default
+    triV(bB, aB, dB);
+    triV(bB, dB, cB);
+
+    // Sides (no UVs needed)
+    // Edge AB
+    triV(aB, aF, bF);
+    triV(aB, bF, bB);
+    // Edge BC
+    triV(bB, bF, cF);
+    triV(bB, cF, cB);
+    // Edge CD
+    triV(cB, cF, dF);
+    triV(cB, dF, dB);
+    // Edge DA
+    triV(dB, dF, aF);
+    triV(dB, aF, aB);
+
+    const g = new BufferGeometry();
+    g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new Float32BufferAttribute(uv, 2));
+    g.computeVertexNormals();
+    return g;
+  };
+
+  // Build face quads from existing corners
+  const uFrontA = uFromX(fStart.x),
+    uFrontB = uFromX(fEnd.x);
+  const frontGeom = buildExtrudedQuad(
+    v0,
+    v1,
+    v5,
+    v4,
+    faceThickness,
+    uFrontA,
+    uFrontB
+  );
+
+  const uBackA = uFromX(bStart.x),
+    uBackB = uFromX(bEnd.x);
+  const backGeom = buildExtrudedQuad(
+    v2,
+    v3,
+    v7,
+    v6,
+    faceThickness,
+    uBackB,
+    uBackA
+  ); // note reversed to keep u increasing along length
+
+  let frontFace: Mesh = new Mesh(frontGeom, frontMaterial);
+  let backFace: Mesh = new Mesh(backGeom, backMaterial);
+
+  // Compute outward normals based on center-to-center vector so panels always sit fully outside
+  const frontCenter = new Vector3(
+    (v0.x + v1.x + v5.x + v4.x) / 4,
+    (v0.y + v1.y + v5.y + v4.y) / 4,
+    (v0.z + v1.z + v5.z + v4.z) / 4
+  );
+  const backCenter = new Vector3(
+    (v2.x + v3.x + v7.x + v6.x) / 4,
+    (v2.y + v3.y + v7.y + v6.y) / 4,
+    (v2.z + v3.z + v7.z + v6.z) / 4
+  );
+  const centerVector = new Vector3().subVectors(backCenter, frontCenter); // from front to back
+  const thicknessDir = centerVector.clone().normalize();
+  // Invert previous direction: move front along +thicknessDir and back along -thicknessDir
+  const frontOutward = thicknessDir.clone();
+  const backOutward = thicknessDir.clone().multiplyScalar(1);
+  const outwardShift = faceThickness / 2 + faceDistance; // ensure panel sits fully outside + epsilon
+  const inwardShift = faceThickness / 2 - faceDistance; // ensure panel sits fully outside + epsilon
+
+  // Subtract holes from the face panels as well to avoid panels crossing openings
+  element.holes.forEach((holeID) => {
+    const holeData = layer.holes[holeID];
+
+    const holeWidth = holeData.properties.width.length;
+    const holeHeight = holeData.properties.height.length;
+    const holeAltitude = holeData.properties.altitude.length;
+    const offset = inverted ? 1 - holeData.offset : holeData.offset;
+    const holeDistance = offset * distance;
+
+    const holeGeometry = new BoxGeometry(
+      holeWidth,
+      holeHeight,
+      thickness + faceThickness * 2 + faceDistance * 2
+    );
+    const holeMesh = new Mesh(holeGeometry);
+
+    holeMesh.position.set(
+      holeDistance - distance / 2,
+      -(height / 2) + holeAltitude + holeHeight / 2,
+      0
+    );
+
+    holeMesh.updateMatrix();
+
+    // Front face
+    frontFace = CSG.subtract(frontFace, holeMesh);
+
+    // Back face
+    backFace = CSG.subtract(backFace, holeMesh);
+  });
+
+  // Position/rotate like soul
+  [frontFace, backFace].forEach((face) => {
+    face.position.y += height / 2;
+    face.position.x += halfDistance * cosAlpha;
+    face.position.z -= halfDistance * sinAlpha;
+    face.rotation.y = alpha;
+  });
+
+  frontFace.translateOnAxis(frontOutward, inwardShift);
+  backFace.translateOnAxis(backOutward, outwardShift);
+
+  frontFace.name = 'frontFace';
+  backFace.name = 'backFace';
+
+  const merged = new Group();
+  merged.add(soul, frontFace, backFace);
+
+  return merged;
+}
+
+export function updatedWall(
+  element: Line,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures,
+  mesh: Object3D<Object3DEventMap>,
+  oldElement: Line,
+  differences: string[],
+  selfDestroy: () => void,
+  selfBuild: () => void
+) {
+  const noPerf = () => {
+    selfDestroy();
+    return selfBuild();
+  };
+
+  const soul = mesh.getObjectByName('soul') as Mesh;
+  const frontFace = mesh.getObjectByName('frontFace') as Mesh;
+  const backFace = mesh.getObjectByName('backFace') as Mesh;
+
+  if (differences[0] == 'selected') {
+    const soulMesh = soul as Mesh;
+    if (Array.isArray(soulMesh.material)) {
+      const sideMat = soulMesh.material[2] as MeshBasicMaterial;
+      sideMat.color.set(
+        element.selected ? SharedStyle.MESH_SELECTED : 0xd3d3d3
+      );
+      sideMat.needsUpdate = true;
+    }
+  } else if (differences[0] == 'properties') {
+    if (differences[1] == 'thickness') {
+      const newThickness = element.properties.thickness.length;
+      const oldThickness = oldElement.properties.thickness.length;
+      const halfNewThickness = newThickness / 2;
+      const texturedFaceDistance = halfNewThickness + 1;
+      const originalThickness = oldThickness / soul.scale.z;
+      const alpha = soul.rotation.y;
+
+      const xTemp = texturedFaceDistance * Math.cos(alpha - halfPI);
+      const zTemp = texturedFaceDistance * Math.sin(alpha - halfPI);
+
+      soul.scale.set(1, 1, newThickness / originalThickness);
+
+      frontFace.position.x = soul.position.x + xTemp;
+      frontFace.position.z = soul.position.z + zTemp;
+
+      backFace.position.x = soul.position.x - xTemp;
+      backFace.position.z = soul.position.z - zTemp;
+      return noPerf();
+    } else return noPerf();
+  } else return noPerf();
+
+  return mesh;
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/viewer3d/viewer3d-first-person.tsx ====================
+'use strict';
+
+import React from 'react';
+import * as Three from 'three';
+
+import { State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { diff } from '../../utils/history';
+
+import {
+  firstPersonOnKeyDown,
+  firstPersonOnKeyUp
+} from './libs/first-person-controls';
+import PointerLockControls from './libs/pointer-lock-controls';
+import { initPointerLock } from './pointer-lock-navigation';
+import { parseData, PlanData, updateScene } from './scene-creator';
+import { disposeScene } from './three-memory-cleaner';
+
+interface Viewer3DFirstPersonProps {
+  state: State;
+  width: number;
+  height: number;
+}
+
+class Viewer3DFirstPerson extends React.Component<Viewer3DFirstPersonProps> {
+  static contextType = ReactPlannerContext;
+  declare context: React.ContextType<typeof ReactPlannerContext>;
+
+  private renderer: Three.WebGLRenderer;
+  private stopRendering = false;
+  private scene3D: Three.Scene | null = null;
+  private sceneOnTop: Three.Scene | null = null;
+  private camera: Three.PerspectiveCamera | null = null;
+  private planData: PlanData | null = null;
+  private controls: PointerLockControls | null = null;
+  private pointerlockChangeEvent: any = null;
+  private requestPointerLockEvent: any = null;
+  private keyDownEvent: any = null;
+  private keyUpEvent: any = null;
+  private mouseDownEvent: any = null;
+  private canvasWrapper = React.createRef<HTMLDivElement>();
+
+  // === STEP 1: shading state (single surface only) ===
+  private shadedMesh: Three.Mesh | null = null;
+  private originalMaterial: Three.Material | null = null;
+
+  constructor(props: Viewer3DFirstPersonProps) {
+    super(props);
+    this.renderer =
+      (window as any).__threeRenderer ||
+      new Three.WebGLRenderer({ preserveDrawingBuffer: true });
+    (window as any).__threeRenderer = this.renderer;
+  }
+
+  private clearShading() {
+    if (this.shadedMesh && this.originalMaterial) {
+      this.shadedMesh.material = this.originalMaterial;
+    }
+    this.shadedMesh = null;
+    this.originalMaterial = null;
+  }
+
+  private shadeMesh(mesh: Three.Mesh) {
+    if (this.shadedMesh === mesh) return;
+
+    this.clearShading();
+
+    this.shadedMesh = mesh;
+    this.originalMaterial = mesh.material as Three.Material;
+
+    const shadedMaterial = (mesh.material as Three.Material).clone();
+    shadedMaterial.transparent = true;
+    shadedMaterial.opacity = 0.3;
+    shadedMaterial.depthWrite = false;
+
+    mesh.material = shadedMaterial;
+  }
+
+  componentDidMount() {
+    let prevTime = performance.now();
+    const velocity = new Three.Vector3();
+    const direction = new Three.Vector3();
+    let moveForward = false;
+    let moveBackward = false;
+    let moveLeft = false;
+    let moveRight = false;
+    let canJump = false;
+
+    const { width, height, state } = this.props;
+    const { projectActions } = this.context;
+
+    this.renderer.setClearColor(new Three.Color(SharedStyle.COLORS.white));
+    this.renderer.setSize(width, height);
+
+    const scene3D = new Three.Scene();
+    const sceneOnTop = new Three.Scene();
+    const planData = parseData(state.scene, this.context);
+    scene3D.add(planData.plan);
+
+    const camera = new Three.PerspectiveCamera(45, width / height, 0.1, 300000);
+    sceneOnTop.add(camera);
+    camera.position.set(0, 0, 0);
+    camera.up = new Three.Vector3(0, 1, 0);
+
+    scene3D.add(new Three.AmbientLight(0xafafaf));
+    scene3D.add(new Three.HemisphereLight(0xffffff, 0x666666, 0.5));
+
+    const pointLight = new Three.PointLight(SharedStyle.COLORS.white, 0.4, 1000);
+    scene3D.add(pointLight);
+
+    const dirLight = new Three.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(300, 400, 300);
+    scene3D.add(dirLight);
+
+    document.body.requestPointerLock?.();
+
+    const humanHeight = 170;
+    let yInitialPosition =
+      planData.boundingBox.min.y +
+      (planData.boundingBox.min.y - planData.boundingBox.max.y) / 2 +
+      humanHeight;
+
+    const { controls, pointerlockChangeEvent, requestPointerLockEvent } =
+      initPointerLock(camera, this.renderer.domElement);
+
+    controls.getObject().position.set(-50, yInitialPosition, -100);
+    sceneOnTop.add(controls.getObject());
+
+    this.keyDownEvent = (e: KeyboardEvent) => {
+      ({ moveForward, moveLeft, moveBackward, moveRight, canJump } =
+        firstPersonOnKeyDown(
+          e,
+          moveForward,
+          moveLeft,
+          moveBackward,
+          moveRight,
+          canJump,
+          velocity
+        ));
+    };
+
+    this.keyUpEvent = (e: KeyboardEvent) => {
+      ({ moveForward, moveLeft, moveBackward, moveRight, canJump } =
+        firstPersonOnKeyUp(
+          e,
+          moveForward,
+          moveLeft,
+          moveBackward,
+          moveRight,
+          canJump
+        ));
+    };
+
+    document.addEventListener('keydown', this.keyDownEvent);
+    document.addEventListener('keyup', this.keyUpEvent);
+
+    const raycaster = new Three.Raycaster();
+    const mouseVector = new Three.Vector2(0, 0);
+    const toIntersect = [planData.plan];
+
+    this.mouseDownEvent = (event: MouseEvent) => {
+      if (!controls.enabled) return;
+
+      event.preventDefault();
+      raycaster.setFromCamera(mouseVector, camera);
+      const intersects = raycaster.intersectObjects(toIntersect, true);
+
+      if (intersects.length > 0 && intersects[0].object instanceof Three.Mesh) {
+        const mesh = intersects[0].object;
+        this.shadeMesh(mesh);
+        (mesh as any).interact && (mesh as any).interact();
+      } else {
+        this.clearShading();
+        projectActions.unselectAll();
+      }
+    };
+
+    document.addEventListener('mousedown', this.mouseDownEvent, false);
+
+    this.renderer.domElement.style.display = 'block';
+    this.canvasWrapper.current!.appendChild(this.renderer.domElement);
+    this.renderer.autoClear = false;
+
+    const render = () => {
+      if (!this.stopRendering && planData) {
+        yInitialPosition = planData.boundingBox.min.y + humanHeight;
+        const time = performance.now();
+        const delta = (time - prevTime) / 1000;
+
+        velocity.x -= velocity.x * 10 * delta;
+        velocity.z -= velocity.z * 10 * delta;
+        velocity.y -= 9.8 * 100 * delta;
+
+        direction.z = Number(moveForward) - Number(moveBackward);
+        direction.x = Number(moveLeft) - Number(moveRight);
+        direction.normalize();
+
+        if (moveForward || moveBackward)
+          velocity.z -= direction.z * 400 * delta;
+        if (moveLeft || moveRight)
+          velocity.x -= direction.x * 400 * delta;
+
+        controls.getObject().translateX(velocity.x * delta);
+        controls.getObject().translateY(velocity.y * delta);
+        controls.getObject().translateZ(velocity.z * delta);
+
+        if (controls.getObject().position.y < yInitialPosition) {
+          velocity.y = 0;
+          controls.getObject().position.y = yInitialPosition;
+          canJump = true;
+        }
+
+        prevTime = time;
+        const p = controls.getObject().position;
+        pointLight.position.set(p.x, p.y, p.z);
+
+        for (const id in planData.sceneGraph.LODs)
+          planData.sceneGraph.LODs[id].update(camera);
+
+        this.renderer.clear();
+        this.renderer.render(scene3D, camera);
+        this.renderer.clearDepth();
+        this.renderer.render(sceneOnTop, camera);
+
+        requestAnimationFrame(render);
+      }
+    };
+
+    render();
+
+    this.scene3D = scene3D;
+    this.sceneOnTop = sceneOnTop;
+    this.camera = camera;
+    this.planData = planData;
+    this.controls = controls;
+    this.pointerlockChangeEvent = pointerlockChangeEvent;
+    this.requestPointerLockEvent = requestPointerLockEvent;
+  }
+
+  componentWillUnmount() {
+    this.stopRendering = true;
+    this.renderer.autoClear = true;
+
+    document.removeEventListener('mousedown', this.mouseDownEvent);
+    document.removeEventListener('keydown', this.keyDownEvent);
+    document.removeEventListener('keyup', this.keyUpEvent);
+
+    document.removeEventListener('pointerlockchange', this.pointerlockChangeEvent);
+    document.removeEventListener(
+      'mozpointerlockchange',
+      this.pointerlockChangeEvent
+    );
+    document.removeEventListener(
+      'webkitpointerlockchange',
+      this.pointerlockChangeEvent
+    );
+
+    this.renderer.domElement.removeEventListener(
+      'click',
+      this.requestPointerLockEvent
+    );
+
+    if (this.scene3D && this.planData) {
+      disposeScene(this.scene3D);
+      this.scene3D.remove(this.planData.plan);
+    }
+
+    this.scene3D = null;
+    this.planData = null;
+    this.renderer.renderLists.dispose();
+  }
+
+  render() {
+    return <div ref={this.canvasWrapper} />;
+  }
+}
+
+export default Viewer3DFirstPerson;
+
+==================== FILE: 02_react_planner/react-planner/demo/src/renderer.tsx ====================
+import React, { useEffect } from 'react';
+
+import {
+  Models as PlannerModels,
+  Plugins as PlannerPlugins,
+  reducer as PlannerReducer,
+  ReactPlanner
+} from '@archef2000/react-planner';
+import { configureStore } from '@reduxjs/toolkit';
+import { produce } from 'immer';
+import { createRoot } from 'react-dom/client';
+import { Provider } from 'react-redux';
+import useMeasure from 'react-use-measure';
+
+import { createCatalog } from './catalog_custom/mycatalog';
+
+/**
+ * We wire PlanO UI -> React-Planner engine via postMessage.
+ * PlanO sends messages from:
+ * /00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx
+ *
+ * This engine:
+ * - listens for CMD messages
+ * - dispatches the same Redux actions that the React-Planner toolbar would call
+ * - reports MODE_CHANGED + SCENE_JSON back to the parent
+ */
+
+// ------- Protocol (must match PlanO PlannerFrame.tsx) -------
+const PROTOCOL_VERSION = 1;
+
+// ------- Import action creators + constants from local source -------
+import * as constants from '../../src/constants';
+import { normalizeSceneFromRaster } from '../../src/utils/scene-normalizer';
+
+import * as projectActions from '../../src/actions/project-actions';
+import * as viewer2DActions from '../../src/actions/viewer2d-actions';
+import * as viewer3DActions from '../../src/actions/viewer3d-actions';
+import * as linesActions from '../../src/actions/lines-actions';
+import * as holesActions from '../../src/actions/holes-actions';
+import * as itemsActions from '../../src/actions/items-actions';
+
+//define state
+const AppState = {
+  'react-planner': PlannerModels.State()
+};
+
+//define reducer
+const reducer = (state: { [key: string]: any } | undefined, action: any) => {
+  state = state || AppState;
+  state = produce(state, (draft) => {
+    draft['react-planner'] = PlannerReducer(draft['react-planner'], action);
+  });
+  return state;
+};
+
+const store = configureStore({
+  reducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      thunk: true,
+      immutableCheck: true,
+      serializableCheck: false,
+      actionCreatorCheck: true
+    }).concat()
+});
+
+const plugins = [PlannerPlugins.Keyboard(), PlannerPlugins.ConsoleDebugger()];
+
+// ---- helpers to talk to parent (PlanO) ----
+function postToParent(msg: any) {
+  try {
+    // targetOrigin '*' is OK; parent verifies origin is http://localhost:5173
+    window.parent?.postMessage(msg, '*');
+  } catch (e: any) {
+    // ignore
+  }
+}
+
+function emitModeChanged(mode: string) {
+  postToParent({
+    protocolVersion: PROTOCOL_VERSION,
+    type: 'MODE_CHANGED',
+    payload: { mode }
+  });
+}
+
+function emitError(message: string) {
+  postToParent({
+    protocolVersion: PROTOCOL_VERSION,
+    type: 'ERROR',
+    message
+  });
+}
+
+function emitSceneJson(scene: any) {
+  postToParent({
+    protocolVersion: PROTOCOL_VERSION,
+    type: 'SCENE_JSON',
+    payload: { scene }
+  });
+}
+
+// Component that uses useMeasure hook
+function ResponsiveReactPlanner() {
+  const [ref, bounds] = useMeasure();
+  const catalog = createCatalog();
+
+  useEffect(() => {
+    // Send initial mode to PlanO as soon as possible
+    const st: any = store.getState()['react-planner'];
+    if (st?.mode) emitModeChanged(String(st.mode));
+
+    // Subscribe to mode changes
+    let lastMode = st?.mode;
+    const unsubscribe = store.subscribe(() => {
+      const cur: any = store.getState()['react-planner'];
+      const mode = cur?.mode;
+      if (mode && mode !== lastMode) {
+        lastMode = mode;
+        emitModeChanged(String(mode));
+      }
+    });
+
+    // Listen for PlanO commands
+    const onMessage = (event: MessageEvent) => {
+      // PlanO uses '*' targetOrigin, so accept but validate message shape
+      const data: any = event.data;
+      if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
+
+      // Basic ping (PlanO sends on iframe load)
+      if (data.type === 'PING') {
+        const cur: any = store.getState()['react-planner'];
+        if (cur?.mode) emitModeChanged(String(cur.mode));
+        return;
+      }
+
+      if (data.type !== 'CMD') return;
+
+      const cmd: string = data.cmd;
+      const payload: any = data.payload || {};
+
+      try {
+        const planner: any = store.getState()['react-planner'];
+
+        switch (cmd) {
+          // ----- toolbar equivalents -----
+          case 'NEW_PROJECT':
+            store.dispatch(projectActions.newProject());
+            break;
+
+          case 'OPEN_CATALOG':
+            store.dispatch(projectActions.openCatalog());
+          
+            break;
+            
+            case 'CHANGE_CATALOG_PAGE': {
+            const newPage = payload?.newPage;
+            const oldPage = payload?.oldPage ?? 'root';
+            if (!newPage) throw new Error('CHANGE_CATALOG_PAGE: missing payload.newPage');
+            store.dispatch(projectActions.changeCatalogPage(newPage, oldPage));
+            break;
+          }
+
+          case 'VIEW_2D':
+            store.dispatch(projectActions.setMode(constants.MODE_IDLE));
+            break;
+
+          case 'VIEW_3D':
+            store.dispatch(viewer3DActions.selectTool3DView());
+            break;
+
+          case 'VIEW_3D_FIRST_PERSON':
+            store.dispatch(viewer3DActions.selectTool3DFirstPerson());
+            break;
+
+          case 'UNDO':
+            store.dispatch(projectActions.undo());
+            break;
+
+          case 'OPEN_PROJECT_CONFIGURATOR':
+            store.dispatch(projectActions.openProjectConfigurator());
+            break;
+
+          // ----- 2D tools -----
+          case 'TOOL_PAN':
+            store.dispatch(viewer2DActions.selectToolPan());
+            break;
+
+          case 'TOOL_ZOOM_IN':
+            store.dispatch(viewer2DActions.selectToolZoomIn());
+            break;
+
+          case 'TOOL_ZOOM_OUT':
+            store.dispatch(viewer2DActions.selectToolZoomOut());
+            break;
+
+          case 'SELECT_TOOL_EDIT':
+            store.dispatch(projectActions.selectToolEdit());
+            break;
+
+          case 'UNSELECT_ALL':
+            store.dispatch(projectActions.unselectAll());
+            break;
+
+          // ----- loading -----
+          case 'LOAD_PROJECT_JSON': {
+            const scene = payload?.scene;
+            if (!scene) throw new Error('LOAD_PROJECT_JSON: missing payload.scene');
+            store.dispatch(projectActions.loadProject(scene));
+            break;
+          }
+
+          case 'LOAD_RASTER_JSON': {
+            const raw = payload?.raw;
+            if (!raw) throw new Error('LOAD_RASTER_JSON: missing payload.raw');
+            const scene = normalizeSceneFromRaster(raw);
+            store.dispatch(projectActions.loadProject(scene));
+            break;
+          }
+
+          // ----- export -----
+          case 'REQUEST_SCENE_JSON': {
+            const st2: any = store.getState()['react-planner'];
+            const scene = st2?.scene;
+            if (!scene) throw new Error('REQUEST_SCENE_JSON: scene not available');
+            emitSceneJson(scene);
+            break;
+          }
+
+          default:
+            // Unknown command: ignore but report to parent
+            emitError(`Unknown CMD: ${cmd}`);
+            break;
+        }
+
+        // After any command, inform parent of current mode (helps keep UI in sync)
+        const after: any = store.getState()['react-planner'];
+        if (after?.mode) emitModeChanged(String(after.mode));
+      } catch (e: any) {
+        emitError(e?.message || String(e));
+      }
+    };
+
+    window.addEventListener('message', onMessage);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      unsubscribe();
+    };
+  }, []);
+
+  return (
+    <div ref={ref} style={{ width: '100%', height: '100%' }}>
+      {bounds.width > 0 && bounds.height > 0 && (
+        <ReactPlanner
+          catalog={catalog}
+          width={bounds.width}
+          height={bounds.height}
+          plugins={plugins}
+          // Keep toolbarButtons empty; PlanO is the toolbar.
+          toolbarButtons={[]}
+          stateExtractor={(state) => state['react-planner']}
+        />
+      )}
+    </div>
+  );
+}
+
+//render
+const container = document.getElementById('app');
+if (!container) {
+  throw new Error('Container element not found');
+}
+
+// Reuse a single React root across HMR updates
+const globalAny = globalThis as any;
+const ROOT_KEY = '__REACT_PLANNER_DEMO_ROOT__';
+const root =
+  globalAny[ROOT_KEY] || (globalAny[ROOT_KEY] = createRoot(container));
+
+root.render(
+  <Provider store={store}>
+    <ResponsiveReactPlanner />
+  </Provider>
+);
+
+if ((module as any)?.hot) {
+  try {
+    (module as any).hot.dispose(() => {
+      root.unmount();
+      delete globalAny[ROOT_KEY];
+    });
+  } catch {}
+}
+
+==================== FILE: 00_frontend_skeleton/plano-ui/src/components/planner/PlannerFrame.tsx ====================
+import { useEffect, useRef } from "react";
+
+const ENGINE_URL = "http://localhost:5173";
+const PROTOCOL_VERSION = 1;
+
+const RASTER_URL = "http://localhost:8000/upload-plan";
+
+export type PlannerCmd =
+
+  | "NEW_PROJECT"
+  | "OPEN_CATALOG"
+  | "CHANGE_CATALOG_PAGE"
+  | "VIEW_2D"
+  | "VIEW_3D"
+  | "VIEW_3D_FIRST_PERSON"
+  | "UNDO"
+  | "OPEN_PROJECT_CONFIGURATOR"
+  | "TOOL_PAN"
+  | "TOOL_ZOOM_IN"
+  | "TOOL_ZOOM_OUT"
+  | "SELECT_TOOL_EDIT"
+  | "UNSELECT_ALL"
+  | "LOAD_PROJECT_JSON"
+  | "LOAD_RASTER_JSON"
+  | "REQUEST_SCENE_JSON";
+  
+
+export type PlannerApi = {
+  cmd: (c: PlannerCmd, payload?: any) => void;
+  loadProjectPicker: () => void;
+  saveProjectDownload: () => void;
+};
+
+type Props = {
+  onApi?: (api: PlannerApi) => void;
+  onModeChange?: (mode: string) => void;
+};
+
+function downloadJson(filename: string, data: any) {
+  const dataStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+export default function PlannerFrame({ onApi, onModeChange }: Props) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  // IMPORTANT: Use '*' to avoid targetOrigin mismatch during dev.
+  // Engine validates event.origin.
+  const postToEngine = (msg: any) => {
+    const w = iframeRef.current?.contentWindow;
+    if (!w) return;
+    w.postMessage(msg, "*");
+  };
+
+  const cmd = (c: PlannerCmd, payload?: any) => {
+    postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "CMD", cmd: c, payload });
+  };
+
+  const loadProjectPicker = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json,.png,.jpg,.jpeg,application/pdf";
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      try {
+        if (file.name.toLowerCase().endsWith(".json")) {
+          const text = await file.text();
+          const scene = JSON.parse(text);
+          cmd("LOAD_PROJECT_JSON", { scene });
+          return;
+        }
+
+        const form = new FormData();
+        form.append("file", file);
+
+        const resp = await fetch(RASTER_URL, { method: "POST", body: form });
+        if (!resp.ok) {
+          const msg = await resp.text();
+          throw new Error(`Raster upload failed (${resp.status}): ${msg}`);
+        }
+
+        const raw = await resp.json();
+        cmd("LOAD_RASTER_JSON", { raw });
+      } catch (e: any) {
+        alert(e?.message || String(e));
+        console.error(e);
+      }
+    };
+
+    input.click();
+  };
+
+  const saveProjectDownload = () => {
+    cmd("REQUEST_SCENE_JSON");
+  };
+
+  useEffect(() => {
+    onApi?.({ cmd, loadProjectPicker, saveProjectDownload });
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== "http://localhost:5173") return;
+
+      const data: any = event.data;
+      if (!data || data.protocolVersion !== PROTOCOL_VERSION) return;
+
+      if (data.type === "ERROR") console.error("[ENGINE ERROR]", data.message);
+
+      // ONLY CHANGE: allow PlanO to know when catalog mode is active
+      if (data.type === "MODE_CHANGED") {
+        const mode = data?.payload?.mode;
+        if (typeof mode === "string") onModeChange?.(mode);
+        return;
+      }
+
+      if (data.type === "SCENE_JSON") {
+        const scene = data?.payload?.scene;
+        if (scene) downloadJson("plano_scene.json", scene);
+      }
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [onApi, onModeChange]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      src={ENGINE_URL}
+      title="React Planner Engine"
+      allow="clipboard-read; clipboard-write"
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100vh",
+        border: 0,
+        zIndex: 1,
+        background: "#fff",
+      }}
+      onLoad={() => postToEngine({ protocolVersion: PROTOCOL_VERSION, type: "PING" })}
+    />
+  );
+}
+
+==================== FILE: 00_frontend_skeleton/plano-ui/src/pages/client/Planner.tsx ====================
+import { useMemo, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bolt,
+  Wrench,
+  Paintbrush,
+  Grid3X3,
+  Layers,
+  Boxes,
+  MoreHorizontal,
+  FilePlus,
+  FolderOpen,
+  Save,
+  Plus,
+  Undo2,
+  Settings,
+  PersonStanding,
+  FileText,
+} from "lucide-react";
+
+import PlannerFrame, { type PlannerApi } from "../../components/planner/PlannerFrame";
+
+import {
+  MAIN_SERVICES,
+  SUBSERVICES,
+  usePlannerState,
+  type MainService,
+} from "../../state/plannerState";
+
+type ViewMode = "2D" | "3D";
+
+const ICONS: Record<MainService, LucideIcon> = {
+  electricity: Bolt,
+  plumbing: Wrench,
+  painting: Paintbrush,
+  flooring: Grid3X3,
+  plastering: Layers,
+  boards: Boxes,
+  other: MoreHorizontal,
+};
+
+export default function Planner() {
+  const navigate = useNavigate();
+
+  const apiRef = useRef<PlannerApi | null>(null);
+  const didInitRef = useRef(false);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("2D");
+  const [engineMode, setEngineMode] = useState<string>("");
+
+  const {
+    activeMain,
+    setActiveMain,
+    selected,
+    toggleSub,
+    hasAnySelection,
+    selectedCount,
+    clearAll,
+  } = usePlannerState();
+
+  const subs = useMemo(() => SUBSERVICES[activeMain], [activeMain]);
+
+  const handleApi = useCallback((api: PlannerApi) => {
+    apiRef.current = api;
+    if (!didInitRef.current) {
+      didInitRef.current = true;
+      api.cmd("VIEW_2D");
+      api.cmd("SELECT_TOOL_EDIT");
+      setViewMode("2D");
+    }
+  }, []);
+
+  const go2D = useCallback(() => {
+    setViewMode("2D");
+    apiRef.current?.cmd("VIEW_2D");
+    apiRef.current?.cmd("SELECT_TOOL_EDIT");
+  }, []);
+
+  const go3D = useCallback(() => {
+    setViewMode("3D");
+    apiRef.current?.cmd("VIEW_3D");
+  }, []);
+
+  const isCatalogOpen = engineMode === "MODE_VIEWING_CATALOG";
+
+  return (
+    <div className={`${viewMode === "2D" ? "planner2d-bg" : "planner3d-bg"} fixed inset-0 text-zinc-900`}>
+      <PlannerFrame onApi={handleApi} onModeChange={setEngineMode} />
+
+      {/* TOP BAR (FULL WIDTH – NO SLIDER, NO WRAP) */}
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex justify-center p-2">
+        <div className="pointer-events-auto glass-panel w-[calc(100vw-24px)] px-4 py-1">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 font-semibold"
+            >
+              <span className="text-base">PlanO</span>
+            </button>
+
+            {/* SERVICES (3D only) — hidden while catalog is open */}
+            {viewMode === "3D" && !isCatalogOpen ? (
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 justify-center px-1">
+                  {MAIN_SERVICES.map((s) => {
+                    const Icon = ICONS[s.key];
+                    const isActive = activeMain === s.key;
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => {
+                          setActiveMain(s.key);
+                          apiRef.current?.cmd("OPEN_CATALOG");
+                          setTimeout(() => {
+                            apiRef.current?.cmd("CHANGE_CATALOG_PAGE", {
+                              newPage: `plano_${s.key}`,
+                              oldPage: "root",
+                            });
+                          }, 50);
+                        }}
+                        className={`plano-dock-item flex items-center gap-2 px-2 py-1 text-xs ${
+                          isActive ? "ring-2 ring-white/70" : ""
+                        }`}
+                        title={s.label}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="hidden lg:inline">{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            {/* ACTIONS — hidden while catalog is open */}
+            {!isCatalogOpen && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("NEW_PROJECT")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="New project"
+                >
+                  <FilePlus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.saveProjectDownload()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Save project"
+                >
+                  <Save className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.loadProjectPicker()}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Load project (JSON/PDF/Image via Raster)"
+                >
+                  <FolderOpen className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_CATALOG")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Open catalog"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go3D}
+                  className={`plano-glass-btn px-4 py-2 text-sm font-semibold ${
+                    viewMode === "3D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                  title="3D View"
+                >
+                  3D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={go2D}
+                  className={`plano-glass-btn px-4 py-2 text-sm font-semibold ${
+                    viewMode === "2D" ? "ring-2 ring-white/70" : ""
+                  }`}
+                  title="2D View"
+                >
+                  2D
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => viewMode === "3D" && apiRef.current?.cmd("VIEW_3D_FIRST_PERSON")}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    viewMode === "3D" ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                  title="3D First Person (3D only)"
+                  disabled={viewMode !== "3D"}
+                >
+                  <PersonStanding className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("UNDO")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Undo"
+                >
+                  <Undo2 className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => apiRef.current?.cmd("OPEN_PROJECT_CONFIGURATOR")}
+                  className="plano-glass-btn h-10 w-10 grid place-items-center"
+                  title="Configure project"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/estimate")}
+                  disabled={!hasAnySelection}
+                  className={`plano-glass-btn h-10 w-10 grid place-items-center ${
+                    hasAnySelection ? "" : "opacity-40 cursor-not-allowed"
+                  }`}
+                  title="Estimate"
+                >
+                  <FileText className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      
+
+      {/* IMPORTANT: removed the PlanO right NAV overlay entirely */}
+    </div>
+  );
+}

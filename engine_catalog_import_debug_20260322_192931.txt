@@ -1,0 +1,2268 @@
+ENGINE CATALOG IMPORT DEBUG
+GENERATED: 2026-03-22 19:29:31 CET
+ROOT: /home/ogi/project_root/plano_master
+
+============================================================
+FILE: 02_react_planner/react-planner/demo/src/catalog_custom/mycatalog.ts
+============================================================
+declare let require: {
+  context(directory: string, useSubdirectories?: boolean, regExp?: RegExp): any;
+};
+
+import { CatalogFactory, CatalogFn } from '@archef2000/react-planner';
+
+import Area from './areas/area/planner-element';
+import Wall from './lines/wall/planner-element';
+
+const PLANO_MAIN_SERVICES = [
+  { key: 'electricity', label: 'Electricity' },
+  { key: 'plumbing', label: 'Plumbing' },
+  { key: 'painting', label: 'Painting' },
+  { key: 'flooring', label: 'Flooring' },
+  { key: 'plastering', label: 'Plastering' },
+  { key: 'boards', label: 'Boards' },
+  { key: 'other', label: 'Other' }
+] as const;
+
+const PLANO_SUBSERVICES: Record<(typeof PLANO_MAIN_SERVICES)[number]['key'], string[]> = {
+  electricity: [
+    'Switches & plugs',
+    'Overlaps with plumbing',
+    'Oven',
+    'Hob',
+    'Fridge freezer',
+    'Microwave',
+    'AC'
+  ],
+  plumbing: [
+    'Floor drain',
+    'Shower cubical',
+    'Bathroom sink',
+    'Mixers',
+    'Kitchen sink',
+    'Water heater',
+    'Washing machine',
+    'Dishwasher',
+    'Tap for water'
+  ],
+  painting: ['Internal paint', 'External paint'],
+  flooring: [
+    'Ceramic tiles 60×60',
+    'Ceramic tiles 120×60',
+    'Ceramic tiles custom',
+    'Laminate',
+    'Microcement',
+    'Polished concrete',
+    'Parquet'
+  ],
+  plastering: [
+    'Internal (monacote+finittura)',
+    'Internal (microcement)',
+    'External (GR1000)',
+    'External (silicato)',
+    'Stone restoration'
+  ],
+  boards: ['Flat ceiling', 'L-shape bulkhead', 'U-shape bulkhead', 'Custom shapes'],
+  other: ['To be defined', 'Custom request', 'Special works']
+};
+
+function safeSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+export function createCatalog() {
+  const catalog: any = CatalogFactory();
+
+  CatalogFn.registerElement(catalog, Area as any);
+  CatalogFn.registerElement(catalog, Wall as any);
+
+  const Holes: any[] = [];
+  const holesContext = require.context('./holes/', true, /planner-element\.[tj]sx$/);
+  holesContext.keys().forEach((key: string) => {
+    const el = holesContext(key).default;
+    Holes.push(el);
+    CatalogFn.registerElement(catalog, el as any);
+  });
+
+  const Items: any[] = [];
+  const itemsContext = require.context('./items/', true, /planner-element\.[tj]sx$/);
+  itemsContext.keys().forEach((key: string) => {
+    const el = itemsContext(key).default;
+    Items.push(el);
+    if (!catalog.elements[el.name]) {
+      CatalogFn.registerElement(catalog, el as any);
+    }
+  });
+
+  CatalogFn.registerCategory(
+    catalog,
+    'windows',
+    'Windows',
+    Holes.filter((h) => h?.info?.tag?.includes('window'))
+  );
+
+  CatalogFn.registerCategory(
+    catalog,
+    'doors',
+    'Doors',
+    Holes.filter((h) => h?.info?.tag?.includes('door'))
+  );
+
+  const ensureHiddenSubCategory = (name: string, label: string) => {
+    if (!catalog.categories[name]) {
+      catalog.categories[name] = { name, label, categories: [], elements: [] };
+    }
+    return catalog.categories[name];
+  };
+
+  const paintWhite = Items.find((el) => el?.name === 'paint-white');
+  const paintGrey = Items.find((el) => el?.name === 'paint-grey');
+  const paintBeige = Items.find((el) => el?.name === 'paint-beige');
+
+  const flooringCeramic60 = Items.find((el) => el?.name === 'flooring-ceramic-60x60');
+  const flooringLaminate = Items.find((el) => el?.name === 'flooring-laminate');
+  const plasteringMonacote = Items.find((el) => el?.name === 'plastering-monacote');
+  const boardsFlatCeiling = Items.find((el) => el?.name === 'boards-flat-ceiling');
+
+  for (const svc of PLANO_MAIN_SERVICES) {
+    if (svc.key === 'other') continue;
+
+    const mainName = `plano_${svc.key}`;
+
+    if (!catalog.categories[mainName]) {
+      CatalogFn.registerCategory(catalog, mainName, svc.label, []);
+    }
+
+    const mainCat = catalog.categories[mainName];
+    const subs = PLANO_SUBSERVICES[svc.key] || [];
+
+    for (const subLabel of subs) {
+      const subName = `plano_${svc.key}__${safeSlug(subLabel)}`;
+      const subCat = ensureHiddenSubCategory(subName, subLabel);
+
+      if (!mainCat.categories.some((c: any) => c.name === subCat.name)) {
+        mainCat.categories.push(subCat);
+      }
+
+      if (svc.key === 'painting' && subLabel === 'Internal paint') {
+        if (paintWhite && !subCat.elements.find((el: any) => el.name === paintWhite.name)) {
+          subCat.elements.push(paintWhite);
+        }
+        if (paintGrey && !subCat.elements.find((el: any) => el.name === paintGrey.name)) {
+          subCat.elements.push(paintGrey);
+        }
+        if (paintBeige && !subCat.elements.find((el: any) => el.name === paintBeige.name)) {
+          subCat.elements.push(paintBeige);
+        }
+      }
+
+      if (svc.key === 'flooring' && subLabel === 'Ceramic tiles 60×60') {
+        if (
+          flooringCeramic60 &&
+          !subCat.elements.find((el: any) => el.name === flooringCeramic60.name)
+        ) {
+          subCat.elements.push(flooringCeramic60);
+        }
+      }
+
+      if (svc.key === 'flooring' && subLabel === 'Laminate') {
+        if (
+          flooringLaminate &&
+          !subCat.elements.find((el: any) => el.name === flooringLaminate.name)
+        ) {
+          subCat.elements.push(flooringLaminate);
+        }
+      }
+
+      if (svc.key === 'plastering' && subLabel === 'Internal (monacote+finittura)') {
+        if (
+          plasteringMonacote &&
+          !subCat.elements.find((el: any) => el.name === plasteringMonacote.name)
+        ) {
+          subCat.elements.push(plasteringMonacote);
+        }
+      }
+
+      if (svc.key === 'boards' && subLabel === 'Flat ceiling') {
+        if (
+          boardsFlatCeiling &&
+          !subCat.elements.find((el: any) => el.name === boardsFlatCeiling.name)
+        ) {
+          subCat.elements.push(boardsFlatCeiling);
+        }
+      }
+    }
+  }
+
+  return catalog;
+}
+
+export default createCatalog();
+
+============================================================
+FILE: 02_react_planner/react-planner/demo/src/catalog_custom/areas/area/planner-element.tsx
+============================================================
+import {
+  CatalogElementInfo,
+  CatalogElementTextures,
+  ElementsFactories
+} from '@archef2000/react-planner';
+
+const info: CatalogElementInfo = {
+  title: 'area',
+  tag: ['area'],
+  description: 'Generic Room',
+  image: ''
+};
+
+const textures: CatalogElementTextures = {
+  parquet: {
+    name: 'Parquet',
+    uri: require('./textures/parquet.jpg'),
+    lengthRepeatScale: 0.004,
+    heightRepeatScale: 0.004
+  },
+  tile1: {
+    name: 'Tile1',
+    uri: require('./textures/tile1.jpg'),
+    lengthRepeatScale: 0.01,
+    heightRepeatScale: 0.01
+  },
+  ceramic: {
+    name: 'Ceramic Tile',
+    uri: require('./textures/ceramic-tile.jpg'),
+    lengthRepeatScale: 0.02,
+    heightRepeatScale: 0.02
+  },
+  strand_porcelain: {
+    name: 'Strand Porcelain Tile',
+    uri: require('./textures/strand-porcelain.jpg'),
+    lengthRepeatScale: 0.02,
+    heightRepeatScale: 0.02
+  },
+  grass: {
+    name: 'Grass',
+    uri: require('./textures/grass.jpg'),
+    lengthRepeatScale: 0.01,
+    heightRepeatScale: 0.01
+  }
+};
+
+export default ElementsFactories.AreaFactory('area', info, textures);
+
+============================================================
+FILE: 02_react_planner/react-planner/demo/webpack.config.js
+============================================================
+const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+
+module.exports = {
+  mode: 'development',
+
+  entry: path.resolve(__dirname, './src/renderer.tsx'),
+
+  output: {
+    path: path.resolve(__dirname),
+    filename: 'app.js',
+    publicPath: '/',
+    clean: false,
+  },
+
+  resolve: {
+    extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
+    alias: {
+      '@archef2000/react-planner': path.resolve(__dirname, '../src/react-planner.tsx'),
+    },
+  },
+
+  module: {
+    rules: [
+      {
+        test: /\.[jt]sx?$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'ts-loader',
+          options: {
+            transpileOnly: true,
+          },
+        },
+      },
+      {
+        test: /\.(png|jpe?g|gif|svg|webp)$/i,
+        type: 'asset/resource',
+      },
+      {
+        test: /\.(woff2?|eot|ttf|otf)$/i,
+        type: 'asset/resource',
+      },
+      {
+        test: /\.css$/i,
+        use: ['style-loader', 'css-loader'],
+      },
+    ],
+  },
+
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: path.resolve(__dirname, './index.html'),
+      inject: 'body',
+    }),
+  ],
+
+  devtool: 'eval-source-map',
+
+  devServer: {
+    port: 5173,
+    hot: true,
+    historyApiFallback: true,
+    static: {
+      directory: path.resolve(__dirname, './public'),
+      publicPath: '/',
+    },
+    client: {
+      overlay: true,
+      logging: 'info',
+    },
+    setupMiddlewares: (middlewares) => {
+      return middlewares;
+    },
+  },
+};
+
+============================================================
+FILE: 02_react_planner/react-planner/src/react-planner.tsx
+============================================================
+import React, { useContext, useEffect } from 'react';
+
+import { enableMapSet } from 'immer';
+import { connect, ReactReduxContext } from 'react-redux';
+import { bindActionCreators, Dispatch, Store } from 'redux';
+
+import actions, {
+  AreaActionsType,
+  GroupsActionsType,
+  HolesActionsType,
+  ItemsActionsType,
+  LinesActionsType,
+  ProjectActionsType,
+  SceneActionsType,
+  VerticesActionsType,
+  Viewer2DActionsType,
+  Viewer3DActionsType
+} from './actions/export';
+import { CatalogFactory, CatalogJson } from './catalog/catalog';
+import Content from './components/content';
+import FooterBar from './components/footerbar/footerbar';
+import Sidebar from './components/sidebar/sidebar';
+import Toolbar from './components/toolbar/toolbar';
+import ReactPlannerContext from './react-planner-context';
+import Translator from './translator/translator';
+import {
+  FooterBarComponentProps,
+  ReactPlannerPlugin,
+  ReactPlannerStateExtractor
+} from './types';
+import { objectsMap } from './utils/objects-utils';
+import { VERSION } from './version';
+
+enableMapSet();
+
+/**
+ * IMPORTANT:
+ * - React-Planner toolbar remains mounted (functionality intact)
+ * - but is hidden, so only PlanO buttons/icons are visible (no duplicates)
+ * - Sidebar (information box) stays visible
+ */
+const toolbarW = 0; // canvas takes full width
+const sidebarW = 0; // floating sidebar (overlay)
+const footerBarH = 0;
+
+const wrapperStyle: React.CSSProperties = {
+  display: 'flex',
+  flexFlow: 'row nowrap',
+  position: 'relative'
+};
+
+interface ReactPlannerOptionalProps {
+  translator: Translator;
+  catalog: CatalogJson;
+  allowProjectFileSupport: boolean;
+  toolbarButtons: any[];
+  sidebarComponents: [];
+  customContents: {};
+  softwareSignature: string; // `React Planner ${VERSION}`
+  footerbarComponents: React.ComponentType<FooterBarComponentProps>[];
+  customOverlays: { [key: string]: React.ComponentType<any> }[];
+  customActions: { [key: string]: any };
+}
+
+interface ReactPlannerExternalProps {
+  plugins: ReactPlannerPlugin[];
+  autosaveKey?: string;
+  autosaveDelay?: number;
+  width: number;
+  height: number;
+  stateExtractor: ReactPlannerStateExtractor;
+}
+
+interface ReactPlannerInternalProps {
+  projectActions: ProjectActionsType;
+  viewer2DActions: Viewer2DActionsType;
+  viewer3DActions: Viewer3DActionsType;
+  linesActions: LinesActionsType;
+  holesActions: HolesActionsType;
+  sceneActions: SceneActionsType;
+  verticesActions: VerticesActionsType;
+  itemsActions: ItemsActionsType;
+  areaActions: AreaActionsType;
+  groupsActions: GroupsActionsType;
+}
+
+type ExternalReactPlannerProps = ReactPlannerExternalProps &
+  Partial<ReactPlannerOptionalProps>;
+type ReactPlannerProps = ReactPlannerInternalProps &
+  ReactPlannerExternalProps &
+  Partial<ReactPlannerOptionalProps>;
+type InternalReactPlannerProps = ReactPlannerInternalProps &
+  ReactPlannerExternalProps &
+  ReactPlannerOptionalProps;
+
+function ReactPlanner(props: InternalReactPlannerProps) {
+  const { width, height, stateExtractor, ...restProps } = props;
+
+  const context = useContext(ReactReduxContext);
+  if (!context)
+    throw new Error(
+      'ReactPlanner must be used inside a <Provider> component from react-redux library'
+    );
+
+  useEffect(() => {
+    const store = context.store;
+    const { projectActions, catalog, stateExtractor, plugins } = props;
+    plugins.forEach((plugin) => plugin(store, stateExtractor));
+    projectActions.initCatalog(catalog);
+  }, []);
+
+  useEffect(() => {
+    const { stateExtractor, projectActions, catalog } = props;
+    const state = context.store.getState();
+    const plannerState = stateExtractor(state);
+    const catalogReady = plannerState.catalog.ready;
+    if (!catalogReady) {
+      projectActions.initCatalog(catalog);
+    }
+  }, [props]);
+
+  const state = context.store.getState();
+
+  const contentW = width - toolbarW; // toolbarW=0 so full width
+  const toolbarH = height - footerBarH;
+  const contentH = height - footerBarH;
+  const sidebarH = height - footerBarH;
+
+  const extractedState = stateExtractor(state);
+
+  return (
+    <div style={{ ...wrapperStyle, height }}>
+      {/* Toolbar kept for functionality, but hidden to avoid duplicate icons/buttons */}
+      <div style={{ display: 'none' }}>
+        <Toolbar
+          {...restProps}
+          width={50} // keep original internal width
+          height={toolbarH}
+          state={extractedState}
+        />
+      </div>
+
+      <Content
+        {...restProps}
+        width={contentW}
+        height={contentH}
+        state={extractedState}
+      />{' '}
+      <Sidebar
+        {...restProps}
+        width={sidebarW}
+        height={sidebarH}
+        state={extractedState}
+      />
+      <div style={{ display: 'none' }}>
+        <FooterBar
+          {...restProps}
+          width={width}
+          height={20} // keep original internal height
+          state={extractedState}
+        />
+    </div>
+
+    </div>
+  );
+}
+
+//redux connect
+function mapStateToProps(reduxState: Store) {
+  return {
+    state: reduxState
+  };
+}
+
+function mapDispatchToProps(dispatch: Dispatch) {
+  return objectsMap(actions, (actionNamespace) =>
+    bindActionCreators(actions[actionNamespace], dispatch)
+  );
+}
+
+function ReactPlannerWrapper(tempProps: ReactPlannerProps) {
+  const {
+    translator = new Translator(),
+    catalog = CatalogFactory(),
+    allowProjectFileSupport = true,
+    toolbarButtons = [],
+    sidebarComponents = [],
+    footerbarComponents = [],
+    customContents = {},
+    customOverlays = [],
+    customActions = {},
+    softwareSignature = `React-Planner ${VERSION}`,
+    ...otherProps
+  } = tempProps;
+  const props = {
+    ...otherProps,
+    translator,
+    catalog,
+    allowProjectFileSupport,
+    toolbarButtons,
+    sidebarComponents,
+    footerbarComponents,
+    customContents,
+    customOverlays,
+    customActions,
+    softwareSignature
+  } as InternalReactPlannerProps;
+  return (
+    <ReactPlannerContext.Provider value={{ ...props }}>
+      <ReactPlanner {...props} />
+    </ReactPlannerContext.Provider>
+  );
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(ReactPlannerWrapper as React.ComponentType<ExternalReactPlannerProps>);
+
+
+============================================================
+FILE: 02_react_planner/react-planner/src/catalog/factories/area-factory-3d.ts
+============================================================
+import {
+  Box3,
+  DoubleSide,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  Object3D,
+  Object3DEventMap,
+  RepeatWrapping,
+  Shape,
+  ShapeGeometry,
+  TextureLoader,
+  Vector2,
+  SRGBColorSpace
+} from 'three';
+
+import { Area, Layer, Scene, Vertex } from '../../models';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElementTextures } from '../../types';
+
+/**
+ * Apply a texture to a wall face
+ * @param material: The material of the face
+ * @param texture: The texture to load
+ * @param length: The lenght of the face
+ * @param height: The height of the face
+ */
+const applyTexture = (
+  material: MeshStandardMaterial,
+  texture: CatalogElementTextures[string],
+  length: number,
+  height: number
+) => {
+  const loader = new TextureLoader();
+
+  if (texture) {
+    material.map = loader.load(texture.uri);
+    if (material.map) {
+      material.map.colorSpace = SRGBColorSpace;
+      material.map.wrapS = RepeatWrapping;
+      material.map.wrapT = RepeatWrapping;
+      material.map.repeat.set(
+        length * texture.lengthRepeatScale,
+        height * texture.heightRepeatScale
+      );
+    }
+    material.needsUpdate = true;
+
+    if (texture.normal) {
+      material.normalMap = loader.load(texture.normal.uri);
+      material.normalScale = new Vector2(
+        texture.normal.normalScaleX,
+        texture.normal.normalScaleY
+      );
+      if (material.normalMap) {
+        material.normalMap.wrapS = RepeatWrapping;
+        material.normalMap.wrapT = RepeatWrapping;
+        material.normalMap.repeat.set(
+          length * texture.normal.lengthRepeatScale,
+          height * texture.normal.heightRepeatScale
+        );
+      }
+    }
+  }
+};
+
+/**
+ * Function that assign UV coordinates to a geometry
+ * @param geometry
+ */
+/*
+const assignUVs = (geometry: BufferGeometry) => {
+  geometry.computeBoundingBox();
+
+  const { min, max } = geometry.boundingBox as Box3;
+
+  const offset = new Vector2(0 - min.x, 0 - min.y);
+  const range = new Vector2(max.x - min.x, max.y - min.y);
+
+  geometry.faceVertexUvs[0] = geometry.faces.map((face) => {
+
+    const v1 = geometry.vertices[face.a];
+    const v2 = geometry.vertices[face.b];
+    const v3 = geometry.vertices[face.c];
+
+    return [
+      new Vector2((v1.x + offset.x) / range.x, (v1.y + offset.y) / range.y),
+      new Vector2((v2.x + offset.x) / range.x, (v2.y + offset.y) / range.y),
+      new Vector2((v3.x + offset.x) / range.x, (v3.y + offset.y) / range.y)
+    ];
+
+  });
+
+  geometry.uvsNeedUpdate = true;
+};
+*/
+
+export function createArea(
+  element: Area,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures
+) {
+  const vertices: Vertex[] = [];
+
+  element.vertices.forEach((vertexID) => {
+    vertices.push(layer.vertices[vertexID]);
+  });
+
+  const textureName = element.properties.texture;
+  let color = element.properties.patternColor || '#e8e5de';
+
+  if (textureName && textureName !== 'none') {
+    color = SharedStyle.AREA_MESH_COLOR.unselected;
+  }
+
+  const shape = new Shape();
+  shape.moveTo(vertices[0].x, vertices[0].y);
+  for (let i = 1; i < vertices.length; i++) {
+    shape.lineTo(vertices[i].x, vertices[i].y);
+  }
+
+  const areaMaterial = new MeshStandardMaterial({
+    side: DoubleSide,
+    color,
+    roughness: 0.6,
+    metalness: 0,
+  });
+
+  element.holes.forEach((holeID) => {
+    let holeCoords: [number, number][] = [];
+    layer.areas[holeID].vertices.forEach((vertexID) => {
+      const { x, y } = layer.vertices[vertexID];
+      holeCoords.push([x, y]);
+    });
+    holeCoords = holeCoords.reverse();
+    const holeShape = createShape(holeCoords);
+    shape.holes.push(holeShape);
+  });
+
+  const shapeGeometry = new ShapeGeometry(shape);
+
+  const boundingBox = new Box3().setFromObject(
+    new Mesh(shapeGeometry, new MeshBasicMaterial())
+  );
+
+  const width = boundingBox.max.x - boundingBox.min.x;
+  const height = boundingBox.max.y - boundingBox.min.y;
+
+  const texture = textures[textureName];
+
+  applyTexture(areaMaterial, texture, width, height);
+
+  const area = new Mesh(shapeGeometry, areaMaterial);
+
+  const sceneArea =
+    Math.abs(
+      vertices.reduce((sum, v, i) => {
+        const j = (i + 1) % vertices.length;
+        return sum + v.x * vertices[j].y - vertices[j].x * v.y;
+      }, 0)
+    ) / 2;
+
+  area.rotation.x -= Math.PI / 2;
+  area.name = 'floor';
+  area.receiveShadow = true;
+  area.userData = {
+    areaId: element.id,
+    sceneArea
+  };
+
+  return area;
+}
+
+export function updatedArea(
+  element: Area,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures,
+  mesh: Object3D<Object3DEventMap>,
+  oldElement: Area,
+  differences: string[],
+  selfDestroy: () => void,
+  selfBuild: () => void
+) {
+  const noPerf = () => {
+    selfDestroy();
+    return selfBuild();
+  };
+  const floor = mesh.getObjectByName('floor');
+
+  if (differences[0] == 'selected') {
+    const color =
+      element.properties.patternColor ||
+      SharedStyle.AREA_MESH_COLOR.unselected;
+    ((floor as Mesh).material as MeshStandardMaterial).color.set(color);
+  } else if (differences[0] == 'properties') {
+    if (differences[1] === 'texture') {
+      return noPerf();
+    }
+  } else return noPerf();
+
+  return mesh;
+}
+
+/**
+ * This function will create a shape given a list of coordinates
+ * @param shapeCoords
+ * @returns {Shape}
+ */
+const createShape = (shapeCoords: [number, number][]): Shape => {
+  const shape = new Shape();
+  shape.moveTo(shapeCoords[0][0], shapeCoords[0][1]);
+  for (let i = 1; i < shapeCoords.length; i++) {
+    shape.lineTo(shapeCoords[i][0], shapeCoords[i][1]);
+  }
+  return shape;
+};
+
+============================================================
+FILE: 02_react_planner/react-planner/src/catalog/factories/wall-factory-3d.ts
+============================================================
+import {
+  BackSide,
+  BoxGeometry,
+  BufferGeometry,
+  DoubleSide,
+  Float32BufferAttribute,
+  FrontSide,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  Object3D,
+  Object3DEventMap,
+  RepeatWrapping,
+  SRGBColorSpace,
+  Texture,
+  TextureLoader,
+  Vector2,
+  Vector3
+} from 'three';
+import { CSG } from 'three-csg-ts';
+
+import { Layer, Line, Scene } from '../../models';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElementTextures } from '../../types';
+import { verticesDistance } from '../../utils/geometry';
+
+import { calcLineEnd } from './utils/calcPolygon';
+
+const halfPI = Math.PI / 2;
+
+const baseTextureCache: Record<string, Texture> = {};
+const loaderSingleton = new TextureLoader();
+
+function getBaseTexture(uri: string): Texture {
+  if (!uri) return null as any;
+  if (baseTextureCache[uri]) return baseTextureCache[uri];
+  const tex = loaderSingleton.load(uri);
+  tex.colorSpace = SRGBColorSpace;
+  baseTextureCache[uri] = tex;
+  return tex;
+}
+
+const applyTexture = (
+  texture: CatalogElementTextures[string],
+  length: number,
+  height: number
+) => {
+  const material = new MeshStandardMaterial({
+    roughness: 0.85,
+    metalness: 0,
+  });
+
+  const setupMap = (
+    base: Texture,
+    repeatL: number,
+    repeatH: number,
+    assign: (t: Texture) => void,
+    extra?: (t: Texture) => void
+  ) => {
+    if (!base) return;
+
+    const cloneAndAssign = () => {
+      if (!base.image || !base.image.width) {
+        requestAnimationFrame(cloneAndAssign);
+        return;
+      }
+      const map = base.clone();
+      map.image = base.image;
+      map.wrapS = RepeatWrapping;
+      map.wrapT = RepeatWrapping;
+      map.repeat.set(repeatL, repeatH);
+      map.needsUpdate = true;
+      assign(map);
+      if (extra) extra(map);
+      material.needsUpdate = true;
+    };
+
+    cloneAndAssign();
+  };
+
+  if (texture) {
+    const base = getBaseTexture(texture.uri);
+    setupMap(
+      base,
+      length * texture.lengthRepeatScale,
+      height * texture.heightRepeatScale,
+      (m) => {
+        material.map = m;
+      }
+    );
+
+    const normal = texture.normal;
+    if (normal) {
+      const baseNormal = getBaseTexture(normal.uri);
+      setupMap(
+        baseNormal,
+        length * normal.lengthRepeatScale,
+        height * normal.heightRepeatScale,
+        (m) => {
+          material.normalMap = m;
+        },
+        () => {
+          material.normalScale = new Vector2(
+            normal.normalScaleX,
+            normal.normalScaleY
+          );
+        }
+      );
+    }
+  }
+
+  return material;
+};
+
+export function buildWall(
+  element: Line,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures
+) {
+  let vertex0 = layer.vertices[element.vertices[0]];
+  let vertex1 = layer.vertices[element.vertices[1]];
+  let inverted = false;
+
+  if (vertex0.x > vertex1.x) {
+    const app = vertex0;
+    vertex0 = vertex1;
+    vertex1 = app;
+    inverted = true;
+  }
+
+  const height = element.properties.height.length;
+  const thickness = element.properties.thickness.length;
+  const opacity = element.properties.opacity;
+  const faceThickness = 0.2;
+  const faceDistance = 0.5;
+
+  const distance = verticesDistance(vertex0, vertex1);
+
+  const points1 = calcLineEnd(
+    layer,
+    element.id,
+    element.vertices[0],
+    thickness
+  );
+  const rawPoints2 = calcLineEnd(
+    layer,
+    element.id,
+    element.vertices[1],
+    thickness
+  );
+  const points2 = rawPoints2.map((p) => ({ x: distance - p.x, y: p.y }));
+
+  const endA = points2[0];
+  const endB = points2[points2.length - 1];
+  const frontEnd =
+    Math.abs(endA.y - points1[0].y) <= Math.abs(endB.y - points1[0].y)
+      ? endA
+      : endB;
+  const backEnd = frontEnd === endA ? endB : endA;
+
+  const frontPoints = [points1[0], frontEnd].map((p) => {
+    return { y: p.y * -1, x: p.x };
+  });
+  const backPoints = [points1[points1.length - 1], backEnd].map((p) => {
+    return { y: p.y * -1, x: p.x };
+  });
+
+  const halfDistance = distance / 2;
+
+  const fStart = frontPoints[0];
+  const fEnd = frontPoints[1];
+  const bStart = backPoints[0];
+  const bEnd = backPoints[1];
+
+  const bottomY = -height / 2;
+  const topY = height / 2;
+
+  const xLocal = (x: number) => x - halfDistance;
+  const uFromX = (x: number) => x / distance;
+
+  const v0 = { x: xLocal(fEnd.x), y: bottomY, z: fEnd.y };
+  const v1 = { x: xLocal(fStart.x), y: bottomY, z: fStart.y };
+  const v2 = { x: xLocal(bStart.x), y: bottomY, z: bStart.y };
+  const v3 = { x: xLocal(bEnd.x), y: bottomY, z: bEnd.y };
+
+  const v4 = { x: v0.x, y: topY, z: v0.z };
+  const v5 = { x: v1.x, y: topY, z: v1.z };
+  const v6 = { x: v2.x, y: topY, z: v2.z };
+  const v7 = { x: v3.x, y: topY, z: v3.z };
+
+  const positions: number[] = [];
+  const uvs: number[] = [];
+
+  const push = (vx: { x: number; y: number; z: number }, ux = 0, vy = 0) => {
+    positions.push(vx.x, vx.y, vx.z);
+    uvs.push(ux, vy);
+  };
+
+  const tri = (
+    a: { x: number; y: number; z: number },
+    b: { x: number; y: number; z: number },
+    c: { x: number; y: number; z: number },
+    au = 0,
+    av = 0,
+    bu = 0,
+    bv = 0,
+    cu = 0,
+    cv = 0
+  ) => {
+    push(a, au, av);
+    push(b, bu, bv);
+    push(c, cu, cv);
+  };
+
+  const uF0 = uFromX(fStart.x),
+    uF1 = uFromX(fEnd.x);
+  tri(v0, v1, v5, uF0, 0, uF1, 0, uF1, 1);
+  tri(v0, v5, v4, uF0, 0, uF1, 1, uF0, 1);
+
+  const uB0 = uFromX(bStart.x),
+    uB1 = uFromX(bEnd.x);
+  tri(v2, v3, v7, uB1, 0, uB0, 0, uB0, 1);
+  tri(v2, v7, v6, uB1, 0, uB0, 1, uB1, 1);
+
+  tri(v3, v0, v4);
+  tri(v3, v4, v7);
+
+  tri(v1, v2, v6);
+  tri(v1, v6, v5);
+
+  tri(v0, v2, v1);
+  tri(v0, v3, v2);
+
+  tri(v4, v5, v6);
+  tri(v4, v6, v7);
+
+  const soulGeometry = new BufferGeometry();
+  soulGeometry.setAttribute(
+    'position',
+    new Float32BufferAttribute(positions, 3)
+  );
+  soulGeometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  soulGeometry.computeVertexNormals();
+
+  const frontVertCount = 2 * 3;
+  const backVertCount = 2 * 3;
+  const remainingVertCount =
+    positions.length / 3 - frontVertCount - backVertCount;
+
+  soulGeometry.clearGroups();
+  soulGeometry.addGroup(0, frontVertCount, 0);
+  soulGeometry.addGroup(frontVertCount, backVertCount, 1);
+  soulGeometry.addGroup(frontVertCount + backVertCount, remainingVertCount, 2);
+
+  const frontHiddenMat = new MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    side: BackSide
+  });
+  const backHiddenMat = new MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    side: FrontSide
+  });
+  const sideVisibleMat = new MeshStandardMaterial({
+    color: element.selected ? SharedStyle.MESH_SELECTED : 0xd3d3d3,
+    side: DoubleSide,
+    opacity,
+    transparent: opacity < 1,
+    roughness: 0.85,
+    metalness: 0,
+  });
+
+  let soul: Mesh = new Mesh(soulGeometry, [
+    frontHiddenMat,
+    backHiddenMat,
+    sideVisibleMat
+  ]);
+
+  const alpha = Math.asin((vertex1.y - vertex0.y) / distance);
+
+  const sinAlpha = Math.sin(alpha);
+  const cosAlpha = Math.cos(alpha);
+
+  element.holes.forEach((holeID) => {
+    const holeData = layer.holes[holeID];
+
+    const holeWidth = holeData.properties.width.length;
+    const holeHeight = holeData.properties.height.length;
+    const holeAltitude = holeData.properties.altitude.length;
+    const offset = inverted ? 1 - holeData.offset : holeData.offset;
+    const holeDistance = offset * distance;
+
+    const holeGeometry = new BoxGeometry(holeWidth, holeHeight, thickness);
+    const holeMesh = new Mesh(holeGeometry);
+
+    holeMesh.position.set(
+      holeDistance - distance / 2,
+      -(height / 2) + holeAltitude + holeHeight / 2,
+      0
+    );
+
+    holeMesh.updateMatrix();
+
+    soul = CSG.subtract(soul, holeMesh);
+  });
+
+  soul.position.y += height / 2;
+  soul.position.x += halfDistance * cosAlpha;
+  soul.position.z -= halfDistance * sinAlpha;
+
+  soul.rotation.y = alpha;
+  soul.name = 'soul';
+  soul.castShadow = true;
+  soul.receiveShadow = true;
+
+  const frontMaterial = applyTexture(
+    textures[element.properties.textureB],
+    distance,
+    height
+  );
+  const backMaterial = applyTexture(
+    textures[element.properties.textureA],
+    distance,
+    height
+  );
+
+  [frontMaterial, backMaterial].forEach((mat) => {
+    mat.opacity = opacity;
+    if (opacity < 1) mat.transparent = true;
+  });
+
+  const buildExtrudedQuad = (
+    a: { x: number; y: number; z: number },
+    b: { x: number; y: number; z: number },
+    c: { x: number; y: number; z: number },
+    d: { x: number; y: number; z: number },
+    thicknessLocal: number,
+    uA: number,
+    uB: number
+  ) => {
+    const ax = a.x,
+      ay = a.y,
+      az = a.z;
+    const bx = b.x,
+      by = b.y,
+      bz = b.z;
+    const cx = c.x,
+      cy = c.y,
+      cz = c.z;
+    const dx = d.x,
+      dy = d.y,
+      dz = d.z;
+
+    const abx = bx - ax,
+      aby = by - ay,
+      abz = bz - az;
+    const adx = dx - ax,
+      ady = dy - ay,
+      adz = dz - az;
+    let nx = aby * adz - abz * ady;
+    let ny = abz * adx - abx * adz;
+    let nz = abx * ady - aby * adx;
+    const nLen = Math.hypot(nx, ny, nz) || 1;
+    nx /= nLen;
+    ny /= nLen;
+    nz /= nLen;
+
+    const halfT = thicknessLocal / 2;
+
+    const aF = [ax + nx * halfT, ay + ny * halfT, az + nz * halfT];
+    const bF = [bx + nx * halfT, by + ny * halfT, bz + nz * halfT];
+    const cF = [cx + nx * halfT, cy + ny * halfT, cz + nz * halfT];
+    const dF = [dx + nx * halfT, dy + ny * halfT, dz + nz * halfT];
+
+    const aB = [ax - nx * halfT, ay - ny * halfT, az - nz * halfT];
+    const bB = [bx - nx * halfT, by - ny * halfT, bz - nz * halfT];
+    const cB = [cx - nx * halfT, cy - ny * halfT, cz - nz * halfT];
+    const dB = [dx - nx * halfT, dy - ny * halfT, dz - nz * halfT];
+
+    const pos: number[] = [];
+    const uv: number[] = [];
+
+    const pushV = (v: number[], u = 0, vT = 0) => {
+      pos.push(v[0], v[1], v[2]);
+      uv.push(u, vT);
+    };
+    const triV = (
+      A: number[],
+      B: number[],
+      C: number[],
+      Au = 0,
+      Av = 0,
+      Bu = 0,
+      Bv = 0,
+      Cu = 0,
+      Cv = 0
+    ) => {
+      pushV(A, Au, Av);
+      pushV(B, Bu, Bv);
+      pushV(C, Cu, Cv);
+    };
+
+    triV(aF, bF, cF, uA, 0, uB, 0, uB, 1);
+    triV(aF, cF, dF, uA, 0, uB, 1, uA, 1);
+
+    triV(bB, aB, dB);
+    triV(bB, dB, cB);
+
+    triV(aB, aF, bF);
+    triV(aB, bF, bB);
+    triV(bB, bF, cF);
+    triV(bB, cF, cB);
+    triV(cB, cF, dF);
+    triV(cB, dF, dB);
+    triV(dB, dF, aF);
+    triV(dB, aF, aB);
+
+    const g = new BufferGeometry();
+    g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new Float32BufferAttribute(uv, 2));
+    g.computeVertexNormals();
+    return g;
+  };
+
+  const uFrontA = uFromX(fStart.x),
+    uFrontB = uFromX(fEnd.x);
+  const frontGeom = buildExtrudedQuad(
+    v0,
+    v1,
+    v5,
+    v4,
+    faceThickness,
+    uFrontA,
+    uFrontB
+  );
+
+  const uBackA = uFromX(bStart.x),
+    uBackB = uFromX(bEnd.x);
+  const backGeom = buildExtrudedQuad(
+    v2,
+    v3,
+    v7,
+    v6,
+    faceThickness,
+    uBackB,
+    uBackA
+  );
+
+  let frontFace: Mesh = new Mesh(frontGeom, frontMaterial);
+  let backFace: Mesh = new Mesh(backGeom, backMaterial);
+
+  const frontCenter = new Vector3(
+    (v0.x + v1.x + v5.x + v4.x) / 4,
+    (v0.y + v1.y + v5.y + v4.y) / 4,
+    (v0.z + v1.z + v5.z + v4.z) / 4
+  );
+  const backCenter = new Vector3(
+    (v2.x + v3.x + v7.x + v6.x) / 4,
+    (v2.y + v3.y + v7.y + v6.y) / 4,
+    (v2.z + v3.z + v7.z + v6.z) / 4
+  );
+  const centerVector = new Vector3().subVectors(backCenter, frontCenter);
+  const thicknessDir = centerVector.clone().normalize();
+  const frontOutward = thicknessDir.clone();
+  const backOutward = thicknessDir.clone().multiplyScalar(1);
+  const outwardShift = faceThickness / 2 + faceDistance;
+  const inwardShift = faceThickness / 2 - faceDistance;
+
+  element.holes.forEach((holeID) => {
+    const holeData = layer.holes[holeID];
+
+    const holeWidth = holeData.properties.width.length;
+    const holeHeight = holeData.properties.height.length;
+    const holeAltitude = holeData.properties.altitude.length;
+    const offset = inverted ? 1 - holeData.offset : holeData.offset;
+    const holeDistance = offset * distance;
+
+    const holeGeometry = new BoxGeometry(
+      holeWidth,
+      holeHeight,
+      thickness + faceThickness * 2 + faceDistance * 2
+    );
+    const holeMesh = new Mesh(holeGeometry);
+
+    holeMesh.position.set(
+      holeDistance - distance / 2,
+      -(height / 2) + holeAltitude + holeHeight / 2,
+      0
+    );
+
+    holeMesh.updateMatrix();
+
+    frontFace = CSG.subtract(frontFace, holeMesh);
+    backFace = CSG.subtract(backFace, holeMesh);
+  });
+
+  [frontFace, backFace].forEach((face) => {
+    face.position.y += height / 2;
+    face.position.x += halfDistance * cosAlpha;
+    face.position.z -= halfDistance * sinAlpha;
+    face.rotation.y = alpha;
+    face.castShadow = true;
+    face.receiveShadow = true;
+  });
+
+  frontFace.translateOnAxis(frontOutward, inwardShift);
+  backFace.translateOnAxis(backOutward, outwardShift);
+
+  frontFace.name = 'frontFace';
+  backFace.name = 'backFace';
+
+  (frontFace as any).userData = {
+    surfaceType: 'front',
+    wallId: element.id,
+    wallLength: distance,
+    wallHeight: height,
+  };
+
+  (backFace as any).userData = {
+    surfaceType: 'back',
+    wallId: element.id,
+    wallLength: distance,
+    wallHeight: height,
+  };
+
+  const merged = new Group();
+  merged.add(soul, frontFace, backFace);
+
+  return merged;
+}
+
+export function updatedWall(
+  element: Line,
+  layer: Layer,
+  scene: Scene,
+  textures: CatalogElementTextures,
+  mesh: Object3D<Object3DEventMap>,
+  oldElement: Line,
+  differences: string[],
+  selfDestroy: () => void,
+  selfBuild: () => void
+) {
+  const noPerf = () => {
+    selfDestroy();
+    return selfBuild();
+  };
+
+  const soul = mesh.getObjectByName('soul') as Mesh;
+  const frontFace = mesh.getObjectByName('frontFace') as Mesh;
+  const backFace = mesh.getObjectByName('backFace') as Mesh;
+
+  if (differences[0] == 'selected') {
+    const soulMesh = soul as Mesh;
+    if (Array.isArray(soulMesh.material)) {
+      const sideMat = soulMesh.material[2] as MeshStandardMaterial;
+      sideMat.color.set(
+        element.selected ? SharedStyle.MESH_SELECTED : 0xd3d3d3
+      );
+      sideMat.needsUpdate = true;
+    }
+  } else if (differences[0] == 'properties') {
+    if (differences[1] == 'thickness') {
+      const newThickness = element.properties.thickness.length;
+      const oldThickness = oldElement.properties.thickness.length;
+      const halfNewThickness = newThickness / 2;
+      const texturedFaceDistance = halfNewThickness + 1;
+      const originalThickness = oldThickness / soul.scale.z;
+      const alpha = soul.rotation.y;
+
+      const xTemp = texturedFaceDistance * Math.cos(alpha - halfPI);
+      const zTemp = texturedFaceDistance * Math.sin(alpha - halfPI);
+
+      soul.scale.set(1, 1, newThickness / originalThickness);
+
+      frontFace.position.x = soul.position.x + xTemp;
+      frontFace.position.z = soul.position.z + zTemp;
+
+      backFace.position.x = soul.position.x - xTemp;
+      backFace.position.z = soul.position.z - zTemp;
+      return noPerf();
+    } else return noPerf();
+  } else return noPerf();
+
+  return mesh;
+}
+
+============================================================
+GREP: ElementsFactories / AreaFactory
+============================================================
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area/textures/planner-element.tsx:4:  ElementsFactories
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area/textures/planner-element.tsx:47:export default ElementsFactories.AreaFactory('area', info, textures);
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area/planner-element.tsx:4:  ElementsFactories
+02_react_planner/react-planner/demo/src/catalog_custom/areas/area/planner-element.tsx:47:export default ElementsFactories.AreaFactory('area', info, textures);
+02_react_planner/react-planner/demo/src/catalog_custom/areas/internal-paint/planner-element.tsx:4:  ElementsFactories
+02_react_planner/react-planner/demo/src/catalog_custom/areas/internal-paint/planner-element.tsx:35:export default ElementsFactories.AreaFactory('internal-paint', info, textures);
+02_react_planner/react-planner/demo/src/catalog_custom/lines/wall/planner-element.tsx:4:  ElementsFactories
+02_react_planner/react-planner/demo/src/catalog_custom/lines/wall/planner-element.tsx:54:export default ElementsFactories.WallFactory('wall', info, textures);
+02_react_planner/react-planner/src/catalog/factories/area-factory.tsx:19:export default function AreaFactory(
+02_react_planner/react-planner/src/catalog/factories/export.ts:1:import AreaFactory from './area-factory';
+02_react_planner/react-planner/src/catalog/factories/export.ts:4:export { AreaFactory, WallFactory };
+02_react_planner/react-planner/src/catalog/factories/export.ts:8:  AreaFactory
+02_react_planner/react-planner/src/index.ts:3:import ElementsFactories from './catalog/factories/export';
+02_react_planner/react-planner/src/index.ts:34:  ElementsFactories,
+
+
+============================================================
+ENGINE BUILD
+============================================================
+assets by path *.png 3.96 MiB
+  asset c6441521414a0f69e3a2.png 490 KiB [emitted] [immutable] [from: demo/src/catalog_custom/items/sofa-single/sofa.png] (auxiliary name: main)
+  asset 5074831eb8d2e57f7daa.png 319 KiB [emitted] [immutable] [from: demo/src/catalog_custom/items/naspo/naspofront.png] (auxiliary name: main)
+  asset 19385b7c7a33895cf72a.png 235 KiB [emitted] [immutable] [from: demo/src/catalog_custom/items/fire-extinguisher/label-image.png] (auxiliary name: main)
+  asset 2fae46f8e0b0be385124.png 203 KiB [emitted] [immutable] [from: demo/src/catalog_custom/items/electrical-panel/texturePanel.png] (auxiliary name: main)
+  + 70 assets
+assets by path *.jpg 5.31 MiB
+  asset 81e7a7e6edf162e88b44.jpg 552 KiB [emitted] [immutable] [from: demo/src/catalog_custom/lines/wall/textures/bricks-normal.jpg] (auxiliary name: main)
+  asset 2a7e1fcc5271eea3b9c6.jpg 449 KiB [emitted] [immutable] [from: demo/src/catalog_custom/lines/wall/textures/glass.jpg] (auxiliary name: main)
+  asset e470a2ce76062955fa98.jpg 336 KiB [emitted] [immutable] [from: demo/src/catalog_custom/areas/area/textures/grass.jpg] (auxiliary name: main)
+  asset a07d30a04bda8ee03491.jpg 292 KiB [emitted] [immutable] [from: demo/src/catalog_custom/lines/wall/textures/bricks.jpg] (auxiliary name: main)
+  asset 3138d384ddf10eadf55a.jpg 282 KiB [emitted] [immutable] [from: demo/src/catalog_custom/items/sofa/texture.jpg] (auxiliary name: main)
+  + 29 assets
+asset app.js 25.4 MiB [emitted] (name: main)
+asset index.html 3.36 KiB [emitted]
+runtime modules 1.62 KiB 8 modules
+orphan modules 3.43 KiB [orphan] 6 modules
+javascript modules 9.56 MiB
+  cacheable modules 9.56 MiB 388 modules
+  ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ 540 bytes [built] [code generated]
+  ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ 2.37 KiB [built] [code generated]
+asset modules 10.7 MiB (asset) 4.92 KiB (javascript)
+  modules by path ./demo/src/catalog_custom/items/ 7.55 MiB (asset) 3.86 KiB (javascript) 94 modules
+  modules by path ./demo/src/catalog_custom/holes/ 538 KiB (asset) 630 bytes (javascript) 15 modules
+  modules by path ./demo/src/catalog_custom/lines/wall/ 1.63 MiB (asset) 252 bytes (javascript) 6 modules
+  modules by path ./demo/src/catalog_custom/areas/area/ 1.01 MiB (asset) 210 bytes (javascript)
+    ./demo/src/catalog_custom/areas/area/textures/parquet.jpg 240 KiB (asset) 42 bytes (javascript) [built] [code generated]
+    + 4 modules
+
+WARNING in ./demo/src/catalog_custom/areas/area/planner-element.tsx 40:15-44
+export 'ElementsFactories' (imported as 'ElementsFactories') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/mycatalog.ts 2:0-48 59:39-43
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/holes/door-double/planner-element.tsx 126:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./door-double/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/holes/door/planner-element.tsx 67:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./door/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/holes/gate/planner-element.tsx 40:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./gate/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/holes/panic-door-double/planner-element.tsx 272:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./panic-door-double/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/holes/panic-door/planner-element.tsx 275:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./panic-door/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/holes/sash-window/planner-element.tsx 42:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./sash-window/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/holes/sliding-door/planner-element.tsx 110:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./sliding-door/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/holes/venetian-blind-window/planner-element.tsx 42:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./venetian-blind-window/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/holes/window-curtain/planner-element.tsx 51:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./window-curtain/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/holes/window/planner-element.tsx 42:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./window/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/air-conditioner/planner-element.tsx 220:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./air-conditioner/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/armchairs/planner-element.tsx 224:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./armchairs/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/balcony/planner-element.tsx 128:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./balcony/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/bench/planner-element.tsx 126:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./bench/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/blackboard/planner-element.tsx 43:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./blackboard/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/boards-flat-ceiling/planner-element.tsx 40:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./boards-flat-ceiling/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/bookcase/planner-element.tsx 141:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./bookcase/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/camera/planner-element.tsx 326:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./camera/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/canteen-table/planner-element.tsx 289:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./canteen-table/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/canteencart/planner-element.tsx 297:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./canteencart/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/chair/planner-element.tsx 235:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./chair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/chairdesk/planner-element.tsx 532:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./chairdesk/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/child-chair-desk/planner-element.tsx 43:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./child-chair-desk/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/cleaningcart/planner-element.tsx 601:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./cleaningcart/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/coat-hook/planner-element.tsx 43:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./coat-hook/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/column-square/planner-element.tsx 41:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./column-square/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/column/planner-element.tsx 91:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./column/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/cube/planner-element.tsx 40:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./cube/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/cube/planner-element.tsx 53:26-76
+export 'ReactPlannerSharedStyle' (imported as 'ReactPlannerSharedStyle') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./cube/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/cube/planner-element.tsx 80:18-68
+export 'ReactPlannerSharedStyle' (imported as 'ReactPlannerSharedStyle') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./cube/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/cube/planner-element.tsx 81:18-55
+export 'ReactPlannerSharedStyle' (imported as 'ReactPlannerSharedStyle') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./cube/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/cube/planner-element.tsx 105:22-72
+export 'ReactPlannerSharedStyle' (imported as 'ReactPlannerSharedStyle') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./cube/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/cube/planner-element.tsx 106:22-59
+export 'ReactPlannerSharedStyle' (imported as 'ReactPlannerSharedStyle') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./cube/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/desk/planner-element.tsx 134:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./desk/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/deskdouble/planner-element.tsx 134:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./deskdouble/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/deskoffice/planner-element.tsx 449:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./deskoffice/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/electrical-panel/planner-element.tsx 64:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./electrical-panel/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/fire-extinguisher/planner-element.tsx 220:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./fire-extinguisher/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/flooring-ceramic-60x60/planner-element.tsx 40:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./flooring-ceramic-60x60/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/flooring-laminate/planner-element.tsx 40:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./flooring-laminate/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/fridge/planner-element.tsx 196:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./fridge/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/hanger/planner-element.tsx 177:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./hanger/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/hiroos/planner-element.tsx 87:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./hiroos/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/hub/planner-element.tsx 66:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./hub/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/image/imageful.tsx 185:27-46
+export 'ReactPlannerContext' (imported as 'ReactPlannerContext') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/image/planner-element.tsx 40:0-34 96:36-44
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./image/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/image/planner-element.tsx 41:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./image/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/kitchen/planner-element.tsx 346:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./kitchen/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/lim/planner-element.tsx 47:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./lim/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/metal-detector/planner-element.tsx 164:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./metal-detector/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/monitor-pc/planner-element.tsx 152:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./monitor-pc/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/naspo/planner-element.tsx 211:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./naspo/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/paint-beige/planner-element.tsx 40:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./paint-beige/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/paint-grey/planner-element.tsx 40:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./paint-grey/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/paint-white/planner-element.tsx 40:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./paint-white/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/plastering-monacote/planner-element.tsx 40:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./plastering-monacote/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/projector/planner-element.tsx 110:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./projector/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/radiator-modern-style/planner-element.tsx 189:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./radiator-modern-style/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/radiator-old-style/planner-element.tsx 198:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./radiator-old-style/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/recycling-bins/planner-element.tsx 43:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./recycling-bins/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/router-wifi/planner-element.tsx 136:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./router-wifi/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/schneider/planner-element.tsx 226:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./schneider/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/school-desk-double/planner-element.tsx 48:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./school-desk-double/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/school-desk/planner-element.tsx 48:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./school-desk/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 42:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 83:18-55
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 86:18-55
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 117:26-63
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 120:26-63
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 123:26-63
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 126:26-63
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 269:30-67
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 272:30-67
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 275:30-67
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 278:30-67
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 281:30-67
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 284:30-67
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 287:30-67
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/simple-stair/planner-element.tsx 290:30-67
+export 'ReactPlannerConstants' (imported as 'ReactPlannerConstants') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./simple-stair/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/sink/planner-element.tsx 281:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./sink/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/smoke-detector/planner-element.tsx 116:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./smoke-detector/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/sofa-single/planner-element.tsx 49:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./sofa-single/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/sofa/planner-element.tsx 49:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./sofa/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/table/planner-element.tsx 101:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./table/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/teaching-post/planner-element.tsx 48:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./teaching-post/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/text-3d/planner-element.tsx 47:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./text-3d/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/three-phase-panel/planner-element.tsx 473:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./three-phase-panel/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/toilet/planner-element.tsx 254:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./toilet/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/trash/planner-element.tsx 42:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./trash/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/tv/planner-element.tsx 43:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./tv/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/umbrella-stand/planner-element.tsx 142:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./umbrella-stand/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/items/wardrobe/planner-element.tsx 182:15-35
+export 'defineCatalogElement' (imported as 'defineCatalogElement') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./wardrobe/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/lines/wall/planner-element.tsx 47:15-44
+export 'ElementsFactories' (imported as 'ElementsFactories') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/catalog_custom/mycatalog.ts 3:0-48 60:39-43
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/mycatalog.ts 58:18-32
+export 'CatalogFactory' (imported as 'CatalogFactory') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/mycatalog.ts 59:4-29
+export 'CatalogFn' (imported as 'CatalogFn') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/mycatalog.ts 60:4-29
+export 'CatalogFn' (imported as 'CatalogFn') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/mycatalog.ts 66:8-33
+export 'CatalogFn' (imported as 'CatalogFn') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/mycatalog.ts 74:12-37
+export 'CatalogFn' (imported as 'CatalogFn') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/mycatalog.ts 77:4-30
+export 'CatalogFn' (imported as 'CatalogFn') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/mycatalog.ts 78:4-30
+export 'CatalogFn' (imported as 'CatalogFn') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/catalog_custom/mycatalog.ts 98:12-38
+export 'CatalogFn' (imported as 'CatalogFn') was not found in '@archef2000/react-planner' (possible exports: default)
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+WARNING in ./demo/src/renderer.tsx 26:21-40
+export 'Models' (imported as 'PlannerModels') was not found in '@archef2000/react-planner' (possible exports: default)
+
+WARNING in ./demo/src/renderer.tsx 31:33-47
+export 'reducer' (imported as 'PlannerReducer') was not found in '@archef2000/react-planner' (possible exports: default)
+
+WARNING in ./demo/src/renderer.tsx 46:15-38
+export 'Plugins' (imported as 'PlannerPlugins') was not found in '@archef2000/react-planner' (possible exports: default)
+
+WARNING in ./demo/src/renderer.tsx 46:42-72
+export 'Plugins' (imported as 'PlannerPlugins') was not found in '@archef2000/react-planner' (possible exports: default)
+
+WARNING in ./demo/src/renderer.tsx 210:157-169
+export 'ReactPlanner' (imported as 'ReactPlanner') was not found in '@archef2000/react-planner' (possible exports: default)
+
+ERROR in ./demo/src/catalog_custom/holes/door/door.mtl 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender MTL File: 'None'
+| # Material Count: 1
+| 
+ @ ./demo/src/catalog_custom/holes/door/planner-element.tsx 163:30-51
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./door/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/holes/door/door.obj 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender v2.76 (sub 0) OBJ File: ''
+| # www.blender.org
+| mtllib door.mtl
+ @ ./demo/src/catalog_custom/holes/door/planner-element.tsx 164:30-51
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./door/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/holes/sash-window/sash-window.mtl 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender MTL File: 'None'
+| # Material Count: 2
+| 
+ @ ./demo/src/catalog_custom/holes/sash-window/planner-element.tsx 131:30-58
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./sash-window/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/holes/sash-window/sash-window.obj 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender v2.76 (sub 0) OBJ File: ''
+| # www.blender.org
+| mtllib lattice-window.mtl
+ @ ./demo/src/catalog_custom/holes/sash-window/planner-element.tsx 132:30-58
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./sash-window/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/holes/venetian-blind-window/venetian.mtl 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender MTL File: 'None'
+| # Material Count: 2
+| 
+ @ ./demo/src/catalog_custom/holes/venetian-blind-window/planner-element.tsx 252:30-55
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./venetian-blind-window/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/holes/venetian-blind-window/venetian.obj 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender v2.76 (sub 0) OBJ File: ''
+| # www.blender.org
+| mtllib window.mtl
+ @ ./demo/src/catalog_custom/holes/venetian-blind-window/planner-element.tsx 253:30-55
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./venetian-blind-window/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/holes/window-curtain/window.mtl 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender MTL File: 'None'
+| # Material Count: 2
+| 
+ @ ./demo/src/catalog_custom/holes/window-curtain/planner-element.tsx 260:30-53
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./window-curtain/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/holes/window-curtain/window.obj 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender v2.76 (sub 0) OBJ File: ''
+| # www.blender.org
+| mtllib window.mtl
+ @ ./demo/src/catalog_custom/holes/window-curtain/planner-element.tsx 261:30-53
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./window-curtain/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/holes/window/window.mtl 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender MTL File: 'None'
+| # Material Count: 2
+| 
+ @ ./demo/src/catalog_custom/holes/window/planner-element.tsx 131:30-53
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./window/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/holes/window/window.obj 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender v2.76 (sub 0) OBJ File: ''
+| # www.blender.org
+| mtllib window.mtl
+ @ ./demo/src/catalog_custom/holes/window/planner-element.tsx 132:30-53
+ @ ./demo/src/catalog_custom/holes/ sync planner-element\.[tj]sx$ ./window/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 62:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/items/sofa-single/sofa.mtl 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender MTL File: 'None'
+| # Material Count: 3
+| 
+ @ ./demo/src/catalog_custom/items/sofa-single/planner-element.tsx 41:10-31
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./sofa-single/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/items/sofa-single/sofa.obj 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender 4.3.2
+| # www.blender.org
+| mtllib sofa.mtl
+ @ ./demo/src/catalog_custom/items/sofa-single/planner-element.tsx 42:10-31
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./sofa-single/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/items/sofa/sofa.mtl 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender MTL File: 'None'
+| # Material Count: 3
+| 
+ @ ./demo/src/catalog_custom/items/sofa/planner-element.tsx 41:10-31
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./sofa/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/items/sofa/sofa.obj 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender v2.70 (sub 0) OBJ File: ''
+| # www.blender.org
+| mtllib sofa.mtl
+ @ ./demo/src/catalog_custom/items/sofa/planner-element.tsx 42:10-31
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./sofa/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/items/tv/tv.mtl 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender MTL File: 'None'
+| # Material Count: 2
+| 
+ @ ./demo/src/catalog_custom/items/tv/planner-element.tsx 126:22-41
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./tv/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in ./demo/src/catalog_custom/items/tv/tv.obj 1:1
+Module parse failed: Unexpected character ' ' (1:1)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+> # Blender v2.70 (sub 0) OBJ File: ''
+| # www.blender.org
+| mtllib tv.mtl
+ @ ./demo/src/catalog_custom/items/tv/planner-element.tsx 127:22-41
+ @ ./demo/src/catalog_custom/items/ sync planner-element\.[tj]sx$ ./tv/planner-element.tsx
+ @ ./demo/src/catalog_custom/mycatalog.ts 69:23-84
+ @ ./demo/src/renderer.tsx 8:0-59 79:18-31
+
+ERROR in Error: Child compilation failed:
+  Module not found: Error: Can't resolve '/home/ogi/project_root/plano_master/02  _react_planner/react-planner/demo/index.html' in '/home/ogi/project_root/plano  _master/02_react_planner/react-planner'
+  ModuleNotFoundError: Module not found: Error: Can't resolve '/home/ogi/project  _root/plano_master/02_react_planner/react-planner/demo/index.html' in '/home/o  gi/project_root/plano_master/02_react_planner/react-planner'
+      at /home/ogi/project_root/plano_master/02_react_planner/react-planner/node  _modules/webpack/lib/Compilation.js:2264:28
+      at /home/ogi/project_root/plano_master/02_react_planner/react-planner/node  _modules/webpack/lib/NormalModuleFactory.js:949:13
+      at eval (eval at create (/home/ogi/project_root/plano_master/02_react_plan  ner/react-planner/node_modules/tapable/lib/HookCodeFactory.js:33:10), <anonymo  us>:10:1)
+      at /home/ogi/project_root/plano_master/02_react_planner/react-planner/node  _modules/webpack/lib/NormalModuleFactory.js:347:22
+      at eval (eval at create (/home/ogi/project_root/plano_master/02_react_plan  ner/react-planner/node_modules/tapable/lib/HookCodeFactory.js:33:10), <anonymo  us>:9:1)
+      at /home/ogi/project_root/plano_master/02_react_planner/react-planner/node  _modules/webpack/lib/NormalModuleFactory.js:532:22
+      at /home/ogi/project_root/plano_master/02_react_planner/react-planner/node  _modules/webpack/lib/NormalModuleFactory.js:163:10
+      at /home/ogi/project_root/plano_master/02_react_planner/react-planner/node  _modules/webpack/lib/NormalModuleFactory.js:807:25
+      at /home/ogi/project_root/plano_master/02_react_planner/react-planner/node  _modules/webpack/lib/NormalModuleFactory.js:1034:8
+      at /home/ogi/project_root/plano_master/02_react_planner/react-planner/node  _modules/webpack/lib/NormalModuleFactory.js:1163:5
+  
+  - Compilation.js:2264 
+    [react-planner]/[webpack]/lib/Compilation.js:2264:28
+  
+  - NormalModuleFactory.js:949 
+    [react-planner]/[webpack]/lib/NormalModuleFactory.js:949:13
+  
+  
+  - NormalModuleFactory.js:347 
+    [react-planner]/[webpack]/lib/NormalModuleFactory.js:347:22
+  
+  
+  - NormalModuleFactory.js:532 
+    [react-planner]/[webpack]/lib/NormalModuleFactory.js:532:22
+  
+  - NormalModuleFactory.js:163 
+    [react-planner]/[webpack]/lib/NormalModuleFactory.js:163:10
+  
+  - NormalModuleFactory.js:807 
+    [react-planner]/[webpack]/lib/NormalModuleFactory.js:807:25
+  
+  - NormalModuleFactory.js:1034 
+    [react-planner]/[webpack]/lib/NormalModuleFactory.js:1034:8
+  
+  - NormalModuleFactory.js:1163 
+    [react-planner]/[webpack]/lib/NormalModuleFactory.js:1163:5
+  
+  - child-compiler.js:211 
+    [react-planner]/[html-webpack-plugin]/lib/child-compiler.js:211:18
+  
+  - Compiler.js:650 finalCallback
+    [react-planner]/[webpack]/lib/Compiler.js:650:5
+  
+  - Compiler.js:686 
+    [react-planner]/[webpack]/lib/Compiler.js:686:11
+  
+  - Compiler.js:1377 
+    [react-planner]/[webpack]/lib/Compiler.js:1377:17
+  
+  
+  - Hook.js:20 Hook.CALL_ASYNC_DELEGATE [as _callAsync]
+    [react-planner]/[tapable]/lib/Hook.js:20:14
+  
+  - Compiler.js:1373 
+    [react-planner]/[webpack]/lib/Compiler.js:1373:33
+  
+  - Compilation.js:3097 finalCallback
+    [react-planner]/[webpack]/lib/Compilation.js:3097:11
+  
+  - Compilation.js:3461 
+    [react-planner]/[webpack]/lib/Compilation.js:3461:11
+
+1 ERROR in child compilations (Use 'stats.children: true' resp. '--stats-children' for more details)
+webpack 5.101.1 compiled with 18 errors and 106 warnings in 5692 ms

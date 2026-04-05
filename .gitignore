@@ -34,7 +34,10 @@ Thumbs.db
 # Local DB / volumes (if any)
 db_data/
 
-# secrets
-PAT.txt
-*.token
-*.pat
+# Local scratch / dumps (do not commit)
+*.bak
+PLANO_REACT_PLANNER_FULL_DUMP.txt
+
+# temporary analysis files
+claude_project_review.txt
+claude_core_files.tar.gz

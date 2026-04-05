@@ -105,7 +105,7 @@ export default function Toolbar(props: ToolbarProps) {
     },
     {
       index: 2,
-      condition: allowProjectFileSupport,
+      condition: false,
       dom: <ToolbarLoadButton state={state} />
     },
     {

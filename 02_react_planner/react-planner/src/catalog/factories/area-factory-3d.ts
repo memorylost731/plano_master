@@ -3,14 +3,15 @@ import {
   DoubleSide,
   Mesh,
   MeshBasicMaterial,
-  MeshPhongMaterial,
+  MeshStandardMaterial,
   Object3D,
   Object3DEventMap,
   RepeatWrapping,
   Shape,
   ShapeGeometry,
   TextureLoader,
-  Vector2
+  Vector2,
+  SRGBColorSpace
 } from 'three';
 
 import { Area, Layer, Scene, Vertex } from '../../models';
@@ -25,7 +26,7 @@ import { CatalogElementTextures } from '../../types';
  * @param height: The height of the face
  */
 const applyTexture = (
-  material: MeshPhongMaterial,
+  material: MeshStandardMaterial,
   texture: CatalogElementTextures[string],
   length: number,
   height: number
@@ -34,13 +35,16 @@ const applyTexture = (
 
   if (texture) {
     material.map = loader.load(texture.uri);
+    if (material.map) {
+      material.map.colorSpace = SRGBColorSpace;
+      material.map.wrapS = RepeatWrapping;
+      material.map.wrapT = RepeatWrapping;
+      material.map.repeat.set(
+        length * texture.lengthRepeatScale,
+        height * texture.heightRepeatScale
+      );
+    }
     material.needsUpdate = true;
-    material.map.wrapS = RepeatWrapping;
-    material.map.wrapT = RepeatWrapping;
-    material.map.repeat.set(
-      length * texture.lengthRepeatScale,
-      height * texture.heightRepeatScale
-    );
 
     if (texture.normal) {
       material.normalMap = loader.load(texture.normal.uri);
@@ -48,12 +52,14 @@ const applyTexture = (
         texture.normal.normalScaleX,
         texture.normal.normalScaleY
       );
-      material.normalMap.wrapS = RepeatWrapping;
-      material.normalMap.wrapT = RepeatWrapping;
-      material.normalMap.repeat.set(
-        length * texture.normal.lengthRepeatScale,
-        height * texture.normal.heightRepeatScale
-      );
+      if (material.normalMap) {
+        material.normalMap.wrapS = RepeatWrapping;
+        material.normalMap.wrapT = RepeatWrapping;
+        material.normalMap.repeat.set(
+          length * texture.normal.lengthRepeatScale,
+          height * texture.normal.heightRepeatScale
+        );
+      }
     }
   }
 };
@@ -102,11 +108,9 @@ export function createArea(
   });
 
   const textureName = element.properties.texture;
-  let color = element.properties.patternColor;
+  let color = element.properties.patternColor || '#e8e5de';
 
-  if (element.selected) {
-    color = SharedStyle.AREA_MESH_COLOR.selected;
-  } else if (textureName && textureName !== 'none') {
+  if (textureName && textureName !== 'none') {
     color = SharedStyle.AREA_MESH_COLOR.unselected;
   }
 
@@ -116,9 +120,13 @@ export function createArea(
     shape.lineTo(vertices[i].x, vertices[i].y);
   }
 
-  const areaMaterial = new MeshPhongMaterial({ side: DoubleSide, color });
+  const areaMaterial = new MeshStandardMaterial({
+    side: DoubleSide,
+    color,
+    roughness: 0.6,
+    metalness: 0,
+  });
 
-  /* Create holes for the area */
   element.holes.forEach((holeID) => {
     let holeCoords: [number, number][] = [];
     layer.areas[holeID].vertices.forEach((vertexID) => {
@@ -131,7 +139,6 @@ export function createArea(
   });
 
   const shapeGeometry = new ShapeGeometry(shape);
-  //assignUVs(shapeGeometry);
 
   const boundingBox = new Box3().setFromObject(
     new Mesh(shapeGeometry, new MeshBasicMaterial())
@@ -146,8 +153,21 @@ export function createArea(
 
   const area = new Mesh(shapeGeometry, areaMaterial);
 
+  const sceneArea =
+    Math.abs(
+      vertices.reduce((sum, v, i) => {
+        const j = (i + 1) % vertices.length;
+        return sum + v.x * vertices[j].y - vertices[j].x * v.y;
+      }, 0)
+    ) / 2;
+
   area.rotation.x -= Math.PI / 2;
   area.name = 'floor';
+  area.receiveShadow = true;
+  area.userData = {
+    areaId: element.id,
+    sceneArea
+  };
 
   return area;
 }
@@ -170,11 +190,10 @@ export function updatedArea(
   const floor = mesh.getObjectByName('floor');
 
   if (differences[0] == 'selected') {
-    const color = element.selected
-      ? SharedStyle.AREA_MESH_COLOR.selected
-      : element.properties.patternColor ||
+    const color =
+      element.properties.patternColor ||
       SharedStyle.AREA_MESH_COLOR.unselected;
-    ((floor as Mesh).material as MeshPhongMaterial).color.set(color);
+    ((floor as Mesh).material as MeshStandardMaterial).color.set(color);
   } else if (differences[0] == 'properties') {
     if (differences[1] === 'texture') {
       return noPerf();

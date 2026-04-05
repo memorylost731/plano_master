@@ -1,0 +1,1828 @@
+===== FILE INVENTORY =====
+02_react_planner/react-planner/src/components/catalog-view/catalog-view.tsx
+02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx
+02_react_planner/react-planner/src/components/catalog-view/catalog-page-item.tsx
+02_react_planner/react-planner/src/components/catalog-view/catalog-turn-back-page-item.tsx
+02_react_planner/react-planner/src/actions/project-actions.ts
+02_react_planner/react-planner/src/reducers/project-reducer.ts
+02_react_planner/react-planner/src/class/project.ts
+02_react_planner/react-planner/src/constants.ts
+
+==================== FILE: 02_react_planner/react-planner/src/components/catalog-view/catalog-view.tsx ====================
+MISSING: 02_react_planner/react-planner/src/components/catalog-view/catalog-view.tsx
+
+==================== FILE: 02_react_planner/react-planner/src/components/catalog-view/catalog-item.tsx ====================
+import React, { Component } from 'react';
+
+import { FaPlusCircle as IconAdd } from 'react-icons/fa';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { CatalogElement } from '../../types';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .15s ease-in-out',
+  WebkitTransition: 'all .15s ease-in-out',
+  alignSelf: 'center',
+  justifySelf: 'center'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_TITLE = {
+  width: '100%',
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '.5em',
+  textTransform: 'capitalize'
+} as const;
+
+const STYLE_TITLE_HOVER = {
+  ...STYLE_TITLE,
+  color: SharedStyle.COLORS.white
+} as const;
+
+const STYLE_IMAGE_CONTAINER = {
+  width: '100%',
+  height: '8em',
+  position: 'relative',
+  overflow: 'hidden',
+  border: 'solid 1px #e6e6e6',
+  padding: 0,
+  margin: 0,
+  marginBottom: '5px'
+} as const;
+
+const STYLE_IMAGE = {
+  position: 'absolute',
+  background: '#222',
+  width: '100%',
+  height: '100%',
+  backgroundSize: 'contain',
+  backgroundPosition: '50% 50%',
+  backgroundColor: SharedStyle.COLORS.white,
+  backgroundRepeat: 'no-repeat',
+  transition: 'all .2s ease-in-out'
+} as const;
+
+const STYLE_IMAGE_HOVER = {
+  ...STYLE_IMAGE,
+  transform: 'scale(1.2)'
+} as const;
+
+const STYLE_PLUS_HOVER = {
+  marginTop: '1.5em',
+  color: SharedStyle.SECONDARY_COLOR.main,
+  fontSize: '2em',
+  opacity: '0.7',
+  width: '100%'
+} as const;
+
+const STYLE_DESCRIPTION = {
+  display: 'block',
+  height: '2em',
+  margin: '0 auto',
+  fontSize: '0.75em',
+  fontStyle: 'italic',
+  lineHeight: '1em',
+  WebkitLineClamp: '2',
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
+} as const;
+
+const STYLE_TAGS = {
+  listStyle: 'none',
+  margin: '0px',
+  padding: '0px',
+  fontSize: '11px',
+  marginBottom: '3px'
+} as const;
+
+const STYLE_TAG = {
+  display: 'inline-block',
+  background: '#337ab7',
+  color: SharedStyle.COLORS.white,
+  padding: '1px 4px',
+  marginRight: '3px',
+  borderRadius: '3px'
+} as const;
+
+interface CatalogItemProps {
+  element: CatalogElement;
+}
+
+interface CatalogItemState {
+  hover: boolean;
+}
+
+export default class CatalogItem extends Component<
+  CatalogItemProps,
+  CatalogItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogItemProps,
+    context: React.ContextType<typeof ReactPlannerContext>
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  select() {
+    const element = this.props.element;
+
+    switch (element.prototype) {
+      case 'lines':
+        this.context.linesActions.selectToolDrawingLine(element.name);
+        break;
+      case 'items':
+        this.context.itemsActions.selectToolDrawingItem(element.name);
+        break;
+      case 'holes':
+        this.context.holesActions.selectToolDrawingHole(element.name);
+        break;
+    }
+
+    this.context.projectActions.pushLastSelectedCatalogElementToHistory(
+      element
+    );
+  }
+
+  render() {
+    const element = this.props.element;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.select()}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        <b style={!hover ? STYLE_TITLE : STYLE_TITLE_HOVER}>
+          {element.info.title}
+        </b>
+        <div style={STYLE_IMAGE_CONTAINER}>
+          <div
+            style={{
+              ...(!hover ? STYLE_IMAGE : STYLE_IMAGE_HOVER),
+              backgroundImage: 'url(' + element.info.image + ')'
+            }}
+          >
+            {hover ? <IconAdd style={STYLE_PLUS_HOVER} /> : null}
+          </div>
+        </div>
+        <ul style={STYLE_TAGS}>
+          {element.info.tag.map((tag, index) => (
+            <li style={STYLE_TAG} key={index}>
+              {tag}
+            </li>
+          ))}
+        </ul>
+        <div style={STYLE_DESCRIPTION}>{element.info.description}</div>
+      </div>
+    );
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/catalog-view/catalog-page-item.tsx ====================
+import React, { Component } from 'react';
+
+import { MdNavigateNext } from 'react-icons/md';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .2s ease-in-out',
+  WebkitTransition: 'all .2s ease-in-out',
+  alignSelf: 'center',
+  justifySelf: 'center'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_TITLE = {
+  width: '100%',
+  position: 'absolute',
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '.5em',
+  padding: '1em',
+  textTransform: 'capitalize',
+  WebkitTransition: 'all .15s ease-in-out'
+} as const;
+
+const STYLE_TITLE_HOVERED = {
+  ...STYLE_TITLE,
+  fontSize: '1.4em',
+  transform: 'translateY(-60px)',
+  color: 'rgb(28, 166, 252)',
+  marginTop: '0.5em'
+} as const;
+
+const STYLE_NEXT_HOVER = {
+  position: 'absolute',
+  color: SharedStyle.SECONDARY_COLOR.main,
+  fontSize: '5em',
+  width: '100%'
+} as const;
+
+const CONTAINER_DIV = {
+  background: SharedStyle.COLORS.white,
+  marginBottom: '5px',
+  border: 'solid 1px #EEE',
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+} as const;
+
+interface CatalogPageItemProps {
+  page: {
+    name: string;
+    label: string;
+    [key: string]: any;
+  };
+  oldPage: {
+    name: string;
+    label: string;
+    [key: string]: any;
+  };
+}
+
+interface CatalogPageItemState {
+  hover: boolean;
+}
+
+export default class CatalogPageItem extends Component<
+  CatalogPageItemProps,
+  CatalogPageItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogPageItemProps,
+    context: React.ContextType<typeof ReactPlannerContext>
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  changePage(newPage: string) {
+    this.context.projectActions.changeCatalogPage(
+      newPage,
+      this.props.oldPage.name
+    );
+  }
+
+  render() {
+    const page = this.props.page;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.changePage(page.name)}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        {hover ? (
+          <div style={CONTAINER_DIV}>
+            <b style={STYLE_TITLE_HOVERED}>{page.label}</b>
+            <MdNavigateNext style={STYLE_NEXT_HOVER} />
+          </div>
+        ) : (
+          <div style={CONTAINER_DIV}>
+            <b style={STYLE_TITLE}>{page.label}</b>
+          </div>
+        )}
+      </div>
+    );
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/components/catalog-view/catalog-turn-back-page-item.tsx ====================
+import React, { Component } from 'react';
+
+import { MdNavigateBefore } from 'react-icons/md';
+
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+
+const STYLE_BOX = {
+  width: '14em',
+  height: '14em',
+  padding: '0.625em',
+  background: '#f7f7f9',
+  border: '1px solid #e1e1e8',
+  margin: '0.3em',
+  cursor: 'pointer',
+  position: 'relative',
+  boxShadow: '0 1px 6px 0 rgba(0, 0, 0, 0.11), 0 1px 4px 0 rgba(0, 0, 0, 0.11)',
+  borderRadius: '2px',
+  transition: 'all .2s ease-in-out',
+  WebkitTransition: 'all .2s ease-in-out'
+} as const;
+
+const STYLE_BOX_HOVER = {
+  ...STYLE_BOX,
+  background: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const STYLE_BACK = {
+  position: 'absolute',
+  color: SharedStyle.COLORS.black,
+  fontSize: '5em',
+  width: '100%'
+} as const;
+
+const STYLE_BACK_HOVER = {
+  ...STYLE_BACK,
+  color: SharedStyle.SECONDARY_COLOR.main
+} as const;
+
+const CONTAINER_DIV = {
+  background: SharedStyle.COLORS.white,
+  marginBottom: '5px',
+  border: 'solid 1px #e6e6e6',
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+} as const;
+
+interface CatalogTurnBackPageItemProps {
+  page: {
+    name: string;
+    label: string;
+    [key: string]: any;
+  };
+}
+
+interface CatalogTurnBackPageItemState {
+  hover: boolean;
+}
+
+export default class CatalogTurnBackPageItem extends Component<
+  CatalogTurnBackPageItemProps,
+  CatalogTurnBackPageItemState
+> {
+  static contextType = ReactPlannerContext;
+  context!: React.ContextType<typeof ReactPlannerContext>;
+
+  constructor(
+    props: CatalogTurnBackPageItemProps,
+    context: typeof ReactPlannerContext
+  ) {
+    super(props, context);
+    this.state = { hover: false };
+  }
+
+  changePage(newPage: string) {
+    this.context.projectActions.goBackToCatalogPage(newPage);
+  }
+
+  render() {
+    const page = this.props.page;
+    const hover = this.state.hover;
+
+    return (
+      <div
+        style={hover ? STYLE_BOX_HOVER : STYLE_BOX}
+        onClick={(e) => this.changePage(page.name)}
+        onMouseEnter={(e) => this.setState({ hover: true })}
+        onMouseLeave={(e) => this.setState({ hover: false })}
+      >
+        <div style={CONTAINER_DIV}>
+          <MdNavigateBefore style={!hover ? STYLE_BACK : STYLE_BACK_HOVER} />
+        </div>
+      </div>
+    );
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/actions/project-actions.ts ====================
+import { ReactNode } from 'react';
+
+import { produce } from 'immer';
+
+import { CatalogJson } from '../catalog/catalog';
+import {
+  ADD_CIRCULAR_GUIDE,
+  ADD_HORIZONTAL_GUIDE,
+  ADD_VERTICAL_GUIDE,
+  ALTERATE_STATE,
+  CHANGE_CATALOG_PAGE,
+  COPY_PROPERTIES,
+  GO_BACK_TO_CATALOG_PAGE,
+  INIT_CATALOG,
+  LOAD_PROJECT,
+  ModeType,
+  NEW_PROJECT,
+  OPEN_CATALOG,
+  OPEN_PROJECT_CONFIGURATOR,
+  PASTE_PROPERTIES,
+  PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY,
+  REMOVE,
+  REMOVE_CIRCULAR_GUIDE,
+  REMOVE_HORIZONTAL_GUIDE,
+  REMOVE_VERTICAL_GUIDE,
+  ROLLBACK,
+  SAVE_PROJECT,
+  SELECT_TOOL_EDIT,
+  SET_AREAS_ATTRIBUTES,
+  SET_HOLES_ATTRIBUTES,
+  SET_ITEMS_ATTRIBUTES,
+  SET_LINES_ATTRIBUTES,
+  SET_MODE,
+  SET_PROJECT_PROPERTIES,
+  SET_PROPERTIES,
+  THROW_ERROR,
+  THROW_WARNING,
+  TOGGLE_SNAP,
+  UNDO,
+  UNSELECT_ALL,
+  UPDATE_MOUSE_COORDS,
+  UPDATE_ZOOM_SCALE
+} from '../constants';
+import { Area, Item, Scene } from '../models';
+import {
+  CatalogElement,
+  HoleAttributes,
+  LineAttributes,
+  SnapMaskType
+} from '../types';
+
+export function loadProject(sceneJSON: Scene) {
+  return {
+    type: LOAD_PROJECT,
+    sceneJSON
+  };
+}
+
+export function newProject() {
+  return {
+    type: NEW_PROJECT
+  };
+}
+
+export function saveProject() {
+  return {
+    type: SAVE_PROJECT
+  };
+}
+
+export function openCatalog() {
+  return {
+    type: OPEN_CATALOG
+  };
+}
+
+export function changeCatalogPage(newPage: string, oldPage: string) {
+  return {
+    type: CHANGE_CATALOG_PAGE,
+    newPage,
+    oldPage
+  };
+}
+
+export function goBackToCatalogPage(newPage: string) {
+  return {
+    type: GO_BACK_TO_CATALOG_PAGE,
+    newPage
+  };
+}
+
+export function selectToolEdit() {
+  return {
+    type: SELECT_TOOL_EDIT
+  };
+}
+
+export function unselectAll() {
+  return {
+    type: UNSELECT_ALL
+  };
+}
+
+export function setProperties(properties: Record<string, any>) {
+  return {
+    type: SET_PROPERTIES,
+    properties
+  };
+}
+
+export function setItemsAttributes(itemsAttributes: Item) {
+  itemsAttributes = produce(itemsAttributes, (draft) => {
+    draft.rotation = parseFloat(draft.rotation as any);
+  });
+
+  return {
+    type: SET_ITEMS_ATTRIBUTES,
+    itemsAttributes
+  };
+}
+
+export function setLinesAttributes(linesAttributes: LineAttributes) {
+  linesAttributes = produce(linesAttributes, (draft) => {
+    draft.vertexOne.x = parseFloat(draft.vertexOne.x as any);
+    draft.vertexOne.y = parseFloat(draft.vertexOne.y as any);
+    draft.vertexTwo.x = parseFloat(draft.vertexTwo.x as any);
+    draft.vertexTwo.y = parseFloat(draft.vertexTwo.y as any);
+  });
+
+  return {
+    type: SET_LINES_ATTRIBUTES,
+    linesAttributes
+  };
+}
+
+export function setHolesAttributes(holesAttributes: HoleAttributes) {
+  holesAttributes = produce(holesAttributes, (draft) => {
+    draft.offset = parseFloat(draft.offset as any);
+  });
+
+  return {
+    type: SET_HOLES_ATTRIBUTES,
+    holesAttributes
+  };
+}
+
+export function setAreasAttributes(areasAttributes: Area) {
+  return {
+    type: SET_AREAS_ATTRIBUTES,
+    areasAttributes
+  };
+}
+
+export function remove() {
+  return {
+    type: REMOVE
+  };
+}
+
+export function undo() {
+  return {
+    type: UNDO
+  };
+}
+
+export function rollback() {
+  return {
+    type: ROLLBACK
+  };
+}
+
+export function openProjectConfigurator() {
+  return {
+    type: OPEN_PROJECT_CONFIGURATOR
+  };
+}
+
+export function setProjectProperties(properties: Partial<Scene>) {
+  return {
+    type: SET_PROJECT_PROPERTIES,
+    properties
+  };
+}
+
+export function initCatalog(catalog: CatalogJson) {
+  return {
+    type: INIT_CATALOG,
+    catalog
+  };
+}
+
+export function updateMouseCoord({ x = 0, y = 0 }: { x: number; y: number }) {
+  return {
+    type: UPDATE_MOUSE_COORDS,
+    coords: { x, y }
+  };
+}
+
+export function updateZoomScale(scale: number) {
+  return {
+    type: UPDATE_ZOOM_SCALE,
+    scale
+  };
+}
+
+export function toggleSnap(mask: SnapMaskType) {
+  return {
+    type: TOGGLE_SNAP,
+    mask
+  };
+}
+
+export function throwError(error: ReactNode) {
+  return {
+    type: THROW_ERROR,
+    error
+  };
+}
+
+export function throwWarning(warning: ReactNode) {
+  return {
+    type: THROW_WARNING,
+    warning
+  };
+}
+
+export function copyProperties(properties: Record<string, any>) {
+  return {
+    type: COPY_PROPERTIES,
+    properties
+  };
+}
+
+export function pasteProperties() {
+  return {
+    type: PASTE_PROPERTIES
+  };
+}
+
+export function pushLastSelectedCatalogElementToHistory(
+  element: CatalogElement
+) {
+  return {
+    type: PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY,
+    element
+  };
+}
+
+export function setAlterateState(alterate?: boolean) {
+  return {
+    type: ALTERATE_STATE,
+    alterate
+  };
+}
+
+export function setMode(mode: ModeType) {
+  return {
+    type: SET_MODE,
+    mode
+  };
+}
+
+export function addHorizontalGuide(coordinate: number) {
+  return {
+    type: ADD_HORIZONTAL_GUIDE,
+    coordinate
+  };
+}
+
+export function addVerticalGuide(coordinate: number) {
+  return {
+    type: ADD_VERTICAL_GUIDE,
+    coordinate
+  };
+}
+
+export function addCircularGuide(x: number, y: number, radius: number) {
+  return {
+    type: ADD_CIRCULAR_GUIDE,
+    x,
+    y,
+    radius
+  };
+}
+export function removeHorizontalGuide(guideID: string) {
+  return {
+    type: REMOVE_HORIZONTAL_GUIDE,
+    guideID
+  };
+}
+
+export function removeVerticalGuide(guideID: string) {
+  return {
+    type: REMOVE_VERTICAL_GUIDE,
+    guideID
+  };
+}
+
+export function removeCircularGuide(guideID: string) {
+  return {
+    type: REMOVE_CIRCULAR_GUIDE,
+    guideID
+  };
+}
+
+==================== FILE: 02_react_planner/react-planner/src/reducers/project-reducer.ts ====================
+import { ReactNode } from 'react';
+
+import { produce } from 'immer';
+
+import { Project } from '../class/export';
+import {
+  ADD_CIRCULAR_GUIDE,
+  ADD_HORIZONTAL_GUIDE,
+  ADD_VERTICAL_GUIDE,
+  ALTERATE_STATE,
+  CHANGE_CATALOG_PAGE,
+  COPY_PROPERTIES,
+  GO_BACK_TO_CATALOG_PAGE,
+  INIT_CATALOG,
+  LOAD_PROJECT,
+  MODE_IDLE,
+  ModeType,
+  NEW_PROJECT,
+  OPEN_CATALOG,
+  OPEN_PROJECT_CONFIGURATOR,
+  PASTE_PROPERTIES,
+  PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY,
+  REMOVE,
+  REMOVE_CIRCULAR_GUIDE,
+  REMOVE_HORIZONTAL_GUIDE,
+  REMOVE_VERTICAL_GUIDE,
+  ROLLBACK,
+  SELECT_TOOL_EDIT,
+  SET_AREAS_ATTRIBUTES,
+  SET_HOLES_ATTRIBUTES,
+  SET_ITEMS_ATTRIBUTES,
+  SET_LINES_ATTRIBUTES,
+  SET_MODE,
+  SET_PROJECT_PROPERTIES,
+  SET_PROPERTIES,
+  THROW_ERROR,
+  THROW_WARNING,
+  TOGGLE_SNAP,
+  UNDO,
+  UNSELECT_ALL,
+  UPDATE_MOUSE_COORDS,
+  UPDATE_ZOOM_SCALE
+} from '../constants';
+import { Area, CatalogState, Item, Scene, State } from '../models';
+import {
+  CatalogElement,
+  HoleAttributes,
+  LineAttributes,
+  SnapMaskType
+} from '../types';
+import { history } from '../utils/export';
+
+export type NewProjectAction = {
+  type: typeof NEW_PROJECT;
+};
+
+export type LoadProjectAction = {
+  type: typeof LOAD_PROJECT;
+  sceneJSON: Scene;
+};
+
+export type OpenCatalogAction = {
+  type: typeof OPEN_CATALOG;
+};
+
+export type ChangeCatalogPageAction = {
+  type: typeof CHANGE_CATALOG_PAGE;
+  oldPage: string;
+  newPage: string;
+};
+
+export type GoBackToCatalogPageAction = {
+  type: typeof GO_BACK_TO_CATALOG_PAGE;
+  newPage: string;
+};
+
+export type SelectToolEditAction = {
+  type: typeof SELECT_TOOL_EDIT;
+};
+
+export type UnselectAllAction = {
+  type: typeof UNSELECT_ALL;
+};
+
+export type SetPropertiesAction = {
+  type: typeof SET_PROPERTIES;
+  properties: Record<string, any>;
+};
+
+export type SetItemsAttributesAction = {
+  type: typeof SET_ITEMS_ATTRIBUTES;
+  itemsAttributes: Partial<Item>;
+};
+
+export type SetLinesAttributesAction = {
+  type: typeof SET_LINES_ATTRIBUTES;
+  linesAttributes: Partial<LineAttributes>;
+};
+
+export type SetHolesAttributesAction = {
+  type: typeof SET_HOLES_ATTRIBUTES;
+  holesAttributes: Partial<HoleAttributes>;
+};
+
+export type SetAreasAttributesAction = {
+  type: typeof SET_AREAS_ATTRIBUTES;
+  areasAttributes: Partial<Area>;
+};
+
+export type RemoveAction = {
+  type: typeof REMOVE;
+};
+
+export type UnDoAction = {
+  type: typeof UNDO;
+};
+
+export type RollbackAction = {
+  type: typeof ROLLBACK;
+};
+
+export type SetProjectPropertiesAction = {
+  type: typeof SET_PROJECT_PROPERTIES;
+  properties: Partial<Scene>;
+};
+
+export type OpenProjectConfiguratorAction = {
+  type: typeof OPEN_PROJECT_CONFIGURATOR;
+};
+
+export type InitCatalogAction = {
+  type: typeof INIT_CATALOG;
+  catalog: CatalogState;
+};
+
+export type UpdateMouseCoordsAction = {
+  type: typeof UPDATE_MOUSE_COORDS;
+  coords: { x: number; y: number };
+};
+
+export type UpdateZoomScaleAction = {
+  type: typeof UPDATE_ZOOM_SCALE;
+  scale: number;
+};
+
+export type ToggleSnapAction = {
+  type: typeof TOGGLE_SNAP;
+  mask: SnapMaskType;
+};
+
+export type ThrowErrorAction = {
+  type: typeof THROW_ERROR;
+  error: ReactNode;
+};
+
+export type ThrowWarningAction = {
+  type: typeof THROW_WARNING;
+  warning: ReactNode;
+};
+
+export type CopyPropertiesAction = {
+  type: typeof COPY_PROPERTIES;
+  properties: Record<string, any>;
+};
+
+export type PastePropertiesAction = {
+  type: typeof PASTE_PROPERTIES;
+};
+
+export type PushLastSelectedCatalogElementToHistoryAction = {
+  type: typeof PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY;
+  element: CatalogElement;
+};
+
+export type AlterateStateAction = {
+  type: typeof ALTERATE_STATE;
+  alterate?: boolean;
+};
+
+export type SetModeAction = {
+  type: typeof SET_MODE;
+  mode: ModeType;
+};
+
+export type AddHorizontalGuideAction = {
+  type: typeof ADD_HORIZONTAL_GUIDE;
+  coordinate: number;
+};
+
+export type AddVerticalGuideAction = {
+  type: typeof ADD_VERTICAL_GUIDE;
+  coordinate: number;
+};
+
+export type AddCircularGuideAction = {
+  type: typeof ADD_CIRCULAR_GUIDE;
+  x: number;
+  y: number;
+  radius: number;
+};
+
+export type RemoveHorizontalGuideAction = {
+  type: typeof REMOVE_HORIZONTAL_GUIDE;
+  guideID: string;
+};
+
+export type RemoveVerticalGuideAction = {
+  type: typeof REMOVE_VERTICAL_GUIDE;
+  guideID: string;
+};
+
+export type RemoveCircularGuideAction = {
+  type: typeof REMOVE_CIRCULAR_GUIDE;
+  guideID: string;
+};
+
+export type ProjectAction =
+  | NewProjectAction
+  | LoadProjectAction
+  | OpenCatalogAction
+  | ChangeCatalogPageAction
+  | GoBackToCatalogPageAction
+  | SelectToolEditAction
+  | UnselectAllAction
+  | SetPropertiesAction
+  | SetItemsAttributesAction
+  | SetLinesAttributesAction
+  | SetHolesAttributesAction
+  | SetAreasAttributesAction
+  | RemoveAction
+  | UnDoAction
+  | RollbackAction
+  | SetProjectPropertiesAction
+  | OpenProjectConfiguratorAction
+  | InitCatalogAction
+  | UpdateMouseCoordsAction
+  | UpdateZoomScaleAction
+  | ToggleSnapAction
+  | ThrowErrorAction
+  | ThrowWarningAction
+  | CopyPropertiesAction
+  | PastePropertiesAction
+  | PushLastSelectedCatalogElementToHistoryAction
+  | AlterateStateAction
+  | SetModeAction
+  | AddHorizontalGuideAction
+  | AddVerticalGuideAction
+  | AddCircularGuideAction
+  | RemoveHorizontalGuideAction
+  | RemoveVerticalGuideAction
+  | RemoveCircularGuideAction;
+
+export default function projectReducer(
+  state: State,
+  action: ProjectAction
+): State {
+  switch (action.type) {
+    case NEW_PROJECT:
+      return Project.newProject(state);
+
+    case LOAD_PROJECT:
+      return Project.loadProject(state, action.sceneJSON);
+
+    case OPEN_CATALOG:
+      return Project.openCatalog(state);
+
+    case CHANGE_CATALOG_PAGE:
+      return Project.changeCatalogPage(state, action.oldPage, action.newPage);
+
+    case GO_BACK_TO_CATALOG_PAGE:
+      return Project.goBackToCatalogPage(state, action.newPage);
+
+    case SELECT_TOOL_EDIT:
+      return Project.setMode(state, MODE_IDLE);
+
+    case UNSELECT_ALL:
+      return Project.unselectAll(state);
+
+    case SET_PROPERTIES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setProperties(
+        state,
+        state.scene.selectedLayer as string,
+        action.properties
+      );
+
+    case SET_ITEMS_ATTRIBUTES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setItemsAttributes(state, action.itemsAttributes);
+
+    case SET_LINES_ATTRIBUTES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setLinesAttributes(state, action.linesAttributes);
+
+    case SET_HOLES_ATTRIBUTES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setHolesAttributes(state, action.holesAttributes);
+
+    case SET_AREAS_ATTRIBUTES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setAreasAttributes(state, action.areasAttributes);
+
+    case REMOVE:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.remove(state);
+
+    case UNDO:
+      return Project.undo(state);
+
+    case ROLLBACK:
+      return Project.rollback(state);
+
+    case SET_PROJECT_PROPERTIES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setProjectProperties(state, action.properties);
+
+    case OPEN_PROJECT_CONFIGURATOR:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.openProjectConfigurator(state);
+
+    case INIT_CATALOG:
+      return Project.initCatalog(state, action.catalog);
+
+    case UPDATE_MOUSE_COORDS:
+      return Project.updateMouseCoord(state, action.coords);
+
+    case UPDATE_ZOOM_SCALE:
+      return Project.updateZoomScale(state, action.scale);
+
+    case TOGGLE_SNAP:
+      return Project.toggleSnap(state, action.mask);
+
+    case THROW_ERROR:
+      return Project.throwError(state, action.error);
+
+    case THROW_WARNING:
+      return Project.throwWarning(state, action.warning);
+
+    case COPY_PROPERTIES:
+      return Project.copyProperties(state, action.properties);
+
+    case PASTE_PROPERTIES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.pasteProperties(state);
+
+    case PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY:
+      return Project.pushLastSelectedCatalogElementToHistory(
+        state,
+        action.element
+      );
+
+    case ALTERATE_STATE:
+      return Project.setAlterate(state, action.alterate);
+
+    case SET_MODE:
+      return Project.setMode(state, action.mode);
+
+    case ADD_HORIZONTAL_GUIDE:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.addHorizontalGuide(state, action.coordinate);
+
+    case ADD_VERTICAL_GUIDE:
+      return Project.addVerticalGuide(state, action.coordinate);
+
+    case ADD_CIRCULAR_GUIDE:
+      return Project.addCircularGuide(state, action.x, action.y, action.radius);
+
+    case REMOVE_HORIZONTAL_GUIDE:
+      return Project.removeHorizontalGuide(state, action.guideID);
+
+    case REMOVE_VERTICAL_GUIDE:
+      return Project.removeVerticalGuide(state, action.guideID);
+
+    case REMOVE_CIRCULAR_GUIDE:
+      return Project.removeCircularGuide(state, action.guideID);
+  }
+}
+
+==================== FILE: 02_react_planner/react-planner/src/class/project.ts ====================
+import { ReactNode } from 'react';
+
+import { produce } from 'immer';
+
+import {
+  Group,
+  Hole,
+  HorizontalGuide,
+  Item,
+  Layer,
+  Line,
+  VerticalGuide
+} from '../class/export';
+import {
+  MODE_CONFIGURING_PROJECT,
+  MODE_IDLE,
+  MODE_VIEWING_CATALOG,
+  ModeType
+} from '../constants';
+import { CatalogProps, CatalogState, Scene, SceneJson, State } from '../models';
+import { CatalogElement, SnapMaskType } from '../types';
+import { history } from '../utils/export';
+
+class Project {
+  static setAlterate(state: State, alterate?: boolean) {
+    return produce(state, (draft) => {
+      draft.alterate = alterate === undefined ? !draft.alterate : alterate;
+    });
+  }
+
+  static openCatalog(state: State) {
+    return this.setMode(state, MODE_VIEWING_CATALOG);
+  }
+
+  static newProject(state: State) {
+    return State({ viewer2D: state.viewer2D });
+  }
+
+  static loadProject(state: State, sceneJSON: SceneJson) {
+    return State({ scene: sceneJSON, catalog: state.catalog });
+  }
+
+  static setProperties(
+    state: State,
+    layerID: string,
+    properties: Record<string, any>
+  ) {
+    return Layer.setPropertiesOnSelected(state, layerID, properties);
+  }
+
+  static updateProperties(
+    state: State,
+    layerID: string,
+    properties: Record<string, any>
+  ) {
+    return Layer.updatePropertiesOnSelected(state, layerID, properties);
+  }
+
+  static setItemsAttributes(state: State, attributes: Partial<Item>) {
+    //TODO apply only to items
+    return produce(state, (draft) => {
+      Object.values(draft.scene.layers).forEach((layer) => {
+        draft = Layer.setAttributesOnSelected(draft, layer.id, attributes);
+      });
+      return draft;
+    });
+  }
+
+  static setLinesAttributes(state: State, attributes: Partial<Line>) {
+    //TODO apply only to lines
+    Object.values(state.scene.layers).forEach((layer) => {
+      state = Layer.setAttributesOnSelected(state, layer.id, attributes);
+    });
+    return state;
+  }
+
+  static setHolesAttributes(state: State, attributes: Partial<Hole>) {
+    //TODO apply only to holes
+    return produce(state, (draft) => {
+      Object.values(draft.scene.layers).forEach((layer) => {
+        draft = Layer.setAttributesOnSelected(draft, layer.id, attributes);
+      });
+      return draft;
+    });
+  }
+
+  static setAreasAttributes(state: State, attributes: Partial<Item>) {
+    //TODO apply only to areas
+    return produce(state, (draft) => {
+      Object.values(draft.scene.layers).forEach((layer) => {
+        draft = Layer.setAttributesOnSelected(draft, layer.id, attributes);
+      });
+      return draft;
+    });
+  }
+
+  static unselectAll(state: State) {
+    Object.values(state.scene.layers).forEach((layer) => {
+      state = Layer.unselectAll(state, layer.id);
+    });
+    Object.values(state.scene.groups).forEach((group) => {
+      state = Group.unselect(state, group.id);
+    });
+    return state;
+  }
+
+  static remove(state: State) {
+    const selectedLayer = state.scene.selectedLayer;
+    if (selectedLayer === undefined) return state;
+    const {
+      lines: selectedLines,
+      holes: selectedHoles,
+      items: selectedItems
+    } = state.scene.layers[selectedLayer].selected;
+
+    state = Layer.unselectAll(state, selectedLayer);
+
+    selectedLines.forEach((lineID: string) => {
+      state = Line.remove(state, selectedLayer, lineID);
+    });
+    selectedHoles.forEach((holeID: string) => {
+      state = Hole.remove(state, selectedLayer, holeID);
+    });
+    selectedItems.forEach((itemID: string) => {
+      state = Item.remove(state, selectedLayer, itemID);
+    });
+
+    state = Layer.detectAndUpdateAreas(state, selectedLayer);
+    return state;
+  }
+
+  static undo(state: State) {
+    let sceneHistory = state.sceneHistory;
+    if (state.scene === sceneHistory.last && sceneHistory.list.length > 1) {
+      sceneHistory = history.historyPop(sceneHistory);
+    }
+
+    return produce(state, (draft) => {
+      draft.mode = MODE_IDLE;
+      draft.scene = sceneHistory.last;
+      draft.sceneHistory = history.historyPop(sceneHistory);
+    });
+  }
+
+  static rollback(state: State) {
+    const sceneHistory = state.sceneHistory;
+
+    if (!sceneHistory.last) {
+      return state;
+    }
+
+    state = this.unselectAll(state);
+
+    return produce(state, (draft) => {
+      draft.mode = MODE_IDLE;
+      draft.scene = sceneHistory.last;
+      draft.sceneHistory = history.historyPush(sceneHistory, sceneHistory.last);
+      draft.snapElements = [];
+      draft.activeSnapElement = null;
+      draft.drawingSupport = {};
+      draft.draggingSupport = undefined;
+      draft.rotatingSupport = undefined;
+    });
+  }
+
+  static setProjectProperties(state: State, properties: Partial<Scene>) {
+    return produce(state, (draft) => {
+      draft.mode = MODE_IDLE;
+      Object.assign(draft.scene, properties);
+    });
+  }
+
+  static openProjectConfigurator(state: State) {
+    return produce(state, (draft) => {
+      draft.mode = MODE_CONFIGURING_PROJECT;
+    });
+  }
+
+  static initCatalog(state: State, catalog: CatalogProps): State {
+    return State({
+      ...state,
+      catalog: CatalogState(catalog)
+    });
+  }
+
+  static updateMouseCoord(state: State, coords: { x: number; y: number }) {
+    return produce(state, (draft) => {
+      draft.mouse = coords;
+    });
+  }
+
+  static updateZoomScale(state: State, scale: number) {
+    return produce(state, (draft) => {
+      draft.zoom = scale;
+    });
+  }
+
+  static toggleSnap(state: State, mask: SnapMaskType) {
+    return produce(state, (draft) => {
+      draft.snapMask = mask;
+    });
+  }
+
+  static throwError(state: State, error: ReactNode) {
+    return produce(state, (draft) => {
+      draft.errors.push({
+        date: Date.now(),
+        error
+      });
+    });
+  }
+
+  static throwWarning(state: State, warning: ReactNode) {
+    return produce(state, (draft) => {
+      draft.warnings.push({
+        date: Date.now(),
+        warning
+      });
+    });
+  }
+
+  static copyProperties(state: State, properties: Record<string, any>) {
+    return produce(state, (draft) => {
+      draft.clipboardProperties = properties;
+    });
+  }
+
+  static pasteProperties(state: State) {
+    return produce(state, (draft) => {
+      const layerID = draft.scene.selectedLayer;
+      if (layerID !== undefined) {
+        const properties = draft.clipboardProperties;
+        draft = Layer.updatePropertiesOnSelected(draft, layerID, properties);
+      }
+      return draft;
+    });
+  }
+
+  static pushLastSelectedCatalogElementToHistory(
+    state: State,
+    element: CatalogElement
+  ) {
+    let currHistory = state.selectedElementsHistory;
+
+    const previousPosition = currHistory.findIndex(
+      (el) => el.name === element.name
+    );
+    if (previousPosition !== -1) {
+      currHistory = currHistory.splice(previousPosition, 1);
+    }
+    currHistory = currHistory.splice(0, 0, element);
+
+    return produce(state, (draft) => {
+      draft.selectedElementsHistory = currHistory;
+    });
+  }
+
+  static changeCatalogPage(state: State, oldPage: string, newPage: string) {
+    return produce(state, (draft) => {
+      draft.catalog.page = newPage;
+      draft.catalog.path.push(oldPage);
+    });
+  }
+
+  static goBackToCatalogPage(state: State, newPage: string) {
+    const pageIndex = state.catalog.path.findIndex((page) => page === newPage);
+    return produce(state, (draft) => {
+      draft.catalog.page = newPage;
+      draft.catalog.path = draft.catalog.path.slice(0, pageIndex);
+    });
+  }
+
+  static setMode(state: State, mode: ModeType) {
+    return { ...state, mode };
+  }
+
+  static addHorizontalGuide(state: State, coordinate: number) {
+    return HorizontalGuide.create(state, coordinate);
+  }
+
+  static addVerticalGuide(state: State, coordinate: number) {
+    return VerticalGuide.create(state, coordinate);
+  }
+
+  static addCircularGuide(state: State, x: number, y: number, radius: number) {
+    return state;
+  }
+
+  static removeHorizontalGuide(state: State, guideID: string) {
+    return HorizontalGuide.remove(state, guideID);
+  }
+
+  static removeVerticalGuide(state: State, guideID: string) {
+    return VerticalGuide.remove(state, guideID);
+  }
+
+  static removeCircularGuide(state: State, guideID: string) {
+    return state;
+  }
+}
+
+export { Project as default };
+
+==================== FILE: 02_react_planner/react-planner/src/constants.ts ====================
+import { Unit } from 'convert-units';
+
+// ACTIONS project
+export const NEW_PROJECT = 'NEW_PROJECT';
+export const LOAD_PROJECT = 'LOAD_PROJECT';
+export const SAVE_PROJECT = 'SAVE_PROJECT';
+export const OPEN_CATALOG = 'OPEN_CATALOG';
+export const SELECT_TOOL_EDIT = 'SELECT_TOOL_EDIT';
+export const UNSELECT_ALL = 'UNSELECT_ALL';
+export const SET_PROPERTIES = 'SET_PROPERTIES';
+export const SET_ITEMS_ATTRIBUTES = 'SET_ITEMS_ATTRIBUTES';
+export const SET_LINES_ATTRIBUTES = 'SET_LINES_ATTRIBUTES';
+export const SET_HOLES_ATTRIBUTES = 'SET_HOLES_ATTRIBUTES';
+export const SET_AREAS_ATTRIBUTES = 'SET_AREAS_ATTRIBUTES';
+export const REMOVE = 'REMOVE';
+export const UNDO = 'UNDO';
+export const ROLLBACK = 'ROLLBACK';
+export const SET_PROJECT_PROPERTIES = 'SET_PROJECT_PROPERTIES';
+export const OPEN_PROJECT_CONFIGURATOR = 'OPEN_PROJECT_CONFIGURATOR';
+export const INIT_CATALOG = 'INIT_CATALOG';
+export const UPDATE_MOUSE_COORDS = 'UPDATE_MOUSE_COORDS';
+export const UPDATE_ZOOM_SCALE = 'UPDATE_ZOOM_SCALE';
+export const TOGGLE_SNAP = 'TOGGLE_SNAP';
+export const CHANGE_CATALOG_PAGE = 'CHANGE_CATALOG_PAGE';
+export const GO_BACK_TO_CATALOG_PAGE = 'GO_BACK_TO_CATALOG_PAGE';
+export const THROW_ERROR = 'THROW_ERROR';
+export const THROW_WARNING = 'THROW_WARNING';
+export const COPY_PROPERTIES = 'COPY_PROPERTIES';
+export const PASTE_PROPERTIES = 'PASTE_PROPERTIES';
+export const PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY =
+  'PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY';
+export const ALTERATE_STATE = 'ALTERATE_STATE';
+export const SET_MODE = 'SET_MODE';
+export const ADD_HORIZONTAL_GUIDE = 'ADD_HORIZONTAL_GUIDE';
+export const ADD_VERTICAL_GUIDE = 'ADD_VERTICAL_GUIDE';
+export const ADD_CIRCULAR_GUIDE = 'ADD_CIRCULAR_GUIDE';
+export const REMOVE_HORIZONTAL_GUIDE = 'REMOVE_HORIZONTAL_GUIDE';
+export const REMOVE_VERTICAL_GUIDE = 'REMOVE_VERTICAL_GUIDE';
+export const REMOVE_CIRCULAR_GUIDE = 'REMOVE_CIRCULAR_GUIDE';
+
+// ACTIONS viewer2D
+export const SELECT_TOOL_ZOOM_IN = 'SELECT_TOOL_ZOOM_IN';
+export const SELECT_TOOL_ZOOM_OUT = 'SELECT_TOOL_ZOOM_OUT';
+export const SELECT_TOOL_PAN = 'SELECT_TOOL_PAN';
+export const UPDATE_2D_CAMERA = 'UPDATE_2D_CAMERA';
+
+//ACTIONS viewer3D
+export const SELECT_TOOL_3D_VIEW = 'SELECT_TOOL_3D_VIEW';
+export const SELECT_TOOL_3D_FIRST_PERSON = 'SELECT_TOOL_3D_FIRST_PERSON';
+
+//ACTIONS items
+export const SELECT_TOOL_DRAWING_ITEM = 'SELECT_TOOL_DRAWING_ITEM';
+export const UPDATE_DRAWING_ITEM = 'UPDATE_DRAWING_ITEM';
+export const END_DRAWING_ITEM = 'END_DRAWING_ITEM';
+export const BEGIN_DRAGGING_ITEM = 'BEGIN_DRAGGING_ITEM';
+export const UPDATE_DRAGGING_ITEM = 'UPDATE_DRAGGING_ITEM';
+export const END_DRAGGING_ITEM = 'END_DRAGGING_ITEM';
+export const BEGIN_ROTATING_ITEM = 'BEGIN_ROTATING_ITEM';
+export const UPDATE_ROTATING_ITEM = 'UPDATE_ROTATING_ITEM';
+export const END_ROTATING_ITEM = 'END_ROTATING_ITEM';
+
+//ACTIONS groups
+export const ADD_GROUP = 'ADD_GROUP';
+export const ADD_GROUP_FROM_SELECTED = 'ADD_GROUP_FROM_SELECTED';
+export const SELECT_GROUP = 'SELECT_GROUP';
+export const UNSELECT_GROUP = 'UNSELECT_GROUP';
+export const ADD_TO_GROUP = 'ADD_TO_GROUP';
+export const REMOVE_FROM_GROUP = 'REMOVE_FROM_GROUP';
+export const SET_GROUP_PROPERTIES = 'SET_GROUP_PROPERTIES';
+export const SET_GROUP_ATTRIBUTES = 'SET_GROUP_ATTRIBUTES';
+export const SET_GROUP_BARYCENTER = 'SET_GROUP_BARYCENTER';
+export const REMOVE_GROUP = 'REMOVE_GROUP';
+export const REMOVE_GROUP_AND_DELETE_ELEMENTS =
+  'REMOVE_GROUP_AND_DELETE_ELEMENTS';
+export const GROUP_TRANSLATE = 'GROUP_TRANSLATE';
+export const GROUP_ROTATE = 'GROUP_ROTATE';
+
+//ACTION drawings
+export const SELECT_HOLE = 'SELECT_HOLE';
+export const SELECT_AREA = 'SELECT_AREA';
+export const SELECT_ITEM = 'SELECT_ITEM';
+export const SELECT_LINE = 'SELECT_LINE';
+export const SELECT_TOOL_DRAWING_LINE = 'SELECT_TOOL_DRAWING_LINE';
+export const BEGIN_DRAWING_LINE = 'BEGIN_DRAWING_LINE';
+export const UPDATE_DRAWING_LINE = 'UPDATE_DRAWING_LINE';
+export const END_DRAWING_LINE = 'END_DRAWING_LINE';
+export const SELECT_TOOL_DRAWING_HOLE = 'SELECT_TOOL_DRAWING_HOLE';
+export const UPDATE_DRAWING_HOLE = 'UPDATE_DRAWING_HOLE'; //SHOULD BE SLPITTED IN BEGIN_DRAWING_HOLE AND UPDATE_DRAWING_HOLE
+export const END_DRAWING_HOLE = 'END_DRAWING_HOLE';
+export const BEGIN_DRAGGING_LINE = 'BEGIN_DRAGGING_LINE';
+export const UPDATE_DRAGGING_LINE = 'UPDATE_DRAGGING_LINE';
+export const END_DRAGGING_LINE = 'END_DRAGGING_LINE';
+export const SELECT_TOOL_UPLOAD_IMAGE = 'SELECT_TOOL_UPLOAD_IMAGE';
+export const BEGIN_UPLOADING_IMAGE = 'BEGIN_UPLOADING_IMAGE';
+export const END_UPLOADING_IMAGE = 'END_UPLOADING_IMAGE';
+export const BEGIN_FITTING_IMAGE = 'BEGIN_FITTING_IMAGE';
+export const END_FITTING_IMAGE = 'END_FITTING_IMAGE';
+export const BEGIN_DRAGGING_HOLE = 'BEGIN_DRAGGING_HOLE';
+export const UPDATE_DRAGGING_HOLE = 'UPDATE_DRAGGING_HOLE';
+export const END_DRAGGING_HOLE = 'END_DRAGGING_HOLE';
+
+//ACTIONS vertices
+export const BEGIN_DRAGGING_VERTEX = 'BEGIN_DRAGGING_VERTEX';
+export const UPDATE_DRAGGING_VERTEX = 'UPDATE_DRAGGING_VERTEX';
+export const END_DRAGGING_VERTEX = 'END_DRAGGING_VERTEX';
+
+//ACTIONS scene
+export const SET_LAYER_PROPERTIES = 'SET_LAYER_PROPERTIES';
+export const ADD_LAYER = 'ADD_LAYER';
+export const SELECT_LAYER = 'SELECT_LAYER';
+export const REMOVE_LAYER = 'REMOVE_LAYER';
+
+//GROUPING ACTIONS
+export const PROJECT_ACTIONS = {
+  NEW_PROJECT,
+  LOAD_PROJECT,
+  SAVE_PROJECT,
+  OPEN_CATALOG,
+  SELECT_TOOL_EDIT,
+  UNSELECT_ALL,
+  SET_PROPERTIES,
+  SET_ITEMS_ATTRIBUTES,
+  SET_LINES_ATTRIBUTES,
+  SET_HOLES_ATTRIBUTES,
+  SET_AREAS_ATTRIBUTES,
+  REMOVE,
+  UNDO,
+  ROLLBACK,
+  SET_PROJECT_PROPERTIES,
+  OPEN_PROJECT_CONFIGURATOR,
+  INIT_CATALOG,
+  UPDATE_MOUSE_COORDS,
+  UPDATE_ZOOM_SCALE,
+  TOGGLE_SNAP,
+  CHANGE_CATALOG_PAGE,
+  GO_BACK_TO_CATALOG_PAGE,
+  THROW_ERROR,
+  THROW_WARNING,
+  COPY_PROPERTIES,
+  PASTE_PROPERTIES,
+  PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY,
+  ALTERATE_STATE,
+  SET_MODE,
+  ADD_HORIZONTAL_GUIDE,
+  ADD_VERTICAL_GUIDE,
+  ADD_CIRCULAR_GUIDE,
+  REMOVE_HORIZONTAL_GUIDE,
+  REMOVE_VERTICAL_GUIDE,
+  REMOVE_CIRCULAR_GUIDE
+} as const;
+
+export const VIEWER2D_ACTIONS = {
+  SELECT_TOOL_ZOOM_IN,
+  SELECT_TOOL_ZOOM_OUT,
+  SELECT_TOOL_PAN,
+  UPDATE_2D_CAMERA
+} as const;
+
+export const VIEWER3D_ACTIONS = {
+  SELECT_TOOL_3D_VIEW,
+  SELECT_TOOL_3D_FIRST_PERSON
+} as const;
+
+export const ITEMS_ACTIONS = {
+  SELECT_ITEM,
+  SELECT_TOOL_DRAWING_ITEM,
+  UPDATE_DRAWING_ITEM,
+  END_DRAWING_ITEM,
+  BEGIN_DRAGGING_ITEM,
+  UPDATE_DRAGGING_ITEM,
+  END_DRAGGING_ITEM,
+  BEGIN_ROTATING_ITEM,
+  UPDATE_ROTATING_ITEM,
+  END_ROTATING_ITEM
+} as const;
+
+export const HOLE_ACTIONS = {
+  SELECT_HOLE,
+  SELECT_TOOL_DRAWING_HOLE,
+  UPDATE_DRAWING_HOLE,
+  END_DRAWING_HOLE,
+  BEGIN_DRAGGING_HOLE,
+  UPDATE_DRAGGING_HOLE,
+  END_DRAGGING_HOLE
+} as const;
+
+export const LINE_ACTIONS = {
+  SELECT_LINE,
+  SELECT_TOOL_DRAWING_LINE,
+  BEGIN_DRAWING_LINE,
+  UPDATE_DRAWING_LINE,
+  END_DRAWING_LINE,
+  BEGIN_DRAGGING_LINE,
+  UPDATE_DRAGGING_LINE,
+  END_DRAGGING_LINE
+} as const;
+
+export const AREA_ACTIONS = {
+  SELECT_AREA
+} as const;
+
+export const GROUP_ACTIONS = {
+  ADD_GROUP,
+  ADD_GROUP_FROM_SELECTED,
+  SELECT_GROUP,
+  UNSELECT_GROUP,
+  ADD_TO_GROUP,
+  REMOVE_FROM_GROUP,
+  SET_GROUP_PROPERTIES,
+  SET_GROUP_ATTRIBUTES,
+  SET_GROUP_BARYCENTER,
+  REMOVE_GROUP,
+  REMOVE_GROUP_AND_DELETE_ELEMENTS,
+  GROUP_TRANSLATE,
+  GROUP_ROTATE
+} as const;
+
+export const SCENE_ACTIONS = {
+  ADD_LAYER,
+  SET_LAYER_PROPERTIES,
+  SELECT_LAYER,
+  REMOVE_LAYER
+} as const;
+
+export const VERTEX_ACTIONS = {
+  BEGIN_DRAGGING_VERTEX,
+  UPDATE_DRAGGING_VERTEX,
+  END_DRAGGING_VERTEX
+};
+
+//MODES
+export const MODE_IDLE = 'MODE_IDLE';
+export const MODE_2D_ZOOM_IN = 'MODE_2D_ZOOM_IN';
+export const MODE_2D_ZOOM_OUT = 'MODE_2D_ZOOM_OUT';
+export const MODE_2D_PAN = 'MODE_2D_PAN';
+export const MODE_3D_VIEW = 'MODE_3D_VIEW';
+export const MODE_3D_FIRST_PERSON = 'MODE_3D_FIRST_PERSON';
+export const MODE_WAITING_DRAWING_LINE = 'MODE_WAITING_DRAWING_LINE';
+export const MODE_DRAGGING_LINE = 'MODE_DRAGGING_LINE';
+export const MODE_DRAGGING_VERTEX = 'MODE_DRAGGING_VERTEX';
+export const MODE_DRAGGING_ITEM = 'MODE_DRAGGING_ITEM';
+export const MODE_DRAGGING_HOLE = 'MODE_DRAGGING_HOLE';
+export const MODE_DRAWING_LINE = 'MODE_DRAWING_LINE';
+export const MODE_DRAWING_HOLE = 'MODE_DRAWING_HOLE';
+export const MODE_DRAWING_ITEM = 'MODE_DRAWING_ITEM';
+export const MODE_ROTATING_ITEM = 'MODE_ROTATING_ITEM';
+export const MODE_UPLOADING_IMAGE = 'MODE_UPLOADING_IMAGE';
+export const MODE_FITTING_IMAGE = 'MODE_FITTING_IMAGE';
+export const MODE_VIEWING_CATALOG = 'MODE_VIEWING_CATALOG';
+export const MODE_CONFIGURING_PROJECT = 'MODE_CONFIGURING_PROJECT';
+
+export const MODES = [
+  MODE_IDLE,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_2D_PAN,
+  MODE_3D_VIEW,
+  MODE_3D_FIRST_PERSON,
+  MODE_WAITING_DRAWING_LINE,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_HOLE,
+  MODE_DRAWING_LINE,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_ROTATING_ITEM,
+  MODE_UPLOADING_IMAGE,
+  MODE_FITTING_IMAGE,
+  MODE_VIEWING_CATALOG,
+  MODE_CONFIGURING_PROJECT
+];
+
+export type ModeType = (typeof MODES)[number];
+
+//Thinking about it...
+//https://developer.mozilla.org/it/docs/Web/JavaScript/Reference/Global_Objects/Proxy
+/*
+let MODE_DEF = [
+  'IDLE',
+  '2D_ZOOM_IN',
+  '2D_ZOOM_OUT',
+  '2D_PAN',
+  '3D_VIEW',
+  '3D_FIRST_PERSON',
+  'WAITING_DRAWING_LINE',
+  'DRAGGING_LINE',
+  'DRAGGING_VERTEX',
+  'DRAGGING_ITEM',
+  'DRAGGING_HOLE',
+  'DRAWING_LINE',
+  'DRAWING_HOLE',
+  'DRAWING_ITEM',
+  'ROTATING_ITEM',
+  'UPLOADING_IMAGE',
+  'FITTING_IMAGE',
+  'VIEWING_CATALOG',
+  'CONFIGURING_PROJECT',
+];
+
+export const MODE = new Proxy( MODE_DEF, { get: (target, name) => { return target.indexOf(name) !== -1 ? name : null } } );
+*/
+
+export const MODE_SNAPPING = [
+  MODE_IDLE,
+  MODE_2D_ZOOM_IN,
+  MODE_2D_ZOOM_OUT,
+  MODE_2D_PAN,
+  MODE_WAITING_DRAWING_LINE,
+  MODE_DRAWING_LINE,
+  MODE_DRAWING_HOLE,
+  MODE_DRAWING_ITEM,
+  MODE_DRAGGING_LINE,
+  MODE_DRAGGING_VERTEX,
+  MODE_DRAGGING_ITEM,
+  MODE_DRAGGING_HOLE,
+  MODE_FITTING_IMAGE,
+  MODE_UPLOADING_IMAGE,
+  MODE_ROTATING_ITEM
+];
+
+//UNITS
+export const UNIT_MILLIMETER = 'mm';
+export const UNIT_CENTIMETER = 'cm';
+export const UNIT_METER = 'm';
+export const UNIT_INCH = 'in';
+export const UNIT_FOOT = 'ft';
+export const UNIT_MILE = 'mi';
+
+export const UNITS_LENGTH: Unit[] = [
+  UNIT_MILLIMETER,
+  UNIT_CENTIMETER,
+  UNIT_METER,
+  UNIT_INCH,
+  UNIT_FOOT,
+  UNIT_MILE
+];
+
+export type UnitLengthType = (typeof UNITS_LENGTH)[number];
+
+export const EPSILON = 1e-6;
+
+export const KEYBOARD_BUTTON_CODE = {
+  DELETE: 46,
+  BACKSPACE: 8,
+  ESC: 27,
+  Z: 90,
+  ALT: 18,
+  C: 67,
+  V: 86,
+  CTRL: 17,
+  ENTER: 13,
+  TAB: 9
+};

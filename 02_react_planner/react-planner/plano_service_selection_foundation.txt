@@ -1,0 +1,4286 @@
+=== ROOT: /home/ogi/project_root/plano_master/02_react_planner/react-planner ===
+
+================= FILE LIST =================
+src/actions/area-actions.ts
+src/actions/export.ts
+src/actions/project-actions.ts
+src/class/area.ts
+src/class/export.ts
+src/class/project.ts
+src/components/content.tsx
+src/components/sidebar/sidebar.tsx
+src/components/viewer2d/viewer2d.tsx
+src/components/viewer3d/scene-creator.ts
+src/components/viewer3d/viewer3d.tsx
+src/models.ts
+src/reducers/areas-reducer.ts
+src/reducers/project-reducer.ts
+src/reducers/reducer.ts
+src/types.ts
+
+================= FILE CONTENTS =================
+
+----------------- FILE: src/actions/area-actions.ts -----------------
+import { SELECT_AREA } from '../constants';
+
+export function selectArea(layerID: string, areaID: string) {
+  return {
+    type: SELECT_AREA,
+    layerID,
+    areaID
+  };
+}
+
+----------------- FILE: src/actions/export.ts -----------------
+import * as areaActions from './area-actions';
+import * as groupsActions from './groups-actions';
+import * as holesActions from './holes-actions';
+import * as itemsActions from './items-actions';
+import * as linesActions from './lines-actions';
+import * as projectActions from './project-actions';
+import * as sceneActions from './scene-actions';
+import * as verticesActions from './vertices-actions';
+import * as viewer2DActions from './viewer2d-actions';
+import * as viewer3DActions from './viewer3d-actions';
+
+export type ProjectActionsType = typeof projectActions;
+export type Viewer2DActionsType = typeof viewer2DActions;
+export type Viewer3DActionsType = typeof viewer3DActions;
+export type LinesActionsType = typeof linesActions;
+export type HolesActionsType = typeof holesActions;
+export type SceneActionsType = typeof sceneActions;
+export type VerticesActionsType = typeof verticesActions;
+export type ItemsActionsType = typeof itemsActions;
+export type AreaActionsType = typeof areaActions;
+export type GroupsActionsType = typeof groupsActions;
+
+export {
+  areaActions,
+  groupsActions,
+  holesActions,
+  itemsActions,
+  linesActions,
+  projectActions,
+  sceneActions,
+  verticesActions,
+  viewer2DActions,
+  viewer3DActions
+};
+
+export default {
+  projectActions,
+  viewer2DActions,
+  viewer3DActions,
+  linesActions,
+  holesActions,
+  sceneActions,
+  verticesActions,
+  itemsActions,
+  areaActions,
+  groupsActions
+};
+
+----------------- FILE: src/actions/project-actions.ts -----------------
+import { ReactNode } from 'react';
+
+import { produce } from 'immer';
+
+import { CatalogJson } from '../catalog/catalog';
+import {
+  ADD_CIRCULAR_GUIDE,
+  ADD_HORIZONTAL_GUIDE,
+  ADD_VERTICAL_GUIDE,
+  ALTERATE_STATE,
+  CHANGE_CATALOG_PAGE,
+  COPY_PROPERTIES,
+  GO_BACK_TO_CATALOG_PAGE,
+  INIT_CATALOG,
+  LOAD_PROJECT,
+  ModeType,
+  NEW_PROJECT,
+  OPEN_CATALOG,
+  OPEN_PROJECT_CONFIGURATOR,
+  PASTE_PROPERTIES,
+  PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY,
+  REMOVE,
+  REMOVE_CIRCULAR_GUIDE,
+  REMOVE_HORIZONTAL_GUIDE,
+  REMOVE_VERTICAL_GUIDE,
+  ROLLBACK,
+  SAVE_PROJECT,
+  SELECT_TOOL_EDIT,
+  SET_AREAS_ATTRIBUTES,
+  SET_HOLES_ATTRIBUTES,
+  SET_ITEMS_ATTRIBUTES,
+  SET_LINES_ATTRIBUTES,
+  SET_MODE,
+  SET_PROJECT_PROPERTIES,
+  SET_PROPERTIES,
+  THROW_ERROR,
+  THROW_WARNING,
+  TOGGLE_SNAP,
+  UNDO,
+  UNSELECT_ALL,
+  UPDATE_MOUSE_COORDS,
+  UPDATE_ZOOM_SCALE
+} from '../constants';
+import { Area, Item, Scene } from '../models';
+import {
+  CatalogElement,
+  HoleAttributes,
+  LineAttributes,
+  SnapMaskType
+} from '../types';
+
+export function loadProject(sceneJSON: Scene) {
+  return {
+    type: LOAD_PROJECT,
+    sceneJSON
+  };
+}
+
+export function newProject() {
+  return {
+    type: NEW_PROJECT
+  };
+}
+
+export function saveProject() {
+  return {
+    type: SAVE_PROJECT
+  };
+}
+
+export function openCatalog() {
+  return {
+    type: OPEN_CATALOG
+  };
+}
+
+export function changeCatalogPage(newPage: string, oldPage: string) {
+  return {
+    type: CHANGE_CATALOG_PAGE,
+    newPage,
+    oldPage
+  };
+}
+
+export function goBackToCatalogPage(newPage: string) {
+  return {
+    type: GO_BACK_TO_CATALOG_PAGE,
+    newPage
+  };
+}
+
+export function selectToolEdit() {
+  return {
+    type: SELECT_TOOL_EDIT
+  };
+}
+
+export function unselectAll() {
+  return {
+    type: UNSELECT_ALL
+  };
+}
+
+export function setProperties(properties: Record<string, any>) {
+  return {
+    type: SET_PROPERTIES,
+    properties
+  };
+}
+
+export function setItemsAttributes(itemsAttributes: Item) {
+  itemsAttributes = produce(itemsAttributes, (draft) => {
+    draft.rotation = parseFloat(draft.rotation as any);
+  });
+
+  return {
+    type: SET_ITEMS_ATTRIBUTES,
+    itemsAttributes
+  };
+}
+
+export function setLinesAttributes(linesAttributes: LineAttributes) {
+  linesAttributes = produce(linesAttributes, (draft) => {
+    draft.vertexOne.x = parseFloat(draft.vertexOne.x as any);
+    draft.vertexOne.y = parseFloat(draft.vertexOne.y as any);
+    draft.vertexTwo.x = parseFloat(draft.vertexTwo.x as any);
+    draft.vertexTwo.y = parseFloat(draft.vertexTwo.y as any);
+  });
+
+  return {
+    type: SET_LINES_ATTRIBUTES,
+    linesAttributes
+  };
+}
+
+export function setHolesAttributes(holesAttributes: HoleAttributes) {
+  holesAttributes = produce(holesAttributes, (draft) => {
+    draft.offset = parseFloat(draft.offset as any);
+  });
+
+  return {
+    type: SET_HOLES_ATTRIBUTES,
+    holesAttributes
+  };
+}
+
+export function setAreasAttributes(areasAttributes: Area) {
+  return {
+    type: SET_AREAS_ATTRIBUTES,
+    areasAttributes
+  };
+}
+
+export function remove() {
+  return {
+    type: REMOVE
+  };
+}
+
+export function undo() {
+  return {
+    type: UNDO
+  };
+}
+
+export function rollback() {
+  return {
+    type: ROLLBACK
+  };
+}
+
+export function openProjectConfigurator() {
+  return {
+    type: OPEN_PROJECT_CONFIGURATOR
+  };
+}
+
+export function setProjectProperties(properties: Partial<Scene>) {
+  return {
+    type: SET_PROJECT_PROPERTIES,
+    properties
+  };
+}
+
+export function initCatalog(catalog: CatalogJson) {
+  return {
+    type: INIT_CATALOG,
+    catalog
+  };
+}
+
+export function updateMouseCoord({ x = 0, y = 0 }: { x: number; y: number }) {
+  return {
+    type: UPDATE_MOUSE_COORDS,
+    coords: { x, y }
+  };
+}
+
+export function updateZoomScale(scale: number) {
+  return {
+    type: UPDATE_ZOOM_SCALE,
+    scale
+  };
+}
+
+export function toggleSnap(mask: SnapMaskType) {
+  return {
+    type: TOGGLE_SNAP,
+    mask
+  };
+}
+
+export function throwError(error: ReactNode) {
+  return {
+    type: THROW_ERROR,
+    error
+  };
+}
+
+export function throwWarning(warning: ReactNode) {
+  return {
+    type: THROW_WARNING,
+    warning
+  };
+}
+
+export function copyProperties(properties: Record<string, any>) {
+  return {
+    type: COPY_PROPERTIES,
+    properties
+  };
+}
+
+export function pasteProperties() {
+  return {
+    type: PASTE_PROPERTIES
+  };
+}
+
+export function pushLastSelectedCatalogElementToHistory(
+  element: CatalogElement
+) {
+  return {
+    type: PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY,
+    element
+  };
+}
+
+export function setAlterateState(alterate?: boolean) {
+  return {
+    type: ALTERATE_STATE,
+    alterate
+  };
+}
+
+export function setMode(mode: ModeType) {
+  return {
+    type: SET_MODE,
+    mode
+  };
+}
+
+export function addHorizontalGuide(coordinate: number) {
+  return {
+    type: ADD_HORIZONTAL_GUIDE,
+    coordinate
+  };
+}
+
+export function addVerticalGuide(coordinate: number) {
+  return {
+    type: ADD_VERTICAL_GUIDE,
+    coordinate
+  };
+}
+
+export function addCircularGuide(x: number, y: number, radius: number) {
+  return {
+    type: ADD_CIRCULAR_GUIDE,
+    x,
+    y,
+    radius
+  };
+}
+export function removeHorizontalGuide(guideID: string) {
+  return {
+    type: REMOVE_HORIZONTAL_GUIDE,
+    guideID
+  };
+}
+
+export function removeVerticalGuide(guideID: string) {
+  return {
+    type: REMOVE_VERTICAL_GUIDE,
+    guideID
+  };
+}
+
+export function removeCircularGuide(guideID: string) {
+  return {
+    type: REMOVE_CIRCULAR_GUIDE,
+    guideID
+  };
+}
+
+----------------- FILE: src/class/area.ts -----------------
+import { produce } from 'immer';
+
+import { catalogElementFactory, CatalogState, State } from '../models';
+import { IDBroker, NameGenerator } from '../utils/export';
+
+import { Group, Layer, Vertex } from './export';
+
+class Area {
+  static add(
+    state: State,
+    layerID: string,
+    type: 'area',
+    verticesCoords: { x: number; y: number }[],
+    catalog: CatalogState
+  ) {
+    const areaID = IDBroker.acquireID();
+    const vertices = verticesCoords.map((v) => {
+      const { updatedState, vertex } = Vertex.add(
+        state,
+        layerID,
+        v.x,
+        v.y,
+        'areas',
+        areaID
+      );
+      state = updatedState;
+      return vertex.id;
+    });
+
+    const area = catalogElementFactory(catalog, type, {
+      id: areaID,
+      name: NameGenerator.generateName(
+        'areas',
+        catalog.elements[type].info.title
+      ),
+      type,
+      prototype: 'areas',
+      vertices
+    });
+
+    state = produce(state, (draft) => {
+      draft.scene.layers[layerID].areas[area.id] = area as any;
+    });
+    return { updatedState: state, area };
+  }
+
+  static select(state: State, layerID: string, areaID: string) {
+    state = Layer.select(state, layerID);
+    state = Layer.selectElement(state, layerID, 'areas', areaID);
+    return state;
+  }
+
+  static remove(state: State, layerID: string, areaID: string) {
+    return produce(state, (draft) => {
+      const area = draft.scene.layers[layerID]?.areas[areaID];
+      if (!area) return;
+
+      area.vertices.forEach((vertexID) => {
+        Vertex.remove(draft, layerID, vertexID, 'areas', areaID);
+      });
+
+      delete draft.scene.layers[layerID].areas[areaID];
+
+      Object.values(draft.scene.groups).forEach((group) => {
+        draft = Group.removeElement(draft, group.id, layerID, 'areas', areaID);
+      });
+      return draft;
+    });
+  }
+
+  static unselect(state: State, layerID: string, areaID: string) {
+    return Layer.unselect(state, layerID, 'areas', areaID);
+  }
+
+  static setProperties(
+    state: State,
+    layerID: string,
+    areaID: string,
+    properties: any
+  ) {
+    return produce(state, (draft) => {
+      const area = draft.scene.layers[layerID]?.areas[areaID];
+      if (area) {
+        Object.assign(area.properties, properties);
+      }
+    });
+  }
+
+  static updateProperties(
+    state: State,
+    layerID: string,
+    areaID: string,
+    properties: Record<string, any>
+  ) {
+    return produce(state, (draft) => {
+      const propsPath =
+        draft.scene?.layers?.[layerID]?.areas?.[areaID]?.properties;
+
+      if (!propsPath) return;
+
+      Object.entries(properties).forEach(([k, v]) => {
+        if (propsPath.hasOwnProperty(k)) {
+          propsPath[k] = {
+            ...propsPath[k],
+            ...v
+          };
+        }
+      });
+    });
+  }
+
+  static updateJsProperties(
+    state: State,
+    layerID: string,
+    areaID: string,
+    properties: any
+  ) {
+    return this.updateProperties(state, layerID, areaID, properties);
+  }
+
+  static setAttributes(
+    state: State,
+    layerID: string,
+    areaID: string,
+    areaAttributes: any
+  ) {
+    return produce(state, (draft) => {
+      const area = draft.scene.layers[layerID].areas[areaID];
+      Object.assign(area, areaAttributes);
+    });
+  }
+}
+
+export { Area as default };
+
+----------------- FILE: src/class/export.ts -----------------
+import Area from './area';
+import Group from './group';
+import { HorizontalGuide, VerticalGuide } from './guide';
+import Hole from './hole';
+import Item from './item';
+import Layer from './layer';
+import Line from './line';
+import Project from './project';
+import Vertex from './vertex';
+
+export {
+  Area, Group, Hole, HorizontalGuide, Item, Layer,
+  Line, Project, Vertex, VerticalGuide
+};
+
+export default {
+  Project,
+  Group,
+  Layer,
+  Line,
+  Hole,
+  Vertex,
+  Area,
+  Item,
+  HorizontalGuide,
+  VerticalGuide
+};
+
+----------------- FILE: src/class/project.ts -----------------
+import { ReactNode } from 'react';
+
+import { produce } from 'immer';
+
+import {
+  Group,
+  Hole,
+  HorizontalGuide,
+  Item,
+  Layer,
+  Line,
+  VerticalGuide
+} from '../class/export';
+import {
+  MODE_CONFIGURING_PROJECT,
+  MODE_IDLE,
+  MODE_VIEWING_CATALOG,
+  ModeType
+} from '../constants';
+import { CatalogProps, CatalogState, Scene, SceneJson, State } from '../models';
+import { CatalogElement, SnapMaskType } from '../types';
+import { history } from '../utils/export';
+
+class Project {
+  static setAlterate(state: State, alterate?: boolean) {
+    return produce(state, (draft) => {
+      draft.alterate = alterate === undefined ? !draft.alterate : alterate;
+    });
+  }
+
+  static openCatalog(state: State) {
+    return this.setMode(state, MODE_VIEWING_CATALOG);
+  }
+
+  static newProject(state: State) {
+    return State({ viewer2D: state.viewer2D });
+  }
+
+  static loadProject(state: State, sceneJSON: SceneJson) {
+    return State({ scene: sceneJSON, catalog: state.catalog });
+  }
+
+  static setProperties(
+    state: State,
+    layerID: string,
+    properties: Record<string, any>
+  ) {
+    return Layer.setPropertiesOnSelected(state, layerID, properties);
+  }
+
+  static updateProperties(
+    state: State,
+    layerID: string,
+    properties: Record<string, any>
+  ) {
+    return Layer.updatePropertiesOnSelected(state, layerID, properties);
+  }
+
+  static setItemsAttributes(state: State, attributes: Partial<Item>) {
+    //TODO apply only to items
+    return produce(state, (draft) => {
+      Object.values(draft.scene.layers).forEach((layer) => {
+        draft = Layer.setAttributesOnSelected(draft, layer.id, attributes);
+      });
+      return draft;
+    });
+  }
+
+  static setLinesAttributes(state: State, attributes: Partial<Line>) {
+    //TODO apply only to lines
+    Object.values(state.scene.layers).forEach((layer) => {
+      state = Layer.setAttributesOnSelected(state, layer.id, attributes);
+    });
+    return state;
+  }
+
+  static setHolesAttributes(state: State, attributes: Partial<Hole>) {
+    //TODO apply only to holes
+    return produce(state, (draft) => {
+      Object.values(draft.scene.layers).forEach((layer) => {
+        draft = Layer.setAttributesOnSelected(draft, layer.id, attributes);
+      });
+      return draft;
+    });
+  }
+
+  static setAreasAttributes(state: State, attributes: Partial<Item>) {
+    //TODO apply only to areas
+    return produce(state, (draft) => {
+      Object.values(draft.scene.layers).forEach((layer) => {
+        draft = Layer.setAttributesOnSelected(draft, layer.id, attributes);
+      });
+      return draft;
+    });
+  }
+
+  static unselectAll(state: State) {
+    Object.values(state.scene.layers).forEach((layer) => {
+      state = Layer.unselectAll(state, layer.id);
+    });
+    Object.values(state.scene.groups).forEach((group) => {
+      state = Group.unselect(state, group.id);
+    });
+    return state;
+  }
+
+  static remove(state: State) {
+    const selectedLayer = state.scene.selectedLayer;
+    if (selectedLayer === undefined) return state;
+    const {
+      lines: selectedLines,
+      holes: selectedHoles,
+      items: selectedItems
+    } = state.scene.layers[selectedLayer].selected;
+
+    state = Layer.unselectAll(state, selectedLayer);
+
+    selectedLines.forEach((lineID: string) => {
+      state = Line.remove(state, selectedLayer, lineID);
+    });
+    selectedHoles.forEach((holeID: string) => {
+      state = Hole.remove(state, selectedLayer, holeID);
+    });
+    selectedItems.forEach((itemID: string) => {
+      state = Item.remove(state, selectedLayer, itemID);
+    });
+
+    state = Layer.detectAndUpdateAreas(state, selectedLayer);
+    return state;
+  }
+
+  static undo(state: State) {
+    let sceneHistory = state.sceneHistory;
+    if (state.scene === sceneHistory.last && sceneHistory.list.length > 1) {
+      sceneHistory = history.historyPop(sceneHistory);
+    }
+
+    return produce(state, (draft) => {
+      draft.mode = MODE_IDLE;
+      draft.scene = sceneHistory.last;
+      draft.sceneHistory = history.historyPop(sceneHistory);
+    });
+  }
+
+  static rollback(state: State) {
+    const sceneHistory = state.sceneHistory;
+
+    if (!sceneHistory.last) {
+      return state;
+    }
+
+    state = this.unselectAll(state);
+
+    return produce(state, (draft) => {
+      draft.mode = MODE_IDLE;
+      draft.scene = sceneHistory.last;
+      draft.sceneHistory = history.historyPush(sceneHistory, sceneHistory.last);
+      draft.snapElements = [];
+      draft.activeSnapElement = null;
+      draft.drawingSupport = {};
+      draft.draggingSupport = undefined;
+      draft.rotatingSupport = undefined;
+    });
+  }
+
+  static setProjectProperties(state: State, properties: Partial<Scene>) {
+    return produce(state, (draft) => {
+      draft.mode = MODE_IDLE;
+      Object.assign(draft.scene, properties);
+    });
+  }
+
+  static openProjectConfigurator(state: State) {
+    return produce(state, (draft) => {
+      draft.mode = MODE_CONFIGURING_PROJECT;
+    });
+  }
+
+  static initCatalog(state: State, catalog: CatalogProps): State {
+    return State({
+      ...state,
+      catalog: CatalogState(catalog)
+    });
+  }
+
+  static updateMouseCoord(state: State, coords: { x: number; y: number }) {
+    return produce(state, (draft) => {
+      draft.mouse = coords;
+    });
+  }
+
+  static updateZoomScale(state: State, scale: number) {
+    return produce(state, (draft) => {
+      draft.zoom = scale;
+    });
+  }
+
+  static toggleSnap(state: State, mask: SnapMaskType) {
+    return produce(state, (draft) => {
+      draft.snapMask = mask;
+    });
+  }
+
+  static throwError(state: State, error: ReactNode) {
+    return produce(state, (draft) => {
+      draft.errors.push({
+        date: Date.now(),
+        error
+      });
+    });
+  }
+
+  static throwWarning(state: State, warning: ReactNode) {
+    return produce(state, (draft) => {
+      draft.warnings.push({
+        date: Date.now(),
+        warning
+      });
+    });
+  }
+
+  static copyProperties(state: State, properties: Record<string, any>) {
+    return produce(state, (draft) => {
+      draft.clipboardProperties = properties;
+    });
+  }
+
+  static pasteProperties(state: State) {
+    return produce(state, (draft) => {
+      const layerID = draft.scene.selectedLayer;
+      if (layerID !== undefined) {
+        const properties = draft.clipboardProperties;
+        draft = Layer.updatePropertiesOnSelected(draft, layerID, properties);
+      }
+      return draft;
+    });
+  }
+
+  static pushLastSelectedCatalogElementToHistory(
+    state: State,
+    element: CatalogElement
+  ) {
+    let currHistory = state.selectedElementsHistory;
+
+    const previousPosition = currHistory.findIndex(
+      (el) => el.name === element.name
+    );
+    if (previousPosition !== -1) {
+      currHistory = currHistory.splice(previousPosition, 1);
+    }
+    currHistory = currHistory.splice(0, 0, element);
+
+    return produce(state, (draft) => {
+      draft.selectedElementsHistory = currHistory;
+    });
+  }
+
+  static changeCatalogPage(state: State, oldPage: string, newPage: string) {
+    return produce(state, (draft) => {
+      draft.catalog.page = newPage;
+      draft.catalog.path.push(oldPage);
+    });
+  }
+
+  static goBackToCatalogPage(state: State, newPage: string) {
+    const pageIndex = state.catalog.path.findIndex((page) => page === newPage);
+    return produce(state, (draft) => {
+      draft.catalog.page = newPage;
+      draft.catalog.path = draft.catalog.path.slice(0, pageIndex);
+    });
+  }
+
+  static setMode(state: State, mode: ModeType) {
+    return { ...state, mode };
+  }
+
+  static addHorizontalGuide(state: State, coordinate: number) {
+    return HorizontalGuide.create(state, coordinate);
+  }
+
+  static addVerticalGuide(state: State, coordinate: number) {
+    return VerticalGuide.create(state, coordinate);
+  }
+
+  static addCircularGuide(state: State, x: number, y: number, radius: number) {
+    return state;
+  }
+
+  static removeHorizontalGuide(state: State, guideID: string) {
+    return HorizontalGuide.remove(state, guideID);
+  }
+
+  static removeVerticalGuide(state: State, guideID: string) {
+    return VerticalGuide.remove(state, guideID);
+  }
+
+  static removeCircularGuide(state: State, guideID: string) {
+    return state;
+  }
+}
+
+export { Project as default };
+
+----------------- FILE: src/components/content.tsx -----------------
+import React from 'react';
+
+import * as constants from '../constants';
+import { StateProps } from '../models';
+
+import CatalogList from './catalog-view/catalog-list';
+import ProjectConfigurator from './configurator/project-configurator';
+import Viewer2D from './viewer2d/viewer2d';
+import Viewer3D from './viewer3d/viewer3d';
+import Viewer3DFirstPerson from './viewer3d/viewer3d-first-person';
+
+interface ContentProps {
+  state: StateProps;
+  width: number;
+  height: number;
+  customContents: {
+    [key: string]: React.ComponentType<{
+      state: StateProps;
+      width: number;
+      height: number;
+    }>;
+  };
+}
+
+export default function Content({
+  width,
+  height,
+  state,
+  customContents
+}: ContentProps) {
+  const mode = state.mode;
+
+  switch (mode) {
+    case constants.MODE_3D_VIEW:
+      return <Viewer3D state={state} width={width} height={height} />;
+
+    case constants.MODE_3D_FIRST_PERSON:
+      return (
+        <Viewer3DFirstPerson state={state} width={width} height={height} />
+      );
+
+    case constants.MODE_VIEWING_CATALOG:
+      return <CatalogList state={state} width={width} height={height} />;
+
+    case constants.MODE_IDLE:
+    case constants.MODE_2D_ZOOM_IN:
+    case constants.MODE_2D_ZOOM_OUT:
+    case constants.MODE_2D_PAN:
+    case constants.MODE_WAITING_DRAWING_LINE:
+    case constants.MODE_DRAGGING_LINE:
+    case constants.MODE_DRAGGING_VERTEX:
+    case constants.MODE_DRAGGING_ITEM:
+    case constants.MODE_DRAWING_LINE:
+    case constants.MODE_DRAWING_HOLE:
+    case constants.MODE_DRAWING_ITEM:
+    case constants.MODE_DRAGGING_HOLE:
+    case constants.MODE_ROTATING_ITEM:
+      return <Viewer2D state={state} width={width} height={height} />;
+
+    case constants.MODE_CONFIGURING_PROJECT:
+      return (
+        <ProjectConfigurator width={width} height={height} state={state} />
+      );
+
+    default:
+      if (customContents.hasOwnProperty(mode)) {
+        const CustomContent = customContents[mode];
+        return <CustomContent width={width} height={height} state={state} />;
+      } else {
+        throw new Error(`Mode ${mode} doesn't have a mapped content`);
+      }
+  }
+}
+
+----------------- FILE: src/components/sidebar/sidebar.tsx -----------------
+import React from 'react';
+
+import { MODE_VIEWING_CATALOG } from '../../constants';
+import { State } from '../../models';
+import * as SharedStyle from '../../shared-style';
+import { ComponentType } from '../../types';
+
+import PanelElementEditor from './panel-element-editor/panel-element-editor';
+import PanelMultiElementsEditor from './panel-element-editor/panel-multi-elements-editor';
+import PanelGroupEditor from './panel-group-editor';
+
+const FLOAT_SIDEBAR_STYLE: React.CSSProperties = {
+  position: 'fixed',
+  top: 72,
+  right: 12,
+  width: 220,
+  maxHeight: 320,
+  overflow: 'auto',
+  zIndex: 9999,
+  background: '#1f1f1f',
+  borderRadius: 10,
+  boxShadow: '0 10px 30px rgba(0,0,0,0.35)'
+};
+
+const STYLE = {
+  backgroundColor: SharedStyle.PRIMARY_COLOR.main,
+  display: 'block',
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  paddingBottom: '12px'
+} as const;
+
+interface SidebarProps {
+  state: State;
+  width: number;
+  height: number;
+  sidebarComponents: ComponentType[]; // kept for API compatibility; not used in "properties-only" mode
+}
+
+export default function Sidebar({ state, width, height }: SidebarProps) {
+  // ✅ Hide the floating info/editor box during Catalog view
+  if (state.mode === MODE_VIEWING_CATALOG) return null;
+
+  const selectedLayer = state.scene.selectedLayer;
+  if (!selectedLayer) return null;
+
+  const selected = state.scene.layers[selectedLayer].selected;
+
+  const multiselected =
+    selected.lines.length > 1 ||
+    selected.items.length > 1 ||
+    selected.holes.length > 1 ||
+    selected.areas.length > 1 ||
+    selected.lines.length + selected.items.length + selected.holes.length + selected.areas.length > 1;
+
+  const selectedGroup = Object.values(state.scene.groups).find((g) => g.selected);
+
+  return (
+    <aside
+      style={{ width, height, ...STYLE, ...FLOAT_SIDEBAR_STYLE }}
+      onKeyDown={(event) => event.stopPropagation()}
+      onKeyUp={(event) => event.stopPropagation()}
+      className="sidebar sidebar--floating"
+    >
+      {!multiselected && <PanelElementEditor state={state} />}
+      {multiselected && <PanelMultiElementsEditor state={state} />}
+
+      {!!selectedGroup && <PanelGroupEditor state={state} groupID={selectedGroup.id} />}
+    </aside>
+  );
+}
+
+----------------- FILE: src/components/viewer2d/viewer2d.tsx -----------------
+import React, { CSSProperties, useContext } from 'react';
+
+import {
+  ReactSVGPanZoom,
+  Value as ReactSVGPanZoomValue,
+  Tool,
+  TOOL_AUTO,
+  TOOL_NONE,
+  TOOL_PAN,
+  TOOL_ZOOM_IN,
+  TOOL_ZOOM_OUT,
+  ViewerMouseEvent,
+  ViewerTouchEvent
+} from 'react-svg-pan-zoom';
+
+import * as constants from '../../constants';
+import { State as StateClass } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+
+import { RulerX, RulerY } from './export';
+import State from './state';
+
+function mode2Tool(mode: constants.ModeType) {
+  switch (mode) {
+    case constants.MODE_2D_PAN:
+      return TOOL_PAN;
+    case constants.MODE_2D_ZOOM_IN:
+      return TOOL_ZOOM_IN;
+    case constants.MODE_2D_ZOOM_OUT:
+      return TOOL_ZOOM_OUT;
+    case constants.MODE_IDLE:
+      return TOOL_AUTO;
+    default:
+      return TOOL_NONE;
+  }
+}
+
+function mode2PointerEvents(mode: constants.ModeType) {
+  switch (mode) {
+    case constants.MODE_DRAWING_LINE:
+    case constants.MODE_DRAWING_HOLE:
+    case constants.MODE_DRAWING_ITEM:
+    case constants.MODE_DRAGGING_HOLE:
+    case constants.MODE_DRAGGING_ITEM:
+    case constants.MODE_DRAGGING_LINE:
+    case constants.MODE_DRAGGING_VERTEX:
+      return { pointerEvents: 'none' };
+
+    default:
+      return {};
+  }
+}
+
+function mode2Cursor(mode: constants.ModeType) {
+  switch (mode) {
+    case constants.MODE_DRAGGING_HOLE:
+    case constants.MODE_DRAGGING_LINE:
+    case constants.MODE_DRAGGING_VERTEX:
+    case constants.MODE_DRAGGING_ITEM:
+      return { cursor: 'move' };
+
+    case constants.MODE_ROTATING_ITEM:
+      return { cursor: 'ew-resize' };
+
+    case constants.MODE_WAITING_DRAWING_LINE:
+    case constants.MODE_DRAWING_LINE:
+      return { cursor: 'crosshair' };
+    default:
+      return { cursor: 'default' };
+  }
+}
+
+function mode2DetectAutopan(mode: constants.ModeType) {
+  switch (mode) {
+    case constants.MODE_DRAWING_LINE:
+    case constants.MODE_DRAGGING_LINE:
+    case constants.MODE_DRAGGING_VERTEX:
+    case constants.MODE_DRAGGING_HOLE:
+    case constants.MODE_DRAGGING_ITEM:
+    case constants.MODE_DRAWING_HOLE:
+    case constants.MODE_DRAWING_ITEM:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+interface ExtractedElementData {
+  part?: string;
+  layer: string;
+  prototype: string;
+  selected: boolean;
+  id: string;
+}
+
+function extractElementData(
+  target: EventTarget | null
+): ExtractedElementData | undefined {
+  const isElement = (n: any): n is Element =>
+    !!n && typeof n === 'object' && 'tagName' in n && 'getAttribute' in n;
+
+  let node: any = target;
+
+  // Walk up until <svg>, but allow any ancestor that contains the required data-* fields
+  while (isElement(node) && node.tagName.toLowerCase() !== 'svg') {
+    const layer = node.getAttribute('data-layer');
+    const prototype = node.getAttribute('data-prototype');
+    const selectedAttr = node.getAttribute('data-selected');
+    const id = node.getAttribute('data-id');
+
+    // If the required attributes exist, return immediately
+    if (layer && prototype && selectedAttr && id) {
+      const part = node.getAttribute('data-part') || undefined;
+      return {
+        part,
+        layer,
+        prototype,
+        selected: selectedAttr === 'true',
+        id
+      };
+    }
+
+    node = node.parentNode;
+  }
+
+  return;
+}
+
+
+interface Viewer2DProps {
+  state: StateClass;
+  width: number;
+  height: number;
+}
+
+function isViewerMouseEvent<T>(
+  ev: ViewerMouseEvent<T> | ViewerTouchEvent<T>
+): ev is ViewerMouseEvent<T> {
+  return !('changedPoints' in (ev as any));
+}
+
+export default function Viewer2D({ state, width, height }: Viewer2DProps) {
+  const {
+    viewer2DActions,
+    linesActions,
+    holesActions,
+    verticesActions,
+    itemsActions,
+    areaActions,
+    projectActions,
+    catalog
+  } = useContext(ReactPlannerContext);
+
+  const { viewer2D, mode, scene } = state;
+
+  const layerID = scene.selectedLayer as string;
+
+  const mapCursorPosition = <T,>(
+    viewerEvent: ViewerMouseEvent<T> | ViewerTouchEvent<T>
+  ) => {
+    if (isViewerMouseEvent(viewerEvent)) {
+      const { x, y } = viewerEvent;
+      return { x, y: -y + scene.height };
+    } else {
+      const points = viewerEvent.changedPoints;
+      if (points.length == 0) {
+        return { x: 0, y: 0 };
+      }
+      const { x, y } = points[0];
+      const height = scene.height;
+      return { x, y: -y + height };
+    }
+  };
+
+  const onMouseMove = <T,>(
+    viewerEvent: ViewerMouseEvent<T> | ViewerTouchEvent<T>
+  ) => {
+    //workaround that allow imageful component to work
+    const evt = new Event('mousemove-planner-event');
+    (evt as any).viewerEvent = viewerEvent;
+    document.dispatchEvent(evt);
+
+    const { x, y } = mapCursorPosition(viewerEvent);
+
+    projectActions.updateMouseCoord({ x, y });
+
+    switch (mode) {
+      case constants.MODE_DRAWING_LINE:
+        linesActions.updateDrawingLine(x, y, state.snapMask);
+        break;
+
+      case constants.MODE_DRAWING_HOLE:
+        holesActions.updateDrawingHole(layerID, x, y);
+        break;
+
+      case constants.MODE_DRAWING_ITEM:
+        itemsActions.updateDrawingItem(layerID, x, y);
+        break;
+
+      case constants.MODE_DRAGGING_HOLE:
+        holesActions.updateDraggingHole(x, y);
+        break;
+
+      case constants.MODE_DRAGGING_LINE:
+        linesActions.updateDraggingLine(x, y, state.snapMask);
+        break;
+
+      case constants.MODE_DRAGGING_VERTEX:
+        verticesActions.updateDraggingVertex(x, y, state.snapMask);
+        break;
+
+      case constants.MODE_DRAGGING_ITEM:
+        itemsActions.updateDraggingItem(x, y);
+        break;
+
+      case constants.MODE_ROTATING_ITEM:
+        itemsActions.updateRotatingItem(x, y);
+        break;
+    }
+
+    (viewerEvent as any).originalEvent.stopPropagation();
+  };
+
+  const onMouseDown = <T,>(
+    viewerEvent: ViewerMouseEvent<T> | ViewerTouchEvent<T>
+  ) => {
+    const event = viewerEvent.originalEvent;
+
+    //workaround that allow imageful component to work
+    const evt = new Event('mousedown-planner-event');
+    (evt as any).viewerEvent = viewerEvent;
+    document.dispatchEvent(evt);
+
+    const { x, y } = mapCursorPosition(viewerEvent);
+
+    if (mode === constants.MODE_IDLE) {
+      const elementData = extractElementData(event.target);
+      if (!elementData || !elementData.selected) return;
+
+      switch (elementData.prototype) {
+        case 'lines':
+          linesActions.beginDraggingLine(
+            elementData.layer,
+            elementData.id,
+            x,
+            y,
+            state.snapMask
+          );
+          break;
+
+        case 'vertices':
+          verticesActions.beginDraggingVertex(
+            elementData.layer,
+            elementData.id,
+            x,
+            y,
+            state.snapMask
+          );
+          break;
+
+        case 'items':
+          if (elementData.part === 'rotation-anchor')
+            itemsActions.beginRotatingItem(
+              elementData.layer,
+              elementData.id,
+              x,
+              y
+            );
+          else
+            itemsActions.beginDraggingItem(
+              elementData.layer,
+              elementData.id,
+              x,
+              y
+            );
+          break;
+
+        case 'holes':
+          holesActions.beginDraggingHole(
+            elementData.layer,
+            elementData.id,
+            x,
+            y
+          );
+          break;
+
+        default:
+          break;
+      }
+    }
+    event.stopPropagation();
+  };
+
+  const onMouseUp = <T,>(
+    viewerEvent: ViewerMouseEvent<T> | ViewerTouchEvent<T>
+  ) => {
+    const event = viewerEvent.originalEvent;
+
+    const evt = new Event('mouseup-planner-event');
+    (evt as any).viewerEvent = viewerEvent;
+    document.dispatchEvent(evt);
+
+    const { x, y } = mapCursorPosition(viewerEvent);
+
+    switch (mode) {
+      case constants.MODE_IDLE:
+        const elementData = extractElementData(event.target);
+
+        if (elementData && elementData.selected) return;
+
+        if (elementData) {
+          switch (elementData.prototype) {
+            case 'areas':
+              areaActions.selectArea(elementData.layer, elementData.id);
+              break;
+
+            case 'lines':
+              linesActions.selectLine(elementData.layer, elementData.id);
+              break;
+
+            case 'holes':
+              holesActions.selectHole(elementData.layer, elementData.id);
+              break;
+
+            case 'items':
+              itemsActions.selectItem(elementData.layer, elementData.id);
+              break;
+          }
+        } else {
+          projectActions.unselectAll();
+        }
+        break;
+
+      case constants.MODE_WAITING_DRAWING_LINE:
+        linesActions.beginDrawingLine(layerID, x, y, state.snapMask);
+        break;
+
+      case constants.MODE_DRAWING_LINE:
+        linesActions.endDrawingLine(x, y, state.snapMask);
+        linesActions.beginDrawingLine(layerID, x, y, state.snapMask);
+        break;
+
+      case constants.MODE_DRAWING_HOLE:
+        holesActions.endDrawingHole(layerID, x, y);
+        break;
+
+      case constants.MODE_DRAWING_ITEM:
+        itemsActions.endDrawingItem(layerID, x, y);
+        break;
+
+      case constants.MODE_DRAGGING_LINE:
+        linesActions.endDraggingLine(x, y, state.snapMask);
+        break;
+
+      case constants.MODE_DRAGGING_VERTEX:
+        verticesActions.endDraggingVertex(x, y, state.snapMask);
+        break;
+
+      case constants.MODE_DRAGGING_ITEM:
+        itemsActions.endDraggingItem(x, y);
+        break;
+
+      case constants.MODE_DRAGGING_HOLE:
+        holesActions.endDraggingHole(x, y);
+        break;
+
+      case constants.MODE_ROTATING_ITEM:
+        itemsActions.endRotatingItem(x, y);
+        break;
+    }
+
+    event.stopPropagation();
+  };
+
+  const onChangeValue = (value: ReactSVGPanZoomValue) => {
+    projectActions.updateZoomScale(value.a);
+    viewer2DActions.updateCameraView(value);
+  };
+
+  const onChangeTool = (tool: Tool) => {
+    switch (tool) {
+      case TOOL_NONE:
+        projectActions.selectToolEdit();
+        break;
+
+      case TOOL_PAN:
+        viewer2DActions.selectToolPan();
+        break;
+
+      case TOOL_ZOOM_IN:
+        viewer2DActions.selectToolZoomIn();
+        break;
+
+      case TOOL_ZOOM_OUT:
+        viewer2DActions.selectToolZoomOut();
+        break;
+    }
+  };
+
+  const { e, f, SVGWidth, SVGHeight } = state.viewer2D;
+
+  const rulerSize = 15; //px
+  const rulerUnitPixelSize = 100;
+  const rulerBgColor = SharedStyle.PRIMARY_COLOR.main;
+  const rulerFnColor = SharedStyle.COLORS.white;
+  const rulerMkColor = SharedStyle.SECONDARY_COLOR.main;
+  const sceneWidth = SVGWidth || state.scene.width;
+  const sceneHeight = SVGHeight || state.scene.height;
+  const sceneZoom = state.zoom || 1;
+  const rulerXElements = Math.ceil(sceneWidth / rulerUnitPixelSize) + 1;
+  const rulerYElements = Math.ceil(sceneHeight / rulerUnitPixelSize) + 1;
+
+  const miniatureProps = {
+    position: 'none',
+    background: '#fff',
+    //width: 0,
+    //height: 0,
+    width: 100,
+    height: 80
+  } as const;
+  const toolbarProps = {
+    position: 'none'
+  } as const;
+
+  return (
+    <div
+      style={{
+        margin: 0,
+        padding: 0,
+        display: 'grid',
+        gridRowGap: '0',
+        gridColumnGap: '0',
+        gridTemplateColumns: `${rulerSize}px ${width - rulerSize}px`,
+        gridTemplateRows: `${rulerSize}px ${height - rulerSize}px`,
+        position: 'relative'
+      }}
+    >
+      <div
+        style={{ gridColumn: 1, gridRow: 1, backgroundColor: rulerBgColor }}
+      ></div>
+      <div
+        style={{
+          gridRow: 1,
+          gridColumn: 2,
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+        id="rulerX"
+      >
+        {sceneWidth ? (
+          <RulerX
+            unitPixelSize={rulerUnitPixelSize}
+            zoom={sceneZoom}
+            mouseX={state.mouse.x}
+            width={width - rulerSize}
+            zeroLeftPosition={e || 0}
+            backgroundColor={rulerBgColor}
+            fontColor={rulerFnColor}
+            markerColor={rulerMkColor}
+            positiveUnitsNumber={rulerXElements}
+            negativeUnitsNumber={0}
+          />
+        ) : null}
+      </div>
+      <div
+        style={{
+          gridColumn: 1,
+          gridRow: 2,
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+        id="rulerY"
+      >
+        {sceneHeight ? (
+          <RulerY
+            unitPixelSize={rulerUnitPixelSize}
+            zoom={sceneZoom}
+            mouseY={state.mouse.y}
+            height={height - rulerSize}
+            zeroTopPosition={sceneHeight * sceneZoom + f || 0}
+            backgroundColor={rulerBgColor}
+            fontColor={rulerFnColor}
+            markerColor={rulerMkColor}
+            positiveUnitsNumber={rulerYElements}
+            negativeUnitsNumber={0}
+          />
+        ) : null}
+      </div>
+      <ReactSVGPanZoom
+        style={{ gridColumn: 2, gridRow: 2 }}
+        width={width - rulerSize}
+        height={height - rulerSize}
+        value={viewer2D as any as ReactSVGPanZoomValue}
+        onChangeValue={onChangeValue}
+        tool={mode2Tool(mode)}
+        onChangeTool={onChangeTool}
+        detectAutoPan={mode2DetectAutopan(mode)}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        miniatureProps={miniatureProps}
+        toolbarProps={toolbarProps}
+        // @ts-ignore
+        onTouchStart={(e: ViewerTouchEvent<Element>) => onMouseDown(e)}
+        onTouchEnd={(e: ViewerTouchEvent<Element>) => onMouseUp(e)}
+        onTouchMove={(e: ViewerTouchEvent<Element>) => onMouseMove(e)}
+      >
+        <svg width={scene.width} height={scene.height}>
+          <defs>
+            <pattern
+              id="diagonalFill"
+              patternUnits="userSpaceOnUse"
+              width="4"
+              height="4"
+              fill="#FFF"
+            >
+              <rect x="0" y="0" width="4" height="4" fill="#FFF" />
+              <path
+                d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2"
+                style={{ stroke: '#8E9BA2', strokeWidth: 1 }}
+              />
+            </pattern>
+          </defs>
+          <g
+            style={
+              Object.assign(
+                mode2Cursor(mode),
+                mode2PointerEvents(mode)
+              ) as CSSProperties
+            }
+          >
+            <State state={state} catalog={catalog} />
+          </g>
+        </svg>
+      </ReactSVGPanZoom>
+    </div>
+  );
+}
+
+----------------- FILE: src/components/viewer3d/scene-creator.ts -----------------
+import * as Three from 'three';
+import { Object3D } from 'three';
+
+import { CatalogFn } from '../../catalog/catalog';
+import { Layer, Scene } from '../../models';
+import { ReactPlannerContextProps } from '../../react-planner-context';
+
+import createGrid from './grid-creator';
+import { disposeObject } from './three-memory-cleaner';
+
+/**
+ * Structures used by parseData to build the 3D scene graph.
+ */
+export interface BusyResourcesLayer {
+  id: string;
+  lines: Record<string, boolean>;
+  holes: Record<string, boolean>;
+  areas: Record<string, boolean>;
+  items: Record<string, boolean>;
+}
+
+export interface SceneGraphLayer {
+  id: string;
+  lines: Record<string, Three.Object3D>; // pivot objects containing meshes
+  holes: Record<string, Three.Object3D>;
+  areas: Record<string, Three.Object3D>;
+  items: Record<string, Three.Object3D>;
+  visible: boolean;
+  altitude: number; // layer altitude
+}
+
+export interface SceneGraphData {
+  unit: Scene['unit'];
+  layers: Record<string, SceneGraphLayer>;
+  busyResources: { layers: Record<string, BusyResourcesLayer> };
+  width: number;
+  height: number;
+  /** Map of element id -> LOD object used for camera dependent switching */
+  LODs: Record<string, Three.LOD>;
+}
+
+export interface PlanData {
+  sceneGraph: SceneGraphData;
+  plan: Three.Object3D; // root container for all scene objects
+  grid: Three.Object3D; // visual reference grid
+  boundingBox: Three.Box3; // axis-aligned bounding box centered at origin
+}
+
+export function parseData(
+  sceneData: Scene,
+  context: ReactPlannerContextProps
+): PlanData {
+  const planRoot = new Three.Object3D();
+  planRoot.name = 'plan';
+  const grid = createGrid(sceneData);
+  grid.name = 'grid';
+
+  const sceneGraph: SceneGraphData = {
+    unit: sceneData.unit,
+    layers: {},
+    busyResources: { layers: {} },
+    width: sceneData.width,
+    height: sceneData.height,
+    LODs: {}
+  };
+
+  const boundingBox = new Three.Box3().setFromObject(grid);
+  (boundingBox as any).name = 'boundingBox';
+
+  const planData: PlanData = {
+    sceneGraph,
+    plan: planRoot,
+    grid,
+    boundingBox
+  };
+
+  let promises: Promise<void>[] = [];
+
+  Object.values(sceneData.layers).forEach((layer) => {
+    if (layer.id === sceneData.selectedLayer || layer.visible) {
+      promises = promises.concat(
+        createLayerObjects(layer, planData, sceneData, context)
+      );
+    }
+  });
+
+  Promise.all(promises).then((value) => updateBoundingBox(planData));
+
+  return planData;
+}
+
+function createLayerObjects(
+  layer: Layer,
+  planData: PlanData,
+  sceneData: Scene,
+  context: ReactPlannerContextProps
+) {
+  const promises: Promise<void>[] = [];
+
+  planData.sceneGraph.layers[layer.id] = {
+    id: layer.id,
+    lines: {},
+    holes: {},
+    areas: {},
+    items: {},
+    visible: layer.visible,
+    altitude: layer.altitude
+  };
+
+  planData.sceneGraph.busyResources.layers[layer.id] = {
+    id: layer.id,
+    lines: {},
+    holes: {},
+    areas: {},
+    items: {}
+  };
+
+  // Import lines
+  Object.values(layer.lines).forEach((line) => {
+    promises.push(addLine(sceneData, planData, layer, line.id, context));
+    line.holes.forEach((holeID) => {
+      promises.push(addHole(sceneData, planData, layer, holeID, context));
+    });
+  });
+
+  // Import areas
+  Object.values(layer.areas).forEach((area) => {
+    promises.push(addArea(sceneData, planData, layer, area.id, context));
+  });
+
+  // Import items
+  Object.values(layer.items).forEach((item) => {
+    promises.push(addItem(sceneData, planData, layer, item.id, context));
+  });
+
+  return promises;
+}
+
+type Diff = {
+  op: 'add' | 'remove' | 'replace';
+  path: string[];
+  value: any;
+};
+
+export function updateScene(
+  planData: PlanData,
+  sceneData: Scene,
+  oldSceneData: Scene,
+  diffArray: { [key: string]: any },
+  context: ReactPlannerContextProps
+) {
+  const splitted = Object.values(diffArray).map((el) => {
+    return { op: el.op, path: el.path.split('/'), value: el.value };
+  });
+  let filteredDiffs = filterDiffs(splitted, sceneData, oldSceneData);
+
+  //***testing additional filter***
+  filteredDiffs = filteredDiffs.filter(({ path }) => path[3] !== 'selected');
+  filteredDiffs = filteredDiffs.filter(({ path }) => path[1] !== 'groups');
+  //*******************************
+
+  filteredDiffs.forEach(({ op, path, value }) => {
+    /* First of all I need to find the object I need to update */
+    if (path[1] === 'layers') {
+      const layer = sceneData.layers[path[2]];
+
+      if (path.length === 3 && op === 'remove') {
+        removeLayer(path[2], planData);
+      } else if (path.length > 3) {
+        switch (op) {
+          case 'replace':
+            replaceObject(
+              path as ModifiedPath,
+              layer,
+              planData,
+              sceneData,
+              oldSceneData,
+              context
+            );
+            break;
+          case 'add':
+            addObject(
+              path as ModifiedPath,
+              layer,
+              planData,
+              sceneData,
+              oldSceneData,
+              context
+            );
+            break;
+          case 'remove':
+            removeObject(
+              path as ModifiedPath,
+              layer,
+              planData,
+              sceneData,
+              oldSceneData,
+              context
+            );
+            break;
+        }
+      }
+    } else if (path[1] === 'selectedLayer') {
+      const layerSelectedID = value;
+      const layerSelected = sceneData.layers[layerSelectedID];
+      // First of all I check if the new selected layer is not visible
+      if (!layerSelected.visible) {
+        // I need to create the objects for this layer
+        const promises = createLayerObjects(
+          layerSelected,
+          planData,
+          sceneData,
+          context
+        );
+        Promise.all(promises).then(() => updateBoundingBox(planData));
+      }
+
+      const layerGraph =
+        planData.sceneGraph.layers[oldSceneData.selectedLayer as string];
+
+      if (layerGraph) {
+        if (!layerGraph.visible) {
+          // I need to remove the objects for this layer
+          for (const lineID in layerGraph.lines)
+            removeLine(planData, layerGraph.id, lineID);
+          for (const areaID in layerGraph.areas)
+            removeArea(planData, layerGraph.id, areaID);
+          for (const itemID in layerGraph.items)
+            removeItem(planData, layerGraph.id, itemID);
+          for (const holeID in layerGraph.holes)
+            removeHole(planData, layerGraph.id, holeID);
+        }
+      }
+    }
+  });
+  return planData;
+}
+
+type ModifiedPath = [number, number, number, string, string, ...string[]];
+
+function replaceObject(
+  modifiedPath: ModifiedPath,
+  layer: Layer,
+  planData: PlanData,
+  sceneData: Scene,
+  oldSceneData: Scene,
+  context: ReactPlannerContextProps
+) {
+  let promises: Promise<void>[] = [];
+
+  switch (modifiedPath[3]) {
+    case 'vertices':
+      if (modifiedPath[5] !== 'selected') {
+        const vertex = layer.vertices[modifiedPath[4]];
+
+        if (modifiedPath[5] === 'x' || modifiedPath[5] === 'y') {
+          vertex.lines.forEach((lineID) => {
+            const lineHoles = oldSceneData.layers[layer.id].lines[lineID].holes;
+            if (lineHoles)
+              lineHoles.forEach((holeID) => {
+                replaceObject(
+                  [0, 0, 0, 'holes', holeID, 'selected'],
+                  layer,
+                  planData,
+                  sceneData,
+                  oldSceneData,
+                  context
+                );
+              });
+            return replaceObject(
+              [0, 0, 0, 'lines', lineID],
+              layer,
+              planData,
+              sceneData,
+              oldSceneData,
+              context
+            );
+          });
+          vertex.areas.forEach((areaID) =>
+            replaceObject(
+              [0, 0, 0, 'areas', areaID],
+              layer,
+              planData,
+              sceneData,
+              oldSceneData,
+              context
+            )
+          );
+        }
+
+        if (modifiedPath[5] === 'areas') {
+          const areaID = vertex.areas[~~modifiedPath[6]];
+          replaceObject(
+            [0, 0, 0, 'areas', areaID],
+            layer,
+            planData,
+            sceneData,
+            oldSceneData,
+            context
+          );
+        }
+      }
+      break;
+    case 'holes':
+      const newHoleData = layer.holes[modifiedPath[4]];
+
+      if (
+        CatalogFn.getElement(context.catalog, newHoleData.type).updateRender3D
+      ) {
+        promises.push(
+          updateHole(
+            sceneData,
+            oldSceneData,
+            planData,
+            layer,
+            modifiedPath[4],
+            modifiedPath.slice(5) as string[],
+            context,
+            () => removeHole(planData, layer.id, newHoleData.id),
+            () => addHole(sceneData, planData, layer, newHoleData.id, context)
+          )
+        );
+      } else {
+        const lineID = newHoleData.line;
+        if (modifiedPath[5] === 'selected') {
+          // I remove only the hole without removing the wall
+          removeHole(planData, layer.id, newHoleData.id);
+          promises.push(
+            addHole(sceneData, planData, layer, newHoleData.id, context)
+          );
+        } else {
+          layer.lines[lineID].holes.forEach((holeID) => {
+            removeHole(planData, layer.id, holeID);
+          });
+          removeLine(planData, layer.id, lineID);
+          promises.push(addLine(sceneData, planData, layer, lineID, context));
+          layer.lines[lineID].holes.forEach((holeID) => {
+            promises.push(addHole(sceneData, planData, layer, holeID, context));
+          });
+        }
+      }
+      break;
+    case 'lines':
+      const line = layer.lines[modifiedPath[4]];
+
+      if (CatalogFn.getElement(context.catalog, line.type).updateRender3D) {
+        promises.push(
+          updateLine(
+            sceneData,
+            oldSceneData,
+            planData,
+            layer,
+            modifiedPath[4],
+            modifiedPath.slice(5) as string[],
+            context,
+            () => removeLine(planData, layer.id, modifiedPath[4]),
+            () => addLine(sceneData, planData, layer, modifiedPath[4], context)
+          )
+        );
+        // If wall thickness/height changed, rebuild adjacent connected walls to recalc shared edge geometry
+        if (
+          modifiedPath[5] === 'properties' &&
+          (modifiedPath[6] === 'thickness' || modifiedPath[6] === 'height')
+        ) {
+          const currentLineID = modifiedPath[4];
+          const vertices = line.vertices || [];
+          vertices.forEach((vID) => {
+            const v = layer.vertices[vID];
+            if (!v) return;
+            (v.lines || []).forEach((adjLineID) => {
+              if (adjLineID !== currentLineID && layer.lines[adjLineID]) {
+                // Full rebuild of adjacent line
+                removeLine(planData, layer.id, adjLineID);
+                promises.push(
+                  addLine(sceneData, planData, layer, adjLineID, context)
+                );
+              }
+            });
+          });
+        }
+      } else {
+        removeLine(planData, layer.id, modifiedPath[4]);
+        promises.push(
+          addLine(sceneData, planData, layer, modifiedPath[4], context)
+        );
+      }
+      break;
+    case 'areas':
+      const area = layer.areas[modifiedPath[4]];
+
+      if (CatalogFn.getElement(context.catalog, area.type).updateRender3D) {
+        promises.push(
+          updateArea(
+            sceneData,
+            oldSceneData,
+            planData,
+            layer,
+            modifiedPath[4],
+            modifiedPath.slice(5) as string[],
+            context,
+            () => removeArea(planData, layer.id, modifiedPath[4]),
+            () => addArea(sceneData, planData, layer, modifiedPath[4], context)
+          )
+        );
+      } else {
+        if (planData.sceneGraph.layers[layer.id].areas[modifiedPath[4]]) {
+          removeArea(planData, layer.id, modifiedPath[4]);
+        }
+        promises.push(
+          addArea(sceneData, planData, layer, modifiedPath[4], context)
+        );
+      }
+      break;
+    case 'items':
+      const item = layer.items[modifiedPath[4]];
+
+      if (CatalogFn.getElement(context.catalog, item.type).updateRender3D) {
+        promises.push(
+          updateItem(
+            sceneData,
+            oldSceneData,
+            planData,
+            layer,
+            modifiedPath[4],
+            modifiedPath.slice(5) as string[],
+            context,
+            () => removeItem(planData, layer.id, modifiedPath[4]),
+            () => addItem(sceneData, planData, layer, modifiedPath[4], context)
+          )
+        );
+      } else {
+        removeItem(planData, layer.id, modifiedPath[4]);
+        promises.push(
+          addItem(sceneData, planData, layer, modifiedPath[4], context)
+        );
+      }
+      break;
+
+    case 'visible':
+      if (!layer.visible) {
+        const layerGraph = planData.sceneGraph.layers[layer.id];
+
+        for (const lineID in layerGraph.lines)
+          removeLine(planData, layer.id, lineID);
+        for (const areaID in layerGraph.areas)
+          removeArea(planData, layer.id, areaID);
+        for (const itemID in layerGraph.items)
+          removeItem(planData, layer.id, itemID);
+        for (const holeID in layerGraph.holes)
+          removeHole(planData, layer.id, holeID);
+      } else {
+        promises = promises.concat(
+          createLayerObjects(layer, planData, sceneData, context)
+        );
+      }
+
+      break;
+
+    case 'opacity':
+    case 'altitude':
+      const layerGraph = planData.sceneGraph.layers[layer.id];
+      for (const lineID in layerGraph.lines)
+        removeLine(planData, layer.id, lineID);
+      for (const areaID in layerGraph.areas)
+        removeArea(planData, layer.id, areaID);
+      for (const itemID in layerGraph.items)
+        removeItem(planData, layer.id, itemID);
+      for (const holeID in layerGraph.holes)
+        removeHole(planData, layer.id, holeID);
+
+      promises = promises.concat(
+        createLayerObjects(layer, planData, sceneData, context)
+      );
+  }
+  Promise.all(promises).then((values) => updateBoundingBox(planData));
+}
+
+function removeObject(
+  modifiedPath: ModifiedPath,
+  layer: Layer,
+  planData: PlanData,
+  sceneData: Scene,
+  oldSceneData: Scene,
+  context: ReactPlannerContextProps
+) {
+  const promises = [];
+  switch (modifiedPath[3]) {
+    case 'lines':
+      // Here I remove the line with all its holes
+      const lineID = modifiedPath[4];
+      oldSceneData.layers[layer.id].lines[lineID].holes.forEach((holeID) => {
+        removeHole(planData, layer.id, holeID);
+      });
+      removeLine(planData, layer.id, lineID);
+      if (modifiedPath.length > 5) {
+        // I removed an hole, so I should add the new line
+        promises.push(addLine(sceneData, planData, layer, lineID, context));
+        layer.lines[lineID].holes.forEach((holeID) => {
+          promises.push(addHole(sceneData, planData, layer, holeID, context));
+        });
+      }
+      break;
+    case 'areas':
+      if (modifiedPath.length === 5) {
+        // I am removing an entire area
+        removeArea(planData, layer.id, modifiedPath[4]);
+      }
+      break;
+    case 'items':
+      if (modifiedPath.length === 5) {
+        // I am removing an item
+        removeItem(planData, layer.id, modifiedPath[4]);
+      }
+      break;
+  }
+
+  Promise.all(promises).then((values) => updateBoundingBox(planData));
+}
+
+function removeLayer(layerId: string, planData: PlanData) {
+  const layerGraph = planData.sceneGraph.layers[layerId];
+
+  for (const lineID in layerGraph.lines) removeLine(planData, layerId, lineID);
+  for (const areaID in layerGraph.areas) removeArea(planData, layerId, areaID);
+  for (const itemID in layerGraph.items) removeItem(planData, layerId, itemID);
+  for (const holeID in layerGraph.holes) removeHole(planData, layerId, holeID);
+
+  delete planData.sceneGraph.layers[layerId];
+}
+
+function removeHole(planData: PlanData, layerId: string, holeID: string) {
+  if (planData.sceneGraph.busyResources.layers[layerId].holes[holeID]) {
+    setTimeout(() => removeHole(planData, layerId, holeID), 100);
+    return;
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].holes[holeID] = true;
+
+  let hole3D: Object3D | null =
+    planData.sceneGraph.layers[layerId].holes[holeID];
+
+  if (hole3D) {
+    planData.plan.remove(hole3D);
+    disposeObject(hole3D);
+    delete planData.sceneGraph.layers[layerId].holes[holeID];
+    delete planData.sceneGraph.LODs[holeID];
+    hole3D = null;
+    updateBoundingBox(planData);
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].holes[holeID] = false;
+}
+
+function removeLine(planData: PlanData, layerId: string, lineID: string) {
+  if (planData.sceneGraph.busyResources.layers[layerId].lines[lineID]) {
+    setTimeout(() => removeLine(planData, layerId, lineID), 100);
+    return;
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].lines[lineID] = true;
+
+  let line3D: Object3D | null =
+    planData.sceneGraph.layers[layerId].lines[lineID];
+
+  if (line3D) {
+    planData.plan.remove(line3D);
+    disposeObject(line3D);
+    delete planData.sceneGraph.layers[layerId].lines[lineID];
+    delete planData.sceneGraph.LODs[lineID];
+    line3D = null;
+    updateBoundingBox(planData);
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].lines[lineID] = false;
+}
+
+function removeArea(planData: PlanData, layerId: string, areaID: string) {
+  if (planData.sceneGraph.busyResources.layers[layerId].areas[areaID]) {
+    setTimeout(() => removeArea(planData, layerId, areaID), 100);
+    return;
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].areas[areaID] = true;
+
+  let area3D: Object3D | null =
+    planData.sceneGraph.layers[layerId].areas[areaID];
+
+  if (area3D) {
+    planData.plan.remove(area3D);
+    disposeObject(area3D);
+    delete planData.sceneGraph.layers[layerId].areas[areaID];
+    delete planData.sceneGraph.LODs[areaID];
+    area3D = null;
+    updateBoundingBox(planData);
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].areas[areaID] = false;
+}
+
+function removeItem(planData: PlanData, layerId: string, itemID: string) {
+  if (planData.sceneGraph.busyResources.layers[layerId].items[itemID]) {
+    setTimeout(() => removeItem(planData, layerId, itemID), 100);
+    return;
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].items[itemID] = true;
+
+  let item3D: Object3D | null =
+    planData.sceneGraph.layers[layerId].items[itemID];
+
+  if (item3D) {
+    planData.plan.remove(item3D);
+    disposeObject(item3D);
+    delete planData.sceneGraph.layers[layerId].items[itemID];
+    delete planData.sceneGraph.LODs[itemID];
+    item3D = null;
+    updateBoundingBox(planData);
+  }
+
+  planData.sceneGraph.busyResources.layers[layerId].items[itemID] = false;
+}
+
+//TODO generate an area's replace if vertex has been changed
+function addObject(
+  modifiedPath: ModifiedPath,
+  layer: Layer,
+  planData: PlanData,
+  sceneData: Scene,
+  oldSceneData: Scene,
+  context: ReactPlannerContextProps
+) {
+  if (modifiedPath.length === 5) {
+    let addPromise = null;
+
+    switch (modifiedPath[3]) {
+      case 'lines':
+        addPromise = addLine;
+        break;
+      case 'areas':
+        addPromise = addArea;
+        break;
+      case 'items':
+        addPromise = addItem;
+        break;
+      case 'holes':
+        addPromise = addHole;
+        break;
+    }
+
+    if (addPromise)
+      addPromise(sceneData, planData, layer, modifiedPath[4], context).then(
+        () => updateBoundingBox(planData)
+      );
+  }
+}
+
+async function addHole(
+  sceneData: Scene,
+  planData: PlanData,
+  layer: Layer,
+  holeID: string,
+  context: ReactPlannerContextProps
+) {
+  const holeData = layer.holes[holeID];
+
+  // Create the hole object
+  const object = await CatalogFn.getElement(
+    context.catalog,
+    holeData.type
+  ).render3D(holeData, layer, sceneData);
+  if (object instanceof Three.LOD) {
+    planData.sceneGraph.LODs[holeID] = object;
+  }
+  const pivot = new Three.Object3D();
+  pivot.name = 'pivot';
+  pivot.add(object);
+  const line_1 = layer.lines[holeData.line];
+  // First of all I need to find the vertices of this line
+  let vertex0 = layer.vertices[line_1.vertices[0]];
+  let vertex1 = layer.vertices[line_1.vertices[1]];
+  let offset = holeData.offset;
+  if (vertex0.x > vertex1.x) {
+    const tmp = vertex0;
+    vertex0 = vertex1;
+    vertex1 = tmp;
+    offset = 1 - offset;
+  }
+  const distance = Math.sqrt(
+    Math.pow(vertex0.x - vertex1.x, 2) + Math.pow(vertex0.y - vertex1.y, 2)
+  );
+  const alpha = Math.asin((vertex1.y - vertex0.y) / distance);
+  const boundingBox = new Three.Box3().setFromObject(pivot);
+  const center = [
+    (boundingBox.max.x - boundingBox.min.x) / 2 + boundingBox.min.x,
+    (boundingBox.max.y - boundingBox.min.y) / 2 + boundingBox.min.y,
+    (boundingBox.max.z - boundingBox.min.z) / 2 + boundingBox.min.z
+  ];
+  const holeAltitude = holeData.properties.altitude.length;
+  const holeHeight = holeData.properties.height.length;
+  pivot.rotation.y = alpha;
+  pivot.position.x =
+    vertex0.x +
+    distance * offset * Math.cos(alpha) -
+    center[2] * Math.sin(alpha);
+  pivot.position.y = holeAltitude + holeHeight / 2 - center[1] + layer.altitude;
+  pivot.position.z =
+    -vertex0.y -
+    distance * offset * Math.sin(alpha) -
+    center[2] * Math.cos(alpha);
+  planData.plan.add(pivot);
+  planData.sceneGraph.layers[layer.id].holes[holeData.id] = pivot;
+  applyInteract(pivot, () => {
+    return context.holesActions.selectHole(layer.id, holeData.id);
+  });
+  let opacity = layer.opacity;
+  if (holeData.selected) {
+    opacity = 1;
+  }
+  applyOpacity(pivot, opacity);
+}
+
+async function updateHole(
+  sceneData: Scene,
+  oldSceneData: Scene,
+  planData: PlanData,
+  layer: Layer,
+  holeID: string,
+  differences: string[],
+  context: ReactPlannerContextProps,
+  selfDestroy: () => void,
+  selfBuild: () => void
+) {
+  const hole = layer.holes[holeID];
+  const oldHole = oldSceneData.layers[layer.id].holes[holeID];
+  const mesh = planData.sceneGraph.layers[layer.id].holes[holeID];
+
+  if (!mesh) return null;
+
+  return CatalogFn.getElement(context.catalog, hole.type).updateRender3D?.(
+    hole,
+    layer,
+    sceneData,
+    mesh,
+    oldHole,
+    differences,
+    selfDestroy,
+    selfBuild
+  );
+}
+
+async function addLine(
+  sceneData: Scene,
+  planData: PlanData,
+  layer: Layer,
+  lineID: string,
+  context: ReactPlannerContextProps
+) {
+  if (planData.sceneGraph.busyResources.layers[layer.id].lines[lineID]) {
+    setTimeout(() => addLine(sceneData, planData, layer, lineID, context), 100);
+    return;
+  }
+
+  planData.sceneGraph.busyResources.layers[layer.id].lines[lineID] = true;
+
+  const line = layer.lines[lineID];
+
+  // First of all I need to find the vertices of this line
+  let vertex0 = layer.vertices[line.vertices[0]];
+  let vertex1 = layer.vertices[line.vertices[1]];
+
+  if (vertex0.x > vertex1.x) {
+    const tmp = vertex0;
+    vertex0 = vertex1;
+    vertex1 = tmp;
+  }
+
+  const line3D = await CatalogFn.getElement(
+    context.catalog,
+    line.type
+  ).render3D(line, layer, sceneData);
+  if (line3D instanceof Three.LOD) {
+    planData.sceneGraph.LODs[line.id] = line3D;
+  }
+  const pivot = new Three.Object3D();
+  pivot.name = 'pivot';
+  pivot.add(line3D);
+  pivot.position.x = vertex0.x;
+  pivot.position.y = layer.altitude;
+  pivot.position.z = -vertex0.y;
+  planData.plan.add(pivot);
+  planData.sceneGraph.layers[layer.id].lines[lineID] = pivot;
+  applyInteract(pivot, () => {
+    return context.linesActions.selectLine(layer.id, line.id);
+  });
+  let opacity = layer.opacity;
+  if (line.selected) {
+    opacity = 1;
+  }
+  applyOpacity(pivot, opacity);
+  planData.sceneGraph.busyResources.layers[layer.id].lines[lineID] = false;
+}
+
+async function updateLine(
+  sceneData: Scene,
+  oldSceneData: Scene,
+  planData: PlanData,
+  layer: Layer,
+  lineID: string,
+  differences: string[],
+  context: ReactPlannerContextProps,
+  selfDestroy: () => void,
+  selfBuild: () => void
+) {
+  const line = layer.lines[lineID];
+  const oldLine = oldSceneData.layers[layer.id].lines[lineID];
+  const mesh = planData.sceneGraph.layers[layer.id].lines[lineID];
+
+  if (!mesh) return null;
+
+  return CatalogFn.getElement(context.catalog, line.type).updateRender3D?.(
+    line,
+    layer,
+    sceneData,
+    mesh,
+    oldLine,
+    differences,
+    selfDestroy,
+    selfBuild
+  );
+}
+
+async function addArea(
+  sceneData: Scene,
+  planData: PlanData,
+  layer: Layer,
+  areaID: string,
+  context: ReactPlannerContextProps
+) {
+  if (planData.sceneGraph.busyResources.layers[layer.id].areas[areaID]) {
+    setTimeout(() => addArea(sceneData, planData, layer, areaID, context), 100);
+    return;
+  }
+
+  planData.sceneGraph.busyResources.layers[layer.id].areas[areaID] = true;
+
+  const area = layer.areas[areaID];
+  const interactFunction = () =>
+    context.areaActions.selectArea(layer.id, areaID);
+
+  const area3D = await CatalogFn.getElement(
+    context.catalog,
+    area.type
+  ).render3D(area, layer, sceneData);
+  if (area3D instanceof Three.LOD) {
+    planData.sceneGraph.LODs[areaID] = area3D;
+  }
+  const pivot = new Three.Object3D();
+  pivot.name = 'pivot';
+  pivot.add(area3D);
+  pivot.position.y = layer.altitude;
+  planData.plan.add(pivot);
+  planData.sceneGraph.layers[layer.id].areas[areaID] = pivot;
+  applyInteract(pivot, interactFunction);
+  let opacity = layer.opacity;
+  if (area.selected) {
+    opacity = 1;
+  }
+  applyOpacity(pivot, opacity);
+  planData.sceneGraph.busyResources.layers[layer.id].areas[areaID] = false;
+}
+
+async function updateArea(
+  sceneData: Scene,
+  oldSceneData: Scene,
+  planData: PlanData,
+  layer: Layer,
+  areaID: string,
+  differences: string[],
+  context: ReactPlannerContextProps,
+  selfDestroy: () => void,
+  selfBuild: () => void
+) {
+  const area = layer.areas[areaID];
+  const oldArea = oldSceneData.layers[layer.id].areas[areaID];
+  const mesh = planData.sceneGraph.layers[layer.id].areas[areaID];
+
+  if (!mesh) return null;
+
+  return CatalogFn.getElement(context.catalog, area.type).updateRender3D?.(
+    area,
+    layer,
+    sceneData,
+    mesh,
+    oldArea,
+    differences,
+    selfDestroy,
+    selfBuild
+  );
+}
+
+async function addItem(
+  sceneData: Scene,
+  planData: PlanData,
+  layer: Layer,
+  itemID: string,
+  context: ReactPlannerContextProps
+) {
+  const item = layer.items[itemID];
+
+  const item3D = await CatalogFn.getElement(
+    context.catalog,
+    item.type
+  ).render3D(item, layer, sceneData);
+  if (item3D instanceof Three.LOD) {
+    planData.sceneGraph.LODs[itemID] = item3D;
+  }
+  const pivot = new Three.Object3D();
+  pivot.name = 'pivot';
+  pivot.add(item3D);
+  pivot.rotation.y = (item.rotation * Math.PI) / 180;
+  pivot.position.x = item.x;
+  pivot.position.y = layer.altitude;
+  pivot.position.z = -item.y;
+  applyInteract(item3D, () => {
+    context.itemsActions.selectItem(layer.id, item.id);
+  });
+  let opacity = layer.opacity;
+  if (item.selected) {
+    opacity = 1;
+  }
+  applyOpacity(pivot, opacity);
+  planData.plan.add(pivot);
+  planData.sceneGraph.layers[layer.id].items[item.id] = pivot;
+}
+
+async function updateItem(
+  sceneData: Scene,
+  oldSceneData: Scene,
+  planData: PlanData,
+  layer: Layer,
+  itemID: string,
+  differences: string[],
+  context: ReactPlannerContextProps,
+  selfDestroy: () => void,
+  selfBuild: () => void
+) {
+  const item = layer.items[itemID];
+  const oldItem = oldSceneData.layers[layer.id].items[itemID];
+  const mesh = planData.sceneGraph.layers[layer.id].items[itemID];
+
+  if (!mesh) return null;
+
+  return CatalogFn.getElement(context.catalog, item.type).updateRender3D?.(
+    item,
+    layer,
+    sceneData,
+    mesh,
+    oldItem,
+    differences,
+    selfDestroy,
+    selfBuild
+  );
+}
+
+// Apply interact function to children of an Object3D
+function applyInteract(
+  object: Three.Object3D<Three.Object3DEventMap>,
+  interactFunction: () => void
+) {
+  object.traverse((child) => {
+    if (child instanceof Three.Mesh) {
+      (child as any).interact = interactFunction; //TODO
+    }
+  });
+}
+
+// Apply opacity to children of an Object3D
+function applyOpacity(
+  object: Three.Object3D<Three.Object3DEventMap>,
+  opacity: number
+) {
+  object.traverse((child) => {
+    if (child instanceof Three.Mesh) {
+      if (Array.isArray(child.material)) {
+        child.material.forEach((material) => {
+          material.transparent = true;
+          if (material.maxOpacity) {
+            material.opacity = Math.min(material.maxOpacity, opacity);
+          } else if (material.opacity && material.opacity > opacity) {
+            material.maxOpacity = material.opacity;
+            material.opacity = opacity;
+          }
+        });
+      } else if (child.material) {
+        child.material.transparent = true;
+        if (child.material.maxOpacity) {
+          child.material.opacity = Math.min(child.material.maxOpacity, opacity);
+        } else if (child.material.opacity && child.material.opacity > opacity) {
+          child.material.maxOpacity = child.material.opacity;
+          child.material.opacity = opacity;
+        }
+      }
+    }
+  });
+}
+
+function updateBoundingBox(planData: PlanData) {
+  const newBoundingBox = new Three.Box3().setFromObject(planData.plan);
+  if (
+    isFinite(newBoundingBox.max.x) &&
+    isFinite(newBoundingBox.min.x) &&
+    isFinite(newBoundingBox.max.y) &&
+    isFinite(newBoundingBox.min.y) &&
+    isFinite(newBoundingBox.max.z) &&
+    isFinite(newBoundingBox.min.z)
+  ) {
+    const newCenter = new Three.Vector3(
+      (newBoundingBox.max.x - newBoundingBox.min.x) / 2 + newBoundingBox.min.x,
+      (newBoundingBox.max.y - newBoundingBox.min.y) / 2 + newBoundingBox.min.y,
+      (newBoundingBox.max.z - newBoundingBox.min.z) / 2 + newBoundingBox.min.z
+    );
+
+    planData.plan.position.sub(newCenter);
+    planData.grid.position.sub(newCenter);
+
+    newBoundingBox.min.sub(newCenter);
+    newBoundingBox.max.sub(newCenter);
+
+    planData.boundingBox = newBoundingBox;
+  }
+}
+
+/**
+ * Filter the array of diffs
+ * @param diffArray
+ * @param sceneData
+ * @param oldSceneData
+ */
+function filterDiffs(diffArray: Diff[], sceneData: Scene, oldSceneData: Scene) {
+  return minimizeRemoveDiffsWhenSwitchingLayers(
+    minimizeChangePropertiesAfterSelectionsDiffs(
+      minimizeChangePropertiesDiffs(diffArray)
+    ),
+    sceneData,
+    oldSceneData
+  );
+}
+
+/**
+ * Reduces the number of remove diffs when switching an hidden layer
+ * @param diffArray the array of the diffs
+ * @param sceneData
+ * @param oldSceneData
+ * @returns {Array}
+ */
+function minimizeRemoveDiffsWhenSwitchingLayers(
+  diffArray: Diff[],
+  sceneData: Scene,
+  oldSceneData: Scene
+) {
+  const oldSelectedLayer = oldSceneData.selectedLayer;
+  if (oldSelectedLayer === undefined) return diffArray;
+  let foundDiff;
+  for (let i = 0; i < diffArray.length && !foundDiff; i++) {
+    if (diffArray[i].path[1] === 'selectedLayer') {
+      foundDiff = diffArray[i];
+    }
+  }
+
+  if (foundDiff) {
+    if (!sceneData.layers[oldSelectedLayer].visible) {
+      return diffArray.filter(({ op, path }) => {
+        return (
+          !(
+            path[path.length - 1] === 'selected' &&
+            path[1] === 'layers' &&
+            path[2] === oldSelectedLayer
+          ) && !(op === 'remove' && path.indexOf(oldSelectedLayer) !== -1)
+        );
+      });
+    }
+  }
+
+  return diffArray;
+}
+
+/**
+ * Reduces the number of change properties diffs for selected elements
+ * @param diffArray the array of the diffs
+ * @param sceneData
+ * @param oldSceneData
+ */
+function minimizeChangePropertiesAfterSelectionsDiffs(diffArray: Diff[]) {
+  const idsFound: Record<string, string> = {};
+  diffArray.forEach(({ path }) => {
+    if (path[5] === 'selected') {
+      idsFound[path[4]] = path[4];
+    }
+  });
+
+  return diffArray.filter(({ path }) => {
+    if (path[5] === 'properties') {
+      return idsFound[path[4]] ? false : true;
+    }
+    return true;
+  });
+}
+
+/**
+ * Reduces the number of change properties diffs
+ * @param diffArray the array of the diffs
+ * @param sceneData
+ * @param oldSceneData
+ */
+function minimizeChangePropertiesDiffs(diffArray: Diff[]) {
+  const idsFound: Record<string, boolean> = {};
+  return diffArray.filter(({ path }) => {
+    if (path[5] === 'properties') {
+      return idsFound[path[4]] ? false : (idsFound[path[4]] = true);
+    } else if (path[5] === 'misc') {
+      // Remove misc changes
+      return false;
+    }
+    return true;
+  });
+}
+
+----------------- FILE: src/components/viewer3d/viewer3d.tsx -----------------
+import React, { Component } from 'react';
+
+import convert from 'convert-units';
+import * as Three from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+
+import { State } from '../../models';
+import ReactPlannerContext from '../../react-planner-context';
+import * as SharedStyle from '../../shared-style';
+import { diff } from '../../utils/history';
+
+import { parseData, PlanData, updateScene } from './scene-creator';
+import { disposeScene } from './three-memory-cleaner';
+
+interface Scene3DViewerProps {
+  state: State;
+  width: number;
+  height: number;
+}
+
+const hudStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 12,
+  bottom: 12,
+  zIndex: 10000,
+  background: 'rgba(0,0,0,0.65)',
+  color: '#fff',
+  padding: '8px 10px',
+  borderRadius: 8,
+  fontSize: 13,
+  lineHeight: 1.2,
+  pointerEvents: 'none',
+  userSelect: 'none'
+};
+
+export default class Scene3DViewer extends Component<Scene3DViewerProps, {}> {
+  static contextType = ReactPlannerContext;
+  declare context: React.ContextType<typeof ReactPlannerContext>;
+
+  lastMousePosition: { x: number; y: number } = { x: 0, y: 0 };
+  width: number;
+  height: number;
+  renderingID = 0;
+  renderer: Three.WebGLRenderer;
+
+  canvasWrapper: React.RefObject<null | HTMLDivElement>;
+
+  camera: Three.PerspectiveCamera | undefined;
+  scene3D: Three.Scene | undefined;
+  planData: PlanData | undefined;
+  orbitController: OrbitControls | undefined;
+
+  mouseDownEvent: undefined | ((event: MouseEvent) => void);
+  mouseUpEvent: undefined | ((event: MouseEvent) => void);
+
+  constructor(props: Scene3DViewerProps) {
+    super(props);
+
+    this.width = props.width;
+    this.height = props.height;
+    this.canvasWrapper = React.createRef<HTMLDivElement>();
+
+    this.renderer =
+      (window as any).__threeRenderer ||
+      new Three.WebGLRenderer({ preserveDrawingBuffer: true });
+    (window as any).__threeRenderer = this.renderer;
+  }
+
+  private computeSelectedAreaM2(): number | null {
+    const { state } = this.props;
+    const unit = this.context.catalog.unit; // usually "cm"
+    const selectedLayerID = state.scene.selectedLayer;
+    if (!selectedLayerID) return null;
+
+    const layer: any = state.scene.layers[selectedLayerID];
+    if (!layer) return null;
+
+    const selectedAreaIDs: string[] = layer.selected?.areas || [];
+    if (!selectedAreaIDs.length) return null;
+
+    const metersPerUnit = convert(1).from(unit).to('m');
+
+    let totalM2 = 0;
+
+    for (const areaID of selectedAreaIDs) {
+      const area: any = layer.areas?.[areaID];
+      if (!area) continue;
+
+      const verts: string[] = area.vertices;
+      if (!Array.isArray(verts) || verts.length < 3) continue;
+
+      const pts = verts
+        .map((vid) => layer.vertices?.[vid])
+        .filter(Boolean)
+        .map((v: any) => ({ x: v.x, y: v.y }));
+
+      if (pts.length < 3) continue;
+
+      // shoelace in unit^2
+      let sum = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const j = (i + 1) % pts.length;
+        sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+      }
+      const areaUnit2 = Math.abs(sum) / 2;
+      const areaM2 = areaUnit2 * metersPerUnit * metersPerUnit;
+
+      totalM2 += areaM2;
+    }
+
+    if (!isFinite(totalM2) || totalM2 <= 0) return null;
+    return Math.round(totalM2 * 100) / 100; // 2 decimals
+  }
+
+  componentDidMount() {
+    const { state } = this.props;
+
+    const scene3D = new Three.Scene();
+
+    // RENDERER
+    this.renderer.setClearColor(new Three.Color(SharedStyle.COLORS.white));
+    this.renderer.setSize(this.width, this.height);
+
+    // LOAD DATA
+    const planData = parseData(state.scene, this.context);
+
+    scene3D.add(planData.plan);
+    scene3D.add(planData.grid);
+
+    const aspectRatio = this.width / this.height;
+    const camera = new Three.PerspectiveCamera(45, aspectRatio, 1, 300000);
+
+    scene3D.add(camera);
+
+    // Set position for the camera
+    const cameraPositionX =
+      -(planData.boundingBox.max.x - planData.boundingBox.min.x) / 2;
+    const cameraPositionY =
+      ((planData.boundingBox.max.y - planData.boundingBox.min.y) / 2) * 10;
+    const cameraPositionZ =
+      (planData.boundingBox.max.z - planData.boundingBox.min.z) / 2;
+
+    camera.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    camera.up = new Three.Vector3(0, 1, 0);
+
+    // LIGHT
+    const ambient = new Three.AmbientLight(0xffffff, 0.45);
+    scene3D.add(ambient);
+    const hemi = new Three.HemisphereLight(0xffffff, 0x666666, 0.5);
+    scene3D.add(hemi);
+    const spotLight1 = new Three.SpotLight(SharedStyle.COLORS.white, 1.0);
+    spotLight1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ);
+    scene3D.add(spotLight1);
+    const dirLight = new Three.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(
+      cameraPositionX + 300,
+      cameraPositionY + 400,
+      cameraPositionZ + 300
+    );
+    scene3D.add(dirLight);
+
+    // OBJECT PICKING
+    const toIntersect = [planData.plan];
+    const mouse = new Three.Vector2();
+    const raycaster = new Three.Raycaster();
+
+    this.mouseDownEvent = (event: MouseEvent) => {
+      this.lastMousePosition.x = (event.offsetX / this.width) * 2 - 1;
+      this.lastMousePosition.y = (-event.offsetY / this.height) * 2 + 1;
+    };
+    this.mouseUpEvent = (event: MouseEvent) => {
+      event.preventDefault();
+      mouse.x = (event.offsetX / this.width) * 2 - 1;
+      mouse.y = -(event.offsetY / this.height) * 2 + 1;
+
+      if (
+        Math.abs(mouse.x - this.lastMousePosition.x) <= 0.02 &&
+        Math.abs(mouse.y - this.lastMousePosition.y) <= 0.02
+      ) {
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(toIntersect, true);
+
+        if (intersects.length > 0 && !isNaN(intersects[0].distance)) {
+          const object = intersects[0].object as any;
+          object.interact && object.interact();
+        } else {
+          this.context.projectActions.unselectAll();
+        }
+      }
+    };
+
+    if (this.mouseDownEvent)
+      this.renderer.domElement.addEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    if (this.mouseUpEvent)
+      this.renderer.domElement.addEventListener('mouseup', this.mouseUpEvent);
+    this.renderer.domElement.style.display = 'block';
+
+    if (this.canvasWrapper.current)
+      this.canvasWrapper.current.appendChild(this.renderer.domElement);
+
+    // create orbit controls
+    const orbitController = new OrbitControls(camera, this.renderer.domElement);
+    const spotLightTarget = new Three.Object3D();
+    spotLightTarget.name = 'spotLightTarget';
+    spotLightTarget.position.set(
+      orbitController.target.x,
+      orbitController.target.y,
+      orbitController.target.z
+    );
+    scene3D.add(spotLightTarget);
+    spotLight1.target = spotLightTarget;
+
+    const render = () => {
+      orbitController.update();
+      spotLight1.position.set(
+        camera.position.x,
+        camera.position.y,
+        camera.position.z
+      );
+      spotLightTarget.position.set(
+        orbitController.target.x,
+        orbitController.target.y,
+        orbitController.target.z
+      );
+      camera.updateMatrix();
+      camera.updateMatrixWorld();
+
+      for (const elemID in planData.sceneGraph.LODs) {
+        planData.sceneGraph.LODs[elemID].update(camera);
+      }
+
+      this.renderer.render(scene3D, camera);
+
+      this.renderingID = requestAnimationFrame(render);
+    };
+
+    render();
+
+    this.camera = camera;
+    this.scene3D = scene3D;
+    this.orbitController = orbitController;
+    this.planData = planData;
+  }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this.renderingID);
+    this.orbitController?.dispose();
+
+    if (this.mouseDownEvent)
+      this.renderer.domElement.removeEventListener(
+        'mousedown',
+        this.mouseDownEvent
+      );
+    if (this.mouseUpEvent)
+      this.renderer.domElement.removeEventListener(
+        'mouseup',
+        this.mouseUpEvent
+      );
+
+    if (this.scene3D) {
+      disposeScene(this.scene3D);
+      if (this.planData) {
+        this.scene3D.remove(this.planData.plan);
+        this.scene3D.remove(this.planData.grid);
+      }
+    }
+
+    this.scene3D = undefined;
+    this.planData = undefined;
+    this.camera = undefined;
+    this.orbitController = undefined;
+    this.renderer.renderLists.dispose();
+  }
+
+  componentDidUpdate(prevProps: Scene3DViewerProps) {
+    const { width, height } = this.props;
+    this.width = width;
+    this.height = height;
+    if (this.camera) {
+      this.camera.aspect = width / height;
+      this.camera.updateProjectionMatrix();
+    }
+
+    if (prevProps && this.props.state.scene !== prevProps.state.scene) {
+      const changedValues = diff(prevProps.state.scene, this.props.state.scene);
+      if (this.planData) {
+        updateScene(
+          this.planData,
+          this.props.state.scene,
+          prevProps.state.scene,
+          changedValues,
+          this.context
+        );
+      }
+    }
+    this.renderer.setSize(width, height);
+  }
+
+  render() {
+    const areaM2 = this.computeSelectedAreaM2();
+
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        {areaM2 !== null ? (
+          <div style={hudStyle}>Selected area: {areaM2} m²</div>
+        ) : null}
+        <div ref={this.canvasWrapper} />
+      </div>
+    );
+  }
+}
+
+----------------- FILE: src/models.ts -----------------
+import { ReactNode } from 'react';
+
+import { MODE_IDLE, ModeType, UnitLengthType } from './constants';
+import { CatalogElement, SnapMaskType } from './types';
+import { SNAP_MASK, SnapElement } from './utils/snap';
+
+export type Grid = {
+  id: string;
+  type: 'horizontal-streak' | 'vertical-streak' | '';
+  properties: {
+    step: number;
+    colors: string[];
+    [key: string]: any;
+  };
+};
+
+export function Grid(props: Grid): Grid {
+  const defaults = {
+    id: '',
+    type: '',
+    properties: {}
+  } as const;
+  return { ...defaults, ...props };
+}
+
+export const DefaultGrids = {
+  h1: Grid({
+    id: 'h1',
+    type: 'horizontal-streak',
+    properties: {
+      step: 20,
+      colors: ['#808080', '#ddd', '#ddd', '#ddd', '#ddd']
+    }
+  }),
+  v1: Grid({
+    id: 'v1',
+    type: 'vertical-streak',
+    properties: {
+      step: 20,
+      colors: ['#808080', '#ddd', '#ddd', '#ddd', '#ddd']
+    }
+  })
+};
+
+export type ElementsSet = {
+  vertices: string[];
+  lines: string[];
+  holes: string[];
+  areas: string[];
+  items: string[];
+};
+
+export function ElementsSet(props: Partial<ElementsSet> = {}): ElementsSet {
+  const defaults = {
+    vertices: [],
+    lines: [],
+    holes: [],
+    areas: [],
+    items: []
+  };
+  return { ...defaults, ...props };
+}
+
+const sharedAttributes = {
+  //prototype: '',
+  id: '',
+  type: '',
+  name: '',
+  misc: {} as Record<string, any>,
+  selected: false,
+  properties: {} as Record<string, any>,
+  visible: true
+};
+
+export type SharedAttributes = typeof sharedAttributes;
+
+export type Vertex = SharedAttributes & {
+  prototype: 'vertices';
+  x: number;
+  y: number;
+  lines: string[];
+  areas: string[];
+};
+
+export type VertexPrototypeKeys = keyof Vertex;
+
+export function Vertex(props: Partial<Vertex> = {}): Vertex {
+  const defaults = {
+    prototype: 'vertices',
+    x: -1,
+    y: -1,
+    lines: [],
+    areas: []
+  } as const;
+  return { ...sharedAttributes, ...defaults, ...props } as Vertex;
+}
+
+export type Line = SharedAttributes & {
+  prototype: 'lines';
+  vertices: string[];
+  holes: string[];
+  misc: {
+    _unitLength?: UnitLengthType;
+    [key: string]: any;
+  };
+};
+
+export function Line(props: Partial<Line>): Line {
+  const defaults = {
+    prototype: 'lines',
+    vertices: [],
+    holes: []
+  } as const;
+  return { ...sharedAttributes, ...defaults, ...props } as Line;
+}
+
+export type Hole = SharedAttributes & {
+  prototype: 'holes';
+  offset: number;
+  line: string;
+};
+
+export function Hole(props: Partial<Hole>): Hole {
+  const defaults = {
+    prototype: 'holes',
+    offset: -1,
+    line: ''
+  } as Hole;
+  return { ...sharedAttributes, ...defaults, ...props };
+}
+
+export type Area = SharedAttributes & {
+  prototype: 'areas';
+  vertices: string[];
+  holes: string[];
+};
+
+export function Area(props: Partial<Area>): Area {
+  const defaults = {
+    prototype: 'areas',
+    vertices: [],
+    holes: []
+  } as const;
+  return { ...sharedAttributes, ...defaults, ...props } as Area;
+}
+
+export interface Item extends SharedAttributes {
+  prototype: 'items';
+  x: number;
+  y: number;
+  rotation: number;
+}
+
+export function Item(props: Partial<Item>): Item {
+  const defaults = {
+    prototype: 'items',
+    x: 0,
+    y: 0,
+    rotation: 0
+  } as Item;
+  return { ...sharedAttributes, ...defaults, ...props };
+}
+
+export type Layer = {
+  id: string;
+  altitude: number;
+  order: number;
+  opacity: number;
+  name: string;
+  visible: boolean;
+  vertices: { [id: string]: Vertex };
+  lines: { [id: string]: Line };
+  holes: { [id: string]: Hole };
+  areas: { [id: string]: Area };
+  items: { [id: string]: Item };
+  selected: ElementsSet;
+};
+
+export function Layer(props: Partial<Layer>): Layer {
+  const defaults = {
+    id: '',
+    altitude: 0,
+    order: 0,
+    opacity: 1,
+    name: '',
+    visible: true,
+    vertices: {},
+    lines: {},
+    holes: {},
+    areas: {},
+    items: {},
+    selected: ElementsSet()
+  };
+  return { ...defaults, ...props };
+}
+
+export type GroupElementPrototypes = 'items' | 'lines' | 'holes' | 'areas';
+
+export type GroupElement = Record<GroupElementPrototypes, string[]>;
+
+export type Group = {
+  prototype: 'groups';
+  id: string;
+  type: string;
+  name: string;
+  misc: Record<string, any>;
+  selected: boolean;
+  properties: Record<string, any>;
+  visible: boolean;
+  x: number;
+  y: number;
+  rotation: number;
+  elements: Record<string, GroupElement>;
+};
+
+export function Group(props: Partial<Group>): Group {
+  const defaults = {
+    id: '',
+    type: '',
+    prototype: 'groups',
+    name: '',
+    misc: {},
+    selected: false,
+    properties: {},
+    visible: true,
+    x: 0,
+    y: 0,
+    rotation: 0,
+    elements: {}
+  } as const;
+  return { ...defaults, ...props };
+}
+
+export const DefaultLayers = {
+  'layer-1': Layer({ id: 'layer-1', name: 'default' })
+};
+
+export interface SceneJson {
+  unit: UnitLengthType;
+  layers: { [key: string]: Layer };
+  grids: { [key: string]: Grid };
+  selectedLayer: string | undefined;
+  groups: { [key: string]: Group };
+  width: number;
+  height: number;
+  meta: Record<string, any>;
+  guides: {
+    horizontal: Record<string, number>;
+    vertical: Record<string, number>;
+    circular: Record<string, { x: number; y: number; radius: number }>;
+  };
+}
+
+export type Scene = SceneJson;
+
+export function Scene(props: Partial<SceneJson> = {}): SceneJson {
+  const defaults: SceneJson = {
+    unit: 'cm',
+    layers: DefaultLayers,
+    grids: DefaultGrids,
+    selectedLayer: undefined,
+    groups: {},
+    width: 3000,
+    height: 2000,
+    meta: {},
+    guides: { horizontal: {}, vertical: {}, circular: {} }
+  };
+  const result = { ...defaults, ...props };
+  if (result.layers && result.selectedLayer === undefined) {
+    result.selectedLayer = Object.keys(result.layers)[0];
+  }
+  return result;
+}
+
+export interface CatalogProps {
+  elements: Record<string, CatalogElement>;
+  page?: string;
+  path: string[];
+}
+
+export type CatalogState = {
+  elements: Record<string, CatalogElement>;
+  page: string;
+  path: string[];
+  ready: boolean;
+};
+
+export function CatalogState(
+  { elements, page, path = [] }: CatalogProps = { elements: {}, path: [] }
+): CatalogState {
+  return {
+    elements,
+    page: page || 'root',
+    path,
+    ready: Object.keys(elements).length > 0
+  };
+}
+
+export function catalogElementFactory(
+  catalog: CatalogState,
+  type: string,
+  options?: Record<string, any>,
+  initialProperties?: Record<string, any>
+) {
+  if (!catalog.elements[type]) {
+    const catList = Object.values(catalog.elements).map(
+      (element) => (element as { name?: string }).name
+    );
+    throw new Error(`Element ${type} does not exist in catalog ${catList}`);
+  }
+
+  const element = catalog.elements[type];
+  const properties: Record<string, any> = {};
+  for (const key in element.properties) {
+    properties[key] =
+      initialProperties && initialProperties[key] !== undefined
+        ? initialProperties[key]
+        : (element.properties[key] as { defaultValue: any }).defaultValue;
+  }
+
+  switch (element.prototype) {
+    case 'lines':
+      return Object.assign(Line(options as Partial<Line>), { properties });
+    case 'holes':
+      return Object.assign(Hole(options as Partial<Hole>), { properties });
+    case 'areas':
+      return Object.assign(Area(options as Partial<Area>), { properties });
+    case 'items':
+      return Object.assign(Item(options as Partial<Item>), { properties });
+    default:
+      throw new Error('prototype not valid');
+  }
+}
+
+export type DiffRemoveItem = {
+  op: 'remove';
+  path: string;
+};
+
+export type DiffAddItem = {
+  op: 'add';
+  path: string;
+  value: any;
+};
+
+export type DiffReplaceItem = {
+  op: 'replace';
+  path: string;
+  value: any;
+};
+
+export type DiffItem = DiffRemoveItem | DiffAddItem | DiffReplaceItem;
+
+export type HistoryStructureListItemDiff = Record<string, DiffItem>;
+
+export type HistoryStructureListItem = {
+  time: number;
+  diff: HistoryStructureListItemDiff;
+};
+
+export type HistoryStructureProps = {
+  list: HistoryStructureListItem[];
+  scene: SceneJson;
+  last: SceneJson;
+};
+
+export type HistoryStructure = {
+  list: HistoryStructureListItem[];
+  first: SceneJson;
+  last: SceneJson;
+};
+
+export function HistoryStructure(
+  props: Partial<HistoryStructureProps> = {}
+): HistoryStructure {
+  const resullt = {
+    list: props.list ?? [],
+    first: Scene(props.scene || {}),
+    last: Scene(props.last || props.scene || {})
+  };
+  return resullt;
+}
+
+export type DraggingSupportType = {
+  layerID: string;
+  itemID?: string;
+  startPointX?: number;
+  startPointY?: number;
+  startVertex0X?: number;
+  startVertex0Y?: number;
+  startVertex1X?: number;
+  startVertex1Y?: number;
+  startLineX?: number;
+  previousMode?: ModeType;
+  vertexID?: string;
+  originalItem?: Item;
+  originalX?: number;
+  originalY?: number;
+  holeID?: string;
+  lineID?: string;
+};
+
+export type StateProps = {
+  mode: ModeType;
+  scene: Scene;
+  sceneHistory: HistoryStructure;
+  catalog: CatalogState;
+  viewer2D: Record<string, any>;
+  mouse: { x: number; y: number };
+  zoom: number;
+  snapMask: SnapMaskType;
+  snapElements: SnapElement[];
+  activeSnapElement: SnapElement | null;
+  drawingSupport: Record<string, any>;
+  draggingSupport: DraggingSupportType | undefined;
+  rotatingSupport: { layerID: string; itemID: string } | undefined;
+  errors: { date: number; error: ReactNode }[];
+  warnings: { date: number; warning: ReactNode }[];
+  clipboardProperties: Record<string, any>;
+  selectedElementsHistory: CatalogElement[];
+  misc: Record<string, any>;
+  alterate: boolean;
+};
+
+export type State = StateProps;
+
+export function State(props: Partial<StateProps> = {}): StateProps {
+  const defaults: StateProps = {
+    mode: MODE_IDLE,
+    scene: Scene(),
+    sceneHistory: HistoryStructure(props),
+    catalog: CatalogState(),
+    viewer2D: {},
+    mouse: { x: 0, y: 0 },
+    zoom: 0,
+    snapMask: SNAP_MASK,
+    snapElements: [],
+    activeSnapElement: null,
+    drawingSupport: {},
+    draggingSupport: undefined,
+    rotatingSupport: undefined,
+    errors: [],
+    warnings: [],
+    clipboardProperties: {},
+    selectedElementsHistory: [],
+    misc: {},
+    alterate: false
+  };
+  return { ...defaults, ...props };
+}
+
+----------------- FILE: src/reducers/areas-reducer.ts -----------------
+import { Area } from '../class/export';
+import { SELECT_AREA } from '../constants';
+import { State } from '../models';
+
+export type SelectAreaAction = {
+  type: typeof SELECT_AREA;
+  layerID: string;
+  areaID: string;
+};
+
+export type AreaAction = SelectAreaAction;
+
+export default function areasReducer(state: State, action: AreaAction): State {
+  switch (action.type) {
+    case SELECT_AREA:
+      return Area.select(state, action.layerID, action.areaID);
+    default:
+      return state;
+  }
+}
+
+----------------- FILE: src/reducers/project-reducer.ts -----------------
+import { ReactNode } from 'react';
+
+import { produce } from 'immer';
+
+import { Project } from '../class/export';
+import {
+  ADD_CIRCULAR_GUIDE,
+  ADD_HORIZONTAL_GUIDE,
+  ADD_VERTICAL_GUIDE,
+  ALTERATE_STATE,
+  CHANGE_CATALOG_PAGE,
+  COPY_PROPERTIES,
+  GO_BACK_TO_CATALOG_PAGE,
+  INIT_CATALOG,
+  LOAD_PROJECT,
+  MODE_IDLE,
+  ModeType,
+  NEW_PROJECT,
+  OPEN_CATALOG,
+  OPEN_PROJECT_CONFIGURATOR,
+  PASTE_PROPERTIES,
+  PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY,
+  REMOVE,
+  REMOVE_CIRCULAR_GUIDE,
+  REMOVE_HORIZONTAL_GUIDE,
+  REMOVE_VERTICAL_GUIDE,
+  ROLLBACK,
+  SELECT_TOOL_EDIT,
+  SET_AREAS_ATTRIBUTES,
+  SET_HOLES_ATTRIBUTES,
+  SET_ITEMS_ATTRIBUTES,
+  SET_LINES_ATTRIBUTES,
+  SET_MODE,
+  SET_PROJECT_PROPERTIES,
+  SET_PROPERTIES,
+  THROW_ERROR,
+  THROW_WARNING,
+  TOGGLE_SNAP,
+  UNDO,
+  UNSELECT_ALL,
+  UPDATE_MOUSE_COORDS,
+  UPDATE_ZOOM_SCALE
+} from '../constants';
+import { Area, CatalogState, Item, Scene, State } from '../models';
+import {
+  CatalogElement,
+  HoleAttributes,
+  LineAttributes,
+  SnapMaskType
+} from '../types';
+import { history } from '../utils/export';
+
+export type NewProjectAction = {
+  type: typeof NEW_PROJECT;
+};
+
+export type LoadProjectAction = {
+  type: typeof LOAD_PROJECT;
+  sceneJSON: Scene;
+};
+
+export type OpenCatalogAction = {
+  type: typeof OPEN_CATALOG;
+};
+
+export type ChangeCatalogPageAction = {
+  type: typeof CHANGE_CATALOG_PAGE;
+  oldPage: string;
+  newPage: string;
+};
+
+export type GoBackToCatalogPageAction = {
+  type: typeof GO_BACK_TO_CATALOG_PAGE;
+  newPage: string;
+};
+
+export type SelectToolEditAction = {
+  type: typeof SELECT_TOOL_EDIT;
+};
+
+export type UnselectAllAction = {
+  type: typeof UNSELECT_ALL;
+};
+
+export type SetPropertiesAction = {
+  type: typeof SET_PROPERTIES;
+  properties: Record<string, any>;
+};
+
+export type SetItemsAttributesAction = {
+  type: typeof SET_ITEMS_ATTRIBUTES;
+  itemsAttributes: Partial<Item>;
+};
+
+export type SetLinesAttributesAction = {
+  type: typeof SET_LINES_ATTRIBUTES;
+  linesAttributes: Partial<LineAttributes>;
+};
+
+export type SetHolesAttributesAction = {
+  type: typeof SET_HOLES_ATTRIBUTES;
+  holesAttributes: Partial<HoleAttributes>;
+};
+
+export type SetAreasAttributesAction = {
+  type: typeof SET_AREAS_ATTRIBUTES;
+  areasAttributes: Partial<Area>;
+};
+
+export type RemoveAction = {
+  type: typeof REMOVE;
+};
+
+export type UnDoAction = {
+  type: typeof UNDO;
+};
+
+export type RollbackAction = {
+  type: typeof ROLLBACK;
+};
+
+export type SetProjectPropertiesAction = {
+  type: typeof SET_PROJECT_PROPERTIES;
+  properties: Partial<Scene>;
+};
+
+export type OpenProjectConfiguratorAction = {
+  type: typeof OPEN_PROJECT_CONFIGURATOR;
+};
+
+export type InitCatalogAction = {
+  type: typeof INIT_CATALOG;
+  catalog: CatalogState;
+};
+
+export type UpdateMouseCoordsAction = {
+  type: typeof UPDATE_MOUSE_COORDS;
+  coords: { x: number; y: number };
+};
+
+export type UpdateZoomScaleAction = {
+  type: typeof UPDATE_ZOOM_SCALE;
+  scale: number;
+};
+
+export type ToggleSnapAction = {
+  type: typeof TOGGLE_SNAP;
+  mask: SnapMaskType;
+};
+
+export type ThrowErrorAction = {
+  type: typeof THROW_ERROR;
+  error: ReactNode;
+};
+
+export type ThrowWarningAction = {
+  type: typeof THROW_WARNING;
+  warning: ReactNode;
+};
+
+export type CopyPropertiesAction = {
+  type: typeof COPY_PROPERTIES;
+  properties: Record<string, any>;
+};
+
+export type PastePropertiesAction = {
+  type: typeof PASTE_PROPERTIES;
+};
+
+export type PushLastSelectedCatalogElementToHistoryAction = {
+  type: typeof PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY;
+  element: CatalogElement;
+};
+
+export type AlterateStateAction = {
+  type: typeof ALTERATE_STATE;
+  alterate?: boolean;
+};
+
+export type SetModeAction = {
+  type: typeof SET_MODE;
+  mode: ModeType;
+};
+
+export type AddHorizontalGuideAction = {
+  type: typeof ADD_HORIZONTAL_GUIDE;
+  coordinate: number;
+};
+
+export type AddVerticalGuideAction = {
+  type: typeof ADD_VERTICAL_GUIDE;
+  coordinate: number;
+};
+
+export type AddCircularGuideAction = {
+  type: typeof ADD_CIRCULAR_GUIDE;
+  x: number;
+  y: number;
+  radius: number;
+};
+
+export type RemoveHorizontalGuideAction = {
+  type: typeof REMOVE_HORIZONTAL_GUIDE;
+  guideID: string;
+};
+
+export type RemoveVerticalGuideAction = {
+  type: typeof REMOVE_VERTICAL_GUIDE;
+  guideID: string;
+};
+
+export type RemoveCircularGuideAction = {
+  type: typeof REMOVE_CIRCULAR_GUIDE;
+  guideID: string;
+};
+
+export type ProjectAction =
+  | NewProjectAction
+  | LoadProjectAction
+  | OpenCatalogAction
+  | ChangeCatalogPageAction
+  | GoBackToCatalogPageAction
+  | SelectToolEditAction
+  | UnselectAllAction
+  | SetPropertiesAction
+  | SetItemsAttributesAction
+  | SetLinesAttributesAction
+  | SetHolesAttributesAction
+  | SetAreasAttributesAction
+  | RemoveAction
+  | UnDoAction
+  | RollbackAction
+  | SetProjectPropertiesAction
+  | OpenProjectConfiguratorAction
+  | InitCatalogAction
+  | UpdateMouseCoordsAction
+  | UpdateZoomScaleAction
+  | ToggleSnapAction
+  | ThrowErrorAction
+  | ThrowWarningAction
+  | CopyPropertiesAction
+  | PastePropertiesAction
+  | PushLastSelectedCatalogElementToHistoryAction
+  | AlterateStateAction
+  | SetModeAction
+  | AddHorizontalGuideAction
+  | AddVerticalGuideAction
+  | AddCircularGuideAction
+  | RemoveHorizontalGuideAction
+  | RemoveVerticalGuideAction
+  | RemoveCircularGuideAction;
+
+export default function projectReducer(
+  state: State,
+  action: ProjectAction
+): State {
+  switch (action.type) {
+    case NEW_PROJECT:
+      return Project.newProject(state);
+
+    case LOAD_PROJECT:
+      return Project.loadProject(state, action.sceneJSON);
+
+    case OPEN_CATALOG:
+      return Project.openCatalog(state);
+
+    case CHANGE_CATALOG_PAGE:
+      return Project.changeCatalogPage(state, action.oldPage, action.newPage);
+
+    case GO_BACK_TO_CATALOG_PAGE:
+      return Project.goBackToCatalogPage(state, action.newPage);
+
+    case SELECT_TOOL_EDIT:
+      return Project.setMode(state, MODE_IDLE);
+
+    case UNSELECT_ALL:
+      return Project.unselectAll(state);
+
+    case SET_PROPERTIES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setProperties(
+        state,
+        state.scene.selectedLayer as string,
+        action.properties
+      );
+
+    case SET_ITEMS_ATTRIBUTES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setItemsAttributes(state, action.itemsAttributes);
+
+    case SET_LINES_ATTRIBUTES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setLinesAttributes(state, action.linesAttributes);
+
+    case SET_HOLES_ATTRIBUTES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setHolesAttributes(state, action.holesAttributes);
+
+    case SET_AREAS_ATTRIBUTES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setAreasAttributes(state, action.areasAttributes);
+
+    case REMOVE:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.remove(state);
+
+    case UNDO:
+      return Project.undo(state);
+
+    case ROLLBACK:
+      return Project.rollback(state);
+
+    case SET_PROJECT_PROPERTIES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.setProjectProperties(state, action.properties);
+
+    case OPEN_PROJECT_CONFIGURATOR:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.openProjectConfigurator(state);
+
+    case INIT_CATALOG:
+      return Project.initCatalog(state, action.catalog);
+
+    case UPDATE_MOUSE_COORDS:
+      return Project.updateMouseCoord(state, action.coords);
+
+    case UPDATE_ZOOM_SCALE:
+      return Project.updateZoomScale(state, action.scale);
+
+    case TOGGLE_SNAP:
+      return Project.toggleSnap(state, action.mask);
+
+    case THROW_ERROR:
+      return Project.throwError(state, action.error);
+
+    case THROW_WARNING:
+      return Project.throwWarning(state, action.warning);
+
+    case COPY_PROPERTIES:
+      return Project.copyProperties(state, action.properties);
+
+    case PASTE_PROPERTIES:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.pasteProperties(state);
+
+    case PUSH_LAST_SELECTED_CATALOG_ELEMENT_TO_HISTORY:
+      return Project.pushLastSelectedCatalogElementToHistory(
+        state,
+        action.element
+      );
+
+    case ALTERATE_STATE:
+      return Project.setAlterate(state, action.alterate);
+
+    case SET_MODE:
+      return Project.setMode(state, action.mode);
+
+    case ADD_HORIZONTAL_GUIDE:
+      state = produce(state, (draft) => {
+        draft.sceneHistory = history.historyPush(
+          draft.sceneHistory,
+          draft.scene
+        );
+      });
+      return Project.addHorizontalGuide(state, action.coordinate);
+
+    case ADD_VERTICAL_GUIDE:
+      return Project.addVerticalGuide(state, action.coordinate);
+
+    case ADD_CIRCULAR_GUIDE:
+      return Project.addCircularGuide(state, action.x, action.y, action.radius);
+
+    case REMOVE_HORIZONTAL_GUIDE:
+      return Project.removeHorizontalGuide(state, action.guideID);
+
+    case REMOVE_VERTICAL_GUIDE:
+      return Project.removeVerticalGuide(state, action.guideID);
+
+    case REMOVE_CIRCULAR_GUIDE:
+      return Project.removeCircularGuide(state, action.guideID);
+  }
+}
+
+----------------- FILE: src/reducers/reducer.ts -----------------
+import {
+  AREA_ACTIONS,
+  GROUP_ACTIONS,
+  HOLE_ACTIONS,
+  ITEMS_ACTIONS,
+  LINE_ACTIONS,
+  PROJECT_ACTIONS,
+  SCENE_ACTIONS,
+  VERTEX_ACTIONS,
+  VIEWER2D_ACTIONS,
+  VIEWER3D_ACTIONS
+} from '../constants';
+import { State } from '../models';
+
+import { AreaAction } from './areas-reducer';
+import {
+  ReactPlannerAreasReducer,
+  ReactPlannerGroupsReducer,
+  ReactPlannerHolesReducer,
+  ReactPlannerItemsReducer,
+  ReactPlannerLinesReducer,
+  ReactPlannerProjectReducer,
+  ReactPlannerSceneReducer,
+  ReactPlannerVerticesReducer,
+  ReactPlannerViewer2dReducer,
+  ReactPlannerViewer3dReducer
+} from './export';
+import { GroupAction } from './groups-reducer';
+import { HoleAction } from './holes-reducer';
+import { ItemAction } from './items-reducer';
+import { LineAction } from './lines-reducer';
+import { ProjectAction } from './project-reducer';
+import { SceneAction } from './scene-reducer';
+import { VerticesAction } from './vertices-reducer';
+import { Viewer2DAction } from './viewer2d-reducer';
+import { Viewer3DAction } from './viewer3d-reducer';
+
+export const initialState = State();
+
+export type ReducerAction =
+  | ProjectAction
+  | Viewer2DAction
+  | Viewer3DAction
+  | ItemAction
+  | HoleAction
+  | LineAction
+  | AreaAction
+  | GroupAction
+  | SceneAction
+  | VerticesAction;
+
+export default function appReducer(state: State, action: ReducerAction): State {
+  if (PROJECT_ACTIONS[action.type as keyof typeof PROJECT_ACTIONS])
+    return ReactPlannerProjectReducer(state, action as ProjectAction);
+  if (VIEWER2D_ACTIONS[action.type as keyof typeof VIEWER2D_ACTIONS])
+    return ReactPlannerViewer2dReducer(state, action as Viewer2DAction);
+  if (VIEWER3D_ACTIONS[action.type as keyof typeof VIEWER3D_ACTIONS])
+    return ReactPlannerViewer3dReducer(state, action as Viewer3DAction);
+  if (ITEMS_ACTIONS[action.type as keyof typeof ITEMS_ACTIONS])
+    return ReactPlannerItemsReducer(state, action as ItemAction);
+  if (HOLE_ACTIONS[action.type as keyof typeof HOLE_ACTIONS])
+    return ReactPlannerHolesReducer(state, action as HoleAction);
+  if (LINE_ACTIONS[action.type as keyof typeof LINE_ACTIONS])
+    return ReactPlannerLinesReducer(state, action as LineAction);
+  if (AREA_ACTIONS[action.type as keyof typeof AREA_ACTIONS])
+    return ReactPlannerAreasReducer(state, action as AreaAction);
+  if (GROUP_ACTIONS[action.type as keyof typeof GROUP_ACTIONS])
+    return ReactPlannerGroupsReducer(state, action as GroupAction);
+  if (SCENE_ACTIONS[action.type as keyof typeof SCENE_ACTIONS])
+    return ReactPlannerSceneReducer(state, action as SceneAction);
+  if (VERTEX_ACTIONS[action.type as keyof typeof VERTEX_ACTIONS])
+    return ReactPlannerVerticesReducer(state, action as VerticesAction);
+
+  return state || initialState;
+}
+
+----------------- FILE: src/types.ts -----------------
+import { ReactNode } from 'react';
+
+import { Unit } from 'convert-units';
+import { Store, UnknownAction } from 'redux';
+import { Object3D, Object3DEventMap } from 'three';
+
+import {
+  Area,
+  Hole,
+  Item,
+  Layer,
+  Line,
+  Scene,
+  State,
+  StateProps,
+  Vertex
+} from './models';
+import { SNAP_MASK } from './utils/snap';
+
+export type FooterBarComponentProps = {
+  state: State;
+};
+
+export type LineAttributes = {
+  vertexOne: Vertex;
+  vertexTwo: Vertex;
+  lineLength: { length: number; _length: number; _unit: Unit };
+  name: string;
+};
+
+export type HoleAttributes = {
+  offset: number;
+  offsetA: { length: number; _length: number; _unit: Unit };
+  offsetB: { length: number; _length: number; _unit: Unit };
+};
+
+export type CatalogPropertyType =
+  | 'color'
+  | 'enum'
+  | 'string'
+  | 'number'
+  | 'length-measure'
+  | 'toggle'
+  | 'checkbox'
+  | 'hidden'
+  | 'read-only';
+
+interface CatalogPropertyBase {
+  label?: string;
+  hook?: (...args: any[]) => any;
+  // Additional arbitrary custom extensions are permitted
+  [extra: string]: any; // keep backward compatibility / extensibility
+}
+
+export interface ColorProperty extends CatalogPropertyBase {
+  type: 'color';
+  /** hex / css color */
+  defaultValue: string;
+}
+
+export interface EnumProperty extends CatalogPropertyBase {
+  type: 'enum';
+  defaultValue: string; // TODO: key of values map
+  values: Record<string, string | number | boolean>;
+}
+
+export interface StringProperty extends CatalogPropertyBase {
+  type: 'string';
+  defaultValue: string;
+}
+
+export type NumberProperty = CatalogPropertyBase & {
+  type: 'number';
+  defaultValue: number;
+  min?: number;
+  max?: number;
+  step?: number;
+};
+
+export type LengthMeasureValue = {
+  /** canonical length in catalog unit (cm) */
+  length: number;
+  /** raw value in selected unit */
+  _length?: number;
+  /** selected unit (e.g., 'cm') */
+  _unit?: Unit;
+};
+
+export type LengthMeasureProperty = CatalogPropertyBase & {
+  type: 'length-measure';
+  defaultValue: LengthMeasureValue;
+  min?: number;
+  max?: number;
+};
+
+export type ToggleProperty = CatalogPropertyBase & {
+  type: 'toggle';
+  defaultValue: boolean;
+  /** label on the toggle button */
+  actionName?: string;
+};
+
+export type CheckboxProperty = CatalogPropertyBase & {
+  type: 'checkbox';
+  defaultValue: boolean;
+  values?: Record<string, boolean>;
+};
+
+export type HiddenProperty = CatalogPropertyBase & {
+  type: 'hidden';
+  defaultValue: any;
+};
+
+export type ReadOnlyProperty = CatalogPropertyBase & {
+  type: 'read-only';
+  defaultValue: any;
+};
+
+export type CatalogProperty =
+  | ColorProperty
+  | EnumProperty
+  | StringProperty
+  | NumberProperty
+  | LengthMeasureProperty
+  | ToggleProperty
+  | CheckboxProperty
+  | HiddenProperty
+  | ReadOnlyProperty;
+
+export type CatalogElementProperty = CatalogProperty; //TODO: remove {}
+export type CatalogElementPropertyWithDefault = CatalogElementProperty & {
+  defaultValue?: any;
+};
+
+export type CatalogElementProperties = Record<string, CatalogElementProperty>;
+
+// ============================================================================
+// Property value inference helpers
+// Map a catalog property config to the runtime value type used in element.properties
+// ============================================================================
+
+export type PropertyValue<T extends CatalogElementProperty> =
+  T extends LengthMeasureProperty
+  ? LengthMeasureValue
+  : T extends ColorProperty
+  ? string
+  : T extends EnumProperty
+  ? string
+  : T extends StringProperty
+  ? string
+  : T extends NumberProperty
+  ? number
+  : T extends ToggleProperty
+  ? boolean
+  : T extends CheckboxProperty
+  ? boolean
+  : T extends HiddenProperty
+  ? any
+  : T extends ReadOnlyProperty
+  ? any
+  : any;
+
+export type ElementPropertiesValues<P extends CatalogElementProperties> = {
+  [K in keyof P]: PropertyValue<P[K]>;
+};
+
+// Map each property key to its catalog property 'type' literal (e.g. 'width' -> 'length-measure').
+export type PropertyTypeMap<P extends CatalogElementProperties> = {
+  [K in keyof P]: P[K]['type'];
+};
+
+// Convenience extractor: given a CatalogElementBase, get its PropertyTypeMap
+export type ExtractPropertyTypeMap<E> =
+  E extends CatalogElementBase<any, infer P> ? PropertyTypeMap<P> : never;
+
+// Map each prototype string to its concrete element type
+export type PrototypeToElement = {
+  lines: Omit<Line, 'properties'>;
+  holes: Omit<Hole, 'properties'>;
+  areas: Omit<Area, 'properties'>;
+  items: Omit<Item, 'properties'>;
+};
+
+// Base catalog element type parameterized by its prototype kind and its properties definition object.
+// The render/update handlers receive an element whose "properties" field is strongly typed with
+// the value types derived from the element's own property config (length-measure -> LengthMeasureValue, etc.).
+export type CatalogElementBase<
+  P extends keyof PrototypeToElement,
+  Props extends CatalogElementProperties = CatalogElementProperties
+> = {
+  name: string;
+  prototype: P;
+  info: CatalogElementInfo;
+  properties: Props;
+  render2D: (
+    element: PrototypeToElement[P] & {
+      properties: { [K in keyof Props]: PropertyValue<Props[K]> };
+    },
+    layer: Layer,
+    scene: Scene
+  ) => ReactNode;
+  render3D: (
+    element: PrototypeToElement[P] & {
+      properties: ElementPropertiesValues<Props>;
+    },
+    layer: Layer,
+    scene: Scene
+  ) => Promise<Object3D<Object3DEventMap>>;
+  updateRender3D?: (
+    element: PrototypeToElement[P] & {
+      properties: ElementPropertiesValues<Props>;
+    },
+    layer: Layer,
+    scene: Scene,
+    mesh: Object3D<Object3DEventMap>,
+    oldElement: PrototypeToElement[P] & {
+      properties: ElementPropertiesValues<Props>;
+    },
+    differences: string[],
+    selfDestroy: () => void,
+    selfBuild: () => void
+  ) => Promise<any>;
+};
+
+export type AnyCatalogElement =
+  | CatalogElementBase<'lines', CatalogElementProperties>
+  | CatalogElementBase<'holes', CatalogElementProperties>
+  | CatalogElementBase<'areas', CatalogElementProperties>
+  | CatalogElementBase<'items', CatalogElementProperties>;
+
+export type CatalogElement<
+  P extends keyof PrototypeToElement = keyof PrototypeToElement,
+  Props extends CatalogElementProperties = CatalogElementProperties
+> = CatalogElementBase<P, Props>;
+
+export type CatalogElementInfo = {
+  title: string;
+  description: string;
+  image: string | { uri: string; width?: number; height?: number };
+  tag: string[];
+  visibility?: { catalog?: boolean; layerElementsVisible?: boolean };
+};
+
+export type CatalogElementTextures = {
+  [key: string]: {
+    name: string;
+    uri: string;
+    lengthRepeatScale: number;
+    heightRepeatScale: number;
+    normal?: {
+      uri: string;
+      lengthRepeatScale: number;
+      heightRepeatScale: number;
+      normalScaleX: number;
+      normalScaleY: number;
+    };
+  };
+};
+
+export type ElementType = Line | Hole | Area | Item;
+
+export type ReactPlannerStore = Store<any, UnknownAction>;
+
+export interface ReactPlannerPluginProps {
+  store: ReactPlannerStore;
+  stateExtractor: (state: State) => any;
+}
+
+export type SnapMaskType = Partial<typeof SNAP_MASK>;
+
+export type ElementPrototypes =
+  | 'areas'
+  | 'holes'
+  | 'items'
+  | 'lines'
+  | 'vertices';
+
+export type StructuredComponentType = {
+  index?: number;
+  condition: boolean;
+  dom: React.ReactNode;
+};
+
+export type ComponentType =
+  | React.ComponentType<{ state: StateProps }>
+  | StructuredComponentType;
+
+export interface ReactPlannerStateExtractor {
+  (state: { [key: string]: any }): StateProps;
+}
+
+export interface ReactPlannerPlugin {
+  (store: ReactPlannerStore, stateExtractor: ReactPlannerStateExtractor): void;
+}
+
+export class ViewerEventError extends Event {
+  viewerEvent: any;
+
+  constructor(type: string, viewerEvent: any) {
+    super(type);
+    this.viewerEvent = viewerEvent;
+  }
+}
+
+export type ElementTypes = 'area' | 'hole' | 'item' | 'line';
+
+/**Helper factory for catalog elements with full property value inference.*/
+export function defineCatalogElement<
+  P extends keyof PrototypeToElement,
+  Props extends CatalogElementProperties
+>(el: CatalogElementBase<P, Props>): CatalogElementBase<P, Props> {
+  return el;
+}
+
