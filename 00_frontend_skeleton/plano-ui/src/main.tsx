@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
+import CookieConsent from "./components/CookieConsent";
 import { PlannerStateProvider } from "./state/plannerState";
 
 const rootEl = document.getElementById("root");
@@ -22,6 +23,7 @@ createRoot(rootEl).render(
     <div className="plano-liquid">
       <PlannerStateProvider>
         <App />
+        <CookieConsent />
       </PlannerStateProvider>
     </div>
   </StrictMode>

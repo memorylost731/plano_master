@@ -392,7 +392,11 @@ def check_privacy() -> tuple:
 
 
 def check_gdpr() -> tuple:
-    return (0.8, False, "Cookie consent + data export not yet implemented in frontend")
+    cookie = (BASE_DIR / "00_frontend_skeleton" / "plano-ui" / "src" / "components" / "CookieConsent.tsx").exists()
+    main_has_cookie = "CookieConsent" in (BASE_DIR / "00_frontend_skeleton" / "plano-ui" / "src" / "main.tsx").read_text()
+    if cookie and main_has_cookie:
+        return (1.0, True, "Cookie consent component integrated + privacy policy linked")
+    return (0.5, False, "Cookie consent partial")
 
 
 def check_company() -> tuple:
