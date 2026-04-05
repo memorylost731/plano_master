@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-04-05T20:55:37Z",
+  "scanned": 25,
+  "opportunities": [
+    {
+      "symbol": "GUSDT",
+      "binance": 0.0036,
+      "bybit": 0.003616,
+      "spread_pct": 0.444,
+      "net_pct": 0.244,
+      "direction": "Bin\u2192Byb"
+    },
+    {
+      "symbol": "LRCUSDT",
+      "binance": 0.01879,
+      "bybit": 0.01719,
+      "spread_pct": 9.308,
+      "net_pct": 9.108,
+      "direction": "Byb\u2192Bin"
+    }
+  ],
+  "profitable": [
+    {
+      "symbol": "LRCUSDT",
+      "binance": 0.01879,
+      "bybit": 0.01719,
+      "spread_pct": 9.308,
+      "net_pct": 9.108,
+      "direction": "Byb\u2192Bin"
+    }
+  ]
+}
