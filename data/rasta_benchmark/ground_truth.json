@@ -1,0 +1,42 @@
+[
+  {
+    "id": "01",
+    "name": "Simple 2-room",
+    "walls": 5,
+    "rooms": 2,
+    "doors": 2,
+    "difficulty": "easy"
+  },
+  {
+    "id": "02",
+    "name": "4-room corridor",
+    "walls": 7,
+    "rooms": 4,
+    "doors": 4,
+    "difficulty": "medium"
+  },
+  {
+    "id": "03",
+    "name": "L-shaped apartment",
+    "walls": 8,
+    "rooms": 4,
+    "doors": 0,
+    "difficulty": "medium"
+  },
+  {
+    "id": "04",
+    "name": "Complex Malta-style",
+    "walls": 11,
+    "rooms": 10,
+    "doors": 0,
+    "difficulty": "hard"
+  },
+  {
+    "id": "05",
+    "name": "Noisy scanned plan",
+    "walls": 6,
+    "rooms": 4,
+    "doors": 0,
+    "difficulty": "hard"
+  }
+]
