@@ -1,0 +1,785 @@
+{
+  "_metadata": {
+    "version": "1.0.0",
+    "created": "2026-04-05",
+    "description": "Comprehensive SaaS business metrics database for PlanO simulator calibration",
+    "sources": [
+      "Bessemer Venture Partners Cloud Atlas (bvp.com/atlas)",
+      "OpenView SaaS Benchmarks (openviewpartners.com)",
+      "David Skok - SaaS Metrics 2.0 (forentrepreneurs.com)",
+      "SaaS Capital Benchmarking Reports 2025",
+      "Benchmarkit 2025 SaaS Performance Metrics",
+      "High Alpha 2025 SaaS Benchmarks Report",
+      "ChartMogul SaaS Retention Reports 2024-2025",
+      "KeyBanc Capital Markets SaaS Survey 2024",
+      "Lighter Capital 2025 B2B SaaS Startup Benchmarks",
+      "First Page Sage SaaS Benchmarks 2025-2026",
+      "Optifai B2B SaaS Benchmark Database (939 companies)",
+      "Aventis Advisors SaaS Valuation Multiples 2025",
+      "Finro PropTech Valuation Multiples 2025",
+      "Phoenix Strategy Group CAC Benchmarks 2025",
+      "Maxio 2025 SaaS Benchmarks Report",
+      "McKinsey TMT SaaS Insights",
+      "Paddle/ProfitWell SaaS Index"
+    ],
+    "notes": "All numbers sourced from 2024-2026 industry reports. Where exact data unavailable, estimates are marked [EST]. Benchmarks represent B2B SaaS unless noted."
+  },
+
+  "revenue_metrics": {
+    "mrr": {
+      "definition": "Monthly Recurring Revenue — predictable revenue normalized to a monthly amount",
+      "formula": "SUM(monthly_subscription_fees) for all active customers",
+      "benchmarks": {
+        "pre_revenue": 0,
+        "seed": {"median": 15000, "top_quartile": 50000, "bottom_quartile": 3000, "unit": "USD"},
+        "series_a": {"median": 150000, "top_quartile": 350000, "bottom_quartile": 60000, "unit": "USD"},
+        "growth": {"median": 800000, "top_quartile": 2000000, "bottom_quartile": 350000, "unit": "USD"},
+        "scale": {"median": 5000000, "top_quartile": 15000000, "bottom_quartile": 2000000, "unit": "USD"}
+      },
+      "source": "ChartMogul SaaS Growth Report 2025, Lighter Capital 2025 Benchmarks"
+    },
+    "arr": {
+      "definition": "Annual Recurring Revenue — annualized value of recurring subscription revenue",
+      "formula": "MRR * 12",
+      "benchmarks": {
+        "seed": {"median": 180000, "top_quartile": 600000, "bottom_quartile": 36000, "unit": "USD"},
+        "series_a": {"median": 1800000, "top_quartile": 4200000, "bottom_quartile": 720000, "unit": "USD"},
+        "growth": {"median": 10000000, "top_quartile": 25000000, "bottom_quartile": 4000000, "unit": "USD"},
+        "scale": {"median": 60000000, "top_quartile": 180000000, "bottom_quartile": 25000000, "unit": "USD"}
+      },
+      "source": "High Alpha 2025 SaaS Benchmarks, Benchmarkit 2025"
+    },
+    "cmrr": {
+      "definition": "Committed Monthly Recurring Revenue — MRR plus signed contracts not yet live, minus known future churns",
+      "formula": "Current_MRR + Signed_Not_Live_MRR - Known_Future_Churn_MRR",
+      "benchmarks": {
+        "note": "Typically 5-15% higher than MRR for healthy pipeline companies",
+        "seed": {"cmrr_to_mrr_ratio": 1.05},
+        "series_a": {"cmrr_to_mrr_ratio": 1.10},
+        "growth": {"cmrr_to_mrr_ratio": 1.12},
+        "scale": {"cmrr_to_mrr_ratio": 1.08}
+      },
+      "source": "David Skok SaaS Metrics 2.0 [EST based on pipeline ratios]"
+    },
+    "net_new_mrr": {
+      "definition": "Change in MRR from all sources in a given period",
+      "formula": "New_MRR + Expansion_MRR - Contraction_MRR - Churned_MRR",
+      "benchmarks": {
+        "seed": {"median_monthly_pct_of_mrr": 15, "top_quartile": 25, "bottom_quartile": 5, "unit": "percent"},
+        "series_a": {"median_monthly_pct_of_mrr": 8, "top_quartile": 15, "bottom_quartile": 3, "unit": "percent"},
+        "growth": {"median_monthly_pct_of_mrr": 4, "top_quartile": 8, "bottom_quartile": 1.5, "unit": "percent"},
+        "scale": {"median_monthly_pct_of_mrr": 2, "top_quartile": 4, "bottom_quartile": 0.5, "unit": "percent"}
+      },
+      "source": "Benchmarkit 2025, ChartMogul 2025 [EST for stage breakdown]"
+    },
+    "arpu": {
+      "definition": "Average Revenue Per User/Account — mean revenue generated per customer",
+      "formula": "Total_MRR / Total_Active_Customers",
+      "benchmarks": {
+        "smb": {"median": 50, "top_quartile": 150, "bottom_quartile": 20, "unit": "USD/month"},
+        "mid_market": {"median": 500, "top_quartile": 2000, "bottom_quartile": 150, "unit": "USD/month"},
+        "enterprise": {"median": 5000, "top_quartile": 25000, "bottom_quartile": 2000, "unit": "USD/month"}
+      },
+      "median_acv_2024": 62000,
+      "source": "KeyBanc 2024 SaaS Survey (median ACV $62K), Optifai 939-company database"
+    },
+    "revenue_per_employee": {
+      "definition": "ARR divided by total full-time equivalent headcount",
+      "formula": "ARR / Total_FTE",
+      "benchmarks": {
+        "by_arr_band": {
+          "1m_3m": {"median": 99858, "unit": "USD"},
+          "3m_10m": {"median": 120000, "unit": "USD"},
+          "10m_25m": {"median": 155000, "unit": "USD"},
+          "25m_50m": {"median": 190000, "unit": "USD"},
+          "50m_100m": {"median": 240000, "unit": "USD"},
+          "100m_plus": {"median": 283379, "unit": "USD"}
+        },
+        "overall_median": 129724,
+        "overall_top_quartile": 200000,
+        "overall_bottom_quartile": 85000
+      },
+      "source": "SaaS Capital 2025 Revenue Per Employee Benchmarks"
+    },
+    "ndr_nrr": {
+      "definition": "Net Dollar Retention / Net Revenue Retention — revenue retained from existing customers including expansion, contraction, and churn",
+      "formula": "(Beginning_MRR + Expansion - Contraction - Churn) / Beginning_MRR * 100",
+      "benchmarks": {
+        "by_segment": {
+          "smb_acv_under_25k": {"median": 97, "top_quartile": 105, "bottom_quartile": 90, "unit": "percent"},
+          "mid_market_25k_100k": {"median": 108, "top_quartile": 118, "bottom_quartile": 98, "unit": "percent"},
+          "enterprise_acv_over_100k": {"median": 118, "top_quartile": 130, "bottom_quartile": 105, "unit": "percent"}
+        },
+        "by_arr_band": {
+          "1m_10m": {"median": 98, "top_quartile": 110, "unit": "percent"},
+          "10m_50m": {"median": 104, "top_quartile": 115, "unit": "percent"},
+          "50m_100m": {"median": 110, "top_quartile": 120, "unit": "percent"},
+          "100m_plus": {"median": 115, "top_quartile": 130, "unit": "percent"}
+        },
+        "by_acv": {
+          "25k_50k": {"median": 102, "top_quartile": 111, "bottom_quartile": 97, "unit": "percent"}
+        },
+        "overall_median": 106,
+        "overall_top_quartile": 120,
+        "overall_bottom_quartile": 95,
+        "public_saas_median_2024": 110,
+        "bootstrapped_3m_20m_median": 104,
+        "bootstrapped_90th_percentile": 118
+      },
+      "pct_companies_above_100": 50,
+      "pct_companies_above_100_at_15m_30m_arr": 35.1,
+      "source": "SaaS Capital 2025, Optifai 939-company DB, Benchmarkit 2025, ChartMogul Retention Report"
+    },
+    "gdr": {
+      "definition": "Gross Dollar Retention — revenue retained from existing customers excluding expansion (churn + contraction only)",
+      "formula": "(Beginning_MRR - Contraction - Churn) / Beginning_MRR * 100",
+      "benchmarks": {
+        "by_arr_band": {
+          "1m_10m": {"median": 85, "unit": "percent"},
+          "10m_50m": {"median": 90, "unit": "percent"},
+          "50m_100m": {"median": 92, "unit": "percent"},
+          "100m_plus": {"median": 94, "unit": "percent"}
+        },
+        "overall_median": 90,
+        "overall_top_quartile": 95,
+        "overall_bottom_quartile": 80
+      },
+      "source": "SaaS Capital 2025, Benchmarkit 2025"
+    },
+    "quick_ratio": {
+      "definition": "Measures growth efficiency — ratio of revenue added vs revenue lost (coined by Mamoon Hamid)",
+      "formula": "(New_MRR + Expansion_MRR) / (Churned_MRR + Contraction_MRR)",
+      "benchmarks": {
+        "excellent": {"value": 4.0, "label": "4:1 or higher — scaling efficiently"},
+        "good": {"value": 2.0, "label": "2:1 to 4:1 — healthy but room for improvement"},
+        "concerning": {"value": 1.0, "label": "1:1 to 2:1 — unsustainable growth"},
+        "critical": {"value": 0.5, "label": "below 1:1 — shrinking"}
+      },
+      "fastest_growing_saas_average": 3.9,
+      "target_minimum": 4.0,
+      "source": "Mamoon Hamid (Social Capital), InsightSquared analysis of fastest-growing SaaS"
+    },
+    "expansion_revenue_pct": {
+      "definition": "Percentage of total new ARR coming from existing customer expansion",
+      "formula": "Expansion_ARR / Total_New_ARR * 100",
+      "benchmarks": {
+        "by_arr_band": {
+          "under_5m": {"median": 20, "unit": "percent"},
+          "5m_25m": {"median": 30, "unit": "percent"},
+          "25m_50m": {"median": 40, "unit": "percent"},
+          "50m_plus": {"median": 60, "unit": "percent"}
+        },
+        "overall_median": 40,
+        "overall_top_quartile": 55,
+        "overall_bottom_quartile": 20,
+        "trend_2024": "Increased 5% YoY, reflecting shift to land-and-expand"
+      },
+      "source": "Benchmarkit 2025, High Alpha 2025 SaaS Benchmarks"
+    },
+    "contraction_revenue_pct": {
+      "definition": "Percentage of beginning-period MRR lost to downgrades (not cancellations)",
+      "formula": "Contraction_MRR / Beginning_MRR * 100",
+      "benchmarks": {
+        "monthly": {"median": 0.5, "top_quartile": 0.2, "bottom_quartile": 1.5, "unit": "percent"},
+        "annual": {"median": 5, "top_quartile": 2, "bottom_quartile": 12, "unit": "percent"}
+      },
+      "source": "ChartMogul SaaS Retention Report [EST]"
+    }
+  },
+
+  "growth_metrics": {
+    "mrr_growth_rate_by_stage": {
+      "definition": "Month-over-month MRR growth rate, benchmarked by current MRR band",
+      "formula": "(Current_MRR - Previous_MRR) / Previous_MRR * 100",
+      "benchmarks": {
+        "0_10k_mrr": {"good_mom": 20, "great_mom": 40, "unit": "percent_monthly"},
+        "10k_100k_mrr": {"good_mom": 10, "great_mom": 20, "unit": "percent_monthly"},
+        "100k_1m_mrr": {"good_mom": 5, "great_mom": 10, "unit": "percent_monthly"},
+        "1m_plus_mrr": {"good_mom": 3, "great_mom": 5, "unit": "percent_monthly"}
+      },
+      "source": "ChartMogul SaaS Growth Report 2025, Lighter Capital 2025"
+    },
+    "yoy_growth_by_arr_band": {
+      "definition": "Year-over-year ARR growth rate by current ARR level",
+      "formula": "(Current_ARR - Prior_Year_ARR) / Prior_Year_ARR * 100",
+      "benchmarks": {
+        "under_1m": {"median": 100, "top_quartile": 200, "bottom_quartile": 40, "unit": "percent"},
+        "1m_5m": {"median": 60, "top_quartile": 120, "bottom_quartile": 25, "unit": "percent"},
+        "5m_10m": {"median": 45, "top_quartile": 80, "bottom_quartile": 20, "unit": "percent"},
+        "10m_25m": {"median": 35, "top_quartile": 65, "bottom_quartile": 15, "unit": "percent"},
+        "25m_50m": {"median": 28, "top_quartile": 50, "bottom_quartile": 12, "unit": "percent"},
+        "50m_100m": {"median": 25, "top_quartile": 40, "bottom_quartile": 10, "unit": "percent"},
+        "100m_plus": {"median": 20, "top_quartile": 35, "bottom_quartile": 8, "unit": "percent"}
+      },
+      "overall_median_2025": 28,
+      "overall_top_quartile_2025": 65,
+      "overall_median_2024": 47,
+      "ai_native_median_2025": 100,
+      "traditional_saas_median_2025": 23,
+      "source": "Benchmarkit 2025, High Alpha 2025, ChartMogul 2025"
+    },
+    "t2d3_trajectory": {
+      "definition": "Triple-Triple-Double-Double-Double — the gold-standard VC growth trajectory from ~$2M to $144M ARR",
+      "formula": "Year1: ARR*3, Year2: ARR*3, Year3: ARR*2, Year4: ARR*2, Year5: ARR*2",
+      "trajectory_example": {
+        "year_0": {"arr": 2000000, "label": "Starting point"},
+        "year_1": {"arr": 6000000, "label": "Triple (3x)"},
+        "year_2": {"arr": 18000000, "label": "Triple (3x)"},
+        "year_3": {"arr": 36000000, "label": "Double (2x)"},
+        "year_4": {"arr": 72000000, "label": "Double (2x)"},
+        "year_5": {"arr": 144000000, "label": "Double (2x)"}
+      },
+      "required_mom_growth_for_3x": 11.6,
+      "pct_companies_achieving": 1,
+      "note": "Fewer than 1% of SaaS companies achieve full T2D3. AI-native companies are 4.3x more likely to hit tripling targets.",
+      "source": "T2D3.pro, Neeraj Agrawal (Battery Ventures), High Alpha 2025"
+    },
+    "time_to_1m_arr": {
+      "definition": "Months from founding to reaching $1M ARR milestone",
+      "benchmarks": {
+        "top_10_pct": {"months": 9, "label": "Elite"},
+        "top_quartile": {"months": 18, "label": "Strong"},
+        "median": {"months": 33, "label": "2 years 9 months"},
+        "bottom_quartile": {"months": 54, "label": "4.5 years"}
+      },
+      "source": "ChartMogul SaaS Growth Report 2025, Lighter Capital 2025"
+    },
+    "time_to_10m_arr": {
+      "definition": "Years from founding to reaching $10M ARR milestone",
+      "benchmarks": {
+        "top_10_pct": {"years": 2.75, "label": "Under 3 years"},
+        "median": {"years": 5.5, "label": "5-6 years"},
+        "bottom_quartile": {"years": 8, "label": "7-9 years"}
+      },
+      "pct_reaching_within_10_years": 13,
+      "source": "ChartMogul 2025 SaaS Growth: The Odds of Making It"
+    },
+    "enduring_growth_rate": {
+      "definition": "The rate at which a company's growth rate is retained year-over-year (growth deceleration)",
+      "formula": "Current_Year_Growth / Prior_Year_Growth * 100",
+      "benchmarks": {
+        "historical_benchmark": 80,
+        "current_2025_benchmark": 65,
+        "top_quartile": 85,
+        "bottom_quartile": 45,
+        "unit": "percent"
+      },
+      "note": "Growth endurance has declined from 80% to 65% over 2023-2025 as market matures",
+      "source": "Benchmarkit 2025, SaaS Capital 2025"
+    }
+  },
+
+  "retention_churn": {
+    "logo_churn_by_segment": {
+      "definition": "Percentage of customers lost in a period (customer count, not revenue)",
+      "formula": "Customers_Lost / Beginning_Customers * 100",
+      "monthly": {
+        "smb": {"median": 3.5, "top_quartile": 2.0, "bottom_quartile": 5.0, "unit": "percent"},
+        "mid_market": {"median": 1.5, "top_quartile": 0.8, "bottom_quartile": 3.0, "unit": "percent"},
+        "enterprise": {"median": 0.5, "top_quartile": 0.2, "bottom_quartile": 1.5, "unit": "percent"}
+      },
+      "annual": {
+        "smb": {"median": 31, "top_quartile": 20, "bottom_quartile": 45, "unit": "percent"},
+        "mid_market": {"median": 11, "top_quartile": 7, "bottom_quartile": 20, "unit": "percent"},
+        "enterprise": {"median": 6, "top_quartile": 3, "bottom_quartile": 10, "unit": "percent"}
+      },
+      "source": "Optifai 939-company DB, Vitally 2025 Churn Benchmarks, Focus Digital 2025"
+    },
+    "revenue_churn_by_segment": {
+      "definition": "Percentage of MRR lost to cancellations and downgrades",
+      "formula": "(Churned_MRR + Contraction_MRR) / Beginning_MRR * 100",
+      "monthly": {
+        "smb": {"median": 3.0, "top_quartile": 1.5, "bottom_quartile": 5.0, "unit": "percent"},
+        "mid_market": {"median": 1.2, "top_quartile": 0.5, "bottom_quartile": 2.5, "unit": "percent"},
+        "enterprise": {"median": 0.5, "top_quartile": 0.2, "bottom_quartile": 1.0, "unit": "percent"}
+      },
+      "annual": {
+        "smb": {"median": 7.5, "top_quartile": 5.0, "bottom_quartile": 12, "unit": "percent"},
+        "mid_market": {"median": 5.0, "top_quartile": 3.0, "bottom_quartile": 8, "unit": "percent"},
+        "enterprise": {"median": 3.8, "top_quartile": 2.0, "bottom_quartile": 6, "unit": "percent"}
+      },
+      "warning_threshold_monthly": 2.0,
+      "warning_threshold_annual": 22,
+      "source": "David Skok SaaS Metrics 2.0, Vitally 2025, ChartMogul Retention Report"
+    },
+    "net_negative_churn": {
+      "definition": "When expansion revenue from existing customers exceeds revenue lost to churn and contraction",
+      "formula": "Achieved when: Expansion_MRR > (Churned_MRR + Contraction_MRR)",
+      "pct_companies_achieving": {
+        "overall": 50,
+        "at_15m_30m_arr": 35.1,
+        "at_50m_plus_arr": 65,
+        "note": "Approximately 50% of SaaS companies have NRR above 100%. Increasingly difficult in 2024-2025."
+      },
+      "source": "SaaS Capital 2025, Benchmarkit 2025"
+    },
+    "churn_by_arpu_band": {
+      "definition": "Monthly churn rates segmented by average revenue per customer",
+      "benchmarks": {
+        "under_10_mo": {"monthly_churn": 6.0, "annual_churn": 52, "unit": "percent"},
+        "10_50_mo": {"monthly_churn": 4.5, "annual_churn": 42, "unit": "percent"},
+        "50_250_mo": {"monthly_churn": 3.0, "annual_churn": 30, "unit": "percent"},
+        "250_1000_mo": {"monthly_churn": 2.0, "annual_churn": 21, "unit": "percent"},
+        "1000_5000_mo": {"monthly_churn": 1.0, "annual_churn": 11, "unit": "percent"},
+        "5000_plus_mo": {"monthly_churn": 0.5, "annual_churn": 6, "unit": "percent"}
+      },
+      "source": "ChartMogul Retention Report 2024, Baremetrics Open Data [EST for granularity]"
+    },
+    "cohort_retention_curves": {
+      "definition": "What percentage of a cohort's original MRR is retained at month N",
+      "good_retention": {
+        "asp_over_500": {
+          "month_3": {"top_quartile": 98, "median": 93, "bottom_quartile": 85, "unit": "percent"},
+          "month_6": {"top_quartile": 95, "median": 88, "bottom_quartile": 75, "unit": "percent"},
+          "month_12": {"top_quartile": 90, "median": 80, "bottom_quartile": 65, "unit": "percent"}
+        },
+        "asp_under_10": {
+          "month_3": {"top_quartile": 92, "median": 87, "bottom_quartile": 72, "unit": "percent"},
+          "month_6": {"top_quartile": 85, "median": 77, "bottom_quartile": 60, "unit": "percent"},
+          "month_12": {"top_quartile": 75, "median": 60, "bottom_quartile": 40, "unit": "percent"}
+        }
+      },
+      "pattern": "Exponential decay steepest in months 1-3, then flattens. 43% of SMB churn occurs in first 90 days.",
+      "source": "ChartMogul SaaS Retention Report 2024, Vitally 2025"
+    },
+    "reactivation_rates": {
+      "definition": "Percentage of churned customers who return and resubscribe",
+      "benchmarks": {
+        "within_3_months": {"median": 8, "top_quartile": 15, "unit": "percent"},
+        "within_12_months": {"median": 12, "top_quartile": 22, "unit": "percent"},
+        "note": "Reactivation is a significant revenue source often overlooked. Best companies run win-back campaigns at 30/60/90 days."
+      },
+      "source": "ChartMogul 2024, Paddle/ProfitWell SaaS Index [EST]"
+    }
+  },
+
+  "acquisition_metrics": {
+    "cac_by_channel": {
+      "definition": "Customer Acquisition Cost segmented by marketing/sales channel",
+      "formula": "Total_Channel_Spend / Customers_Acquired_Via_Channel",
+      "benchmarks": {
+        "organic_seo": {"median": 480, "range": "290-942", "unit": "USD"},
+        "content_marketing": {"median": 480, "unit": "USD"},
+        "paid_search_ppc": {"median": 802, "range": "500-1200", "unit": "USD"},
+        "paid_social": {"median": 937, "range": "600-2000", "unit": "USD"},
+        "linkedin_ads": {"median": 2000, "range": "1500-3000", "unit": "USD"},
+        "referral_programs": {"median": 150, "range": "100-300", "unit": "USD"},
+        "email_marketing": {"median": 53, "unit": "USD"},
+        "outbound_sales": {"median": 1980, "range": "800-4000", "unit": "USD"},
+        "events_conferences": {"median": 500, "range": "300-1500", "unit": "USD"},
+        "inbound_blended": {"median": 200, "unit": "USD"},
+        "partner_channel": {"median": 150, "unit": "USD"}
+      },
+      "trend": "CAC surged 40-60% between 2023-2025",
+      "source": "First Page Sage 2026, Phoenix Strategy Group 2025, Optifai CAC by Channel"
+    },
+    "cac_payback_period": {
+      "definition": "Months required to recover the cost of acquiring a customer",
+      "formula": "CAC / (ARPU * Gross_Margin)",
+      "benchmarks": {
+        "by_stage": {
+          "early_under_1m_arr": {"median": 2, "unit": "months"},
+          "seed_1m_5m": {"median": 8, "top_quartile": 5, "bottom_quartile": 14, "unit": "months"},
+          "series_a_5m_15m": {"median": 14, "top_quartile": 8, "bottom_quartile": 22, "unit": "months"},
+          "growth_15m_50m": {"median": 18, "top_quartile": 12, "bottom_quartile": 28, "unit": "months"},
+          "scale_50m_plus": {"median": 20, "top_quartile": 14, "bottom_quartile": 30, "unit": "months"}
+        },
+        "by_segment": {
+          "smb": {"target": 12, "unit": "months"},
+          "mid_market": {"target": 18, "unit": "months"},
+          "enterprise": {"target": 24, "unit": "months"}
+        },
+        "overall_median_2024": 18,
+        "overall_median_2025": 20,
+        "ideal_target": 12,
+        "best_in_class": "5-7 months (David Skok)"
+      },
+      "source": "Benchmarkit 2025, ScaleXP 2025, David Skok SaaS Metrics 2.0"
+    },
+    "ltv_cac_ratio": {
+      "definition": "Lifetime Value to Customer Acquisition Cost ratio — unit economics health check",
+      "formula": "LTV / CAC where LTV = ARPU * Gross_Margin / Monthly_Churn_Rate",
+      "benchmarks": {
+        "by_stage": {
+          "seed": {"median": 2.5, "top_quartile": 4.0, "bottom_quartile": 1.5},
+          "series_a": {"median": 3.0, "top_quartile": 5.0, "bottom_quartile": 2.0},
+          "growth": {"median": 3.5, "top_quartile": 6.0, "bottom_quartile": 2.5},
+          "scale": {"median": 4.0, "top_quartile": 8.0, "bottom_quartile": 2.5}
+        },
+        "overall_median": 3.2,
+        "median_2024": 3.6,
+        "target_minimum": 3.0,
+        "top_performers": "7-8x (David Skok)"
+      },
+      "ltv_by_segment": {
+        "smb": {"range": "15000-40000", "unit": "USD"},
+        "mid_market": {"range": "80000-200000", "unit": "USD"},
+        "enterprise": {"range": "300000-1000000", "unit": "USD"}
+      },
+      "source": "David Skok SaaS Metrics 2.0, Benchmarkit 2025, Optifai LTV DB"
+    },
+    "organic_vs_paid_pct": {
+      "definition": "Share of customer acquisition from organic vs paid channels",
+      "benchmarks": {
+        "seed": {"organic": 70, "paid": 15, "referral": 15, "unit": "percent"},
+        "series_a": {"organic": 50, "paid": 30, "referral": 20, "unit": "percent"},
+        "growth": {"organic": 40, "paid": 35, "referral": 25, "unit": "percent"},
+        "scale": {"organic": 35, "paid": 40, "referral": 25, "unit": "percent"}
+      },
+      "organic_cac_advantage": "Organic-led SaaS brands report 28% lower blended CAC than paid-heavy competitors",
+      "source": "First Page Sage 2026, Phoenix Strategy Group 2025 [EST for stage breakdown]"
+    },
+    "sales_cycle_length": {
+      "definition": "Average days from first touch to closed-won deal",
+      "benchmarks": {
+        "by_deal_size": {
+          "under_15k_acv": {"days": 21, "range": "14-30"},
+          "15k_50k_acv": {"days": 45, "range": "30-60"},
+          "50k_100k_acv": {"days": 75, "range": "60-90"},
+          "100k_250k_acv": {"days": 120, "range": "90-150"},
+          "250k_plus_acv": {"days": 180, "range": "150-270"}
+        },
+        "overall_median": 84,
+        "trend": "Cycles lengthened 22% since 2022 due to budget scrutiny",
+        "enterprise_touchpoints": "2,600 impressions and 215 touchpoints including 8 human interactions for $60K+ deals"
+      },
+      "source": "Optifai Sales Cycle DB, Digital Bloom 2025 Funnel Benchmarks"
+    },
+    "lead_to_close_conversion": {
+      "definition": "Percentage of leads that ultimately become paying customers",
+      "benchmarks": {
+        "by_deal_size": {
+          "under_50k": {"win_rate": 40, "range": "35-45", "unit": "percent"},
+          "50k_100k": {"win_rate": 30, "range": "25-35", "unit": "percent"},
+          "over_100k": {"win_rate": 20, "range": "15-25", "unit": "percent"}
+        },
+        "funnel_conversion_rates": {
+          "visitor_to_lead": 1.4,
+          "lead_to_mql": 41,
+          "mql_to_sql": 39,
+          "sql_to_opportunity": 42,
+          "opportunity_to_close": 39,
+          "overall_lead_to_customer": 2.7,
+          "unit": "percent"
+        },
+        "free_trial_to_paid": {"target": 17, "range": "15-20", "unit": "percent"},
+        "conversion_by_source": {
+          "referral": 2.9,
+          "organic_search": 2.65,
+          "email": 2.4,
+          "paid_search": 2.3,
+          "unit": "percent_visitor_to_customer"
+        }
+      },
+      "source": "Digital Bloom 2025, SerpSculpt B2B Conversion 2025, David Skok SaaS Metrics 2.0"
+    },
+    "blended_cac_at_scale": {
+      "definition": "Weighted average CAC across all channels at different company stages",
+      "benchmarks": {
+        "seed": {"median": 200, "unit": "USD"},
+        "series_a": {"median": 500, "unit": "USD"},
+        "growth_10m_50m": {"median": 1200, "unit": "USD"},
+        "scale_50m_plus": {"median": 2500, "unit": "USD"}
+      },
+      "note": "Blended CAC rises with scale as companies exhaust cheap organic channels and move upmarket",
+      "source": "Phoenix Strategy Group 2025, First Page Sage 2026 [EST for stage breakdown]"
+    }
+  },
+
+  "engagement_metrics": {
+    "dau_mau_ratio": {
+      "definition": "Daily Active Users / Monthly Active Users — measures product stickiness",
+      "formula": "DAU / MAU * 100",
+      "benchmarks": {
+        "b2b_saas_general": {"median": 15, "top_quartile": 25, "bottom_quartile": 8, "unit": "percent"},
+        "b2b_saas_workday_adjusted": {"median": 40, "top_quartile": 60, "bottom_quartile": 20, "unit": "percent", "note": "Excluding weekends/holidays, ~8 active days per 20 workdays"},
+        "mission_critical_tools": {"typical": 50, "unit": "percent"},
+        "low_engagement_tools": {"typical": 10, "unit": "percent"},
+        "consumer_reference": {"facebook": 66, "unit": "percent"}
+      },
+      "source": "Embarque.io, Gainsight DAU/MAU Guide, MetricHQ"
+    },
+    "time_to_value": {
+      "definition": "Time from signup/onboarding start to first meaningful value realization (activation)",
+      "benchmarks": {
+        "average": {"value": "1 day 12 hours 23 minutes"},
+        "median": {"value": "1 day 1 hour 54 minutes"},
+        "top_quartile": {"value": "under 4 hours"},
+        "bottom_quartile": {"value": "over 7 days"},
+        "note": "Reducing TTV by 30% improves overall adoption rates by up to 15%"
+      },
+      "source": "Userpilot TTV Benchmark Report 2024"
+    },
+    "feature_adoption_rate": {
+      "definition": "Percentage of features regularly used by active users",
+      "formula": "Features_Used_Regularly / Total_Features_Available * 100",
+      "benchmarks": {
+        "average": 24.5,
+        "median": 16.5,
+        "good_target": 28,
+        "by_industry": {
+          "hr_products": 31,
+          "healthcare_fintech": 22.5,
+          "general_b2b": 24.5
+        },
+        "unit": "percent"
+      },
+      "source": "Userpilot Core Feature Adoption Rate Benchmark Report 2024, Pendo"
+    },
+    "onboarding_completion_rate": {
+      "definition": "Percentage of new users completing the full onboarding flow",
+      "benchmarks": {
+        "median": 55,
+        "top_quartile": 75,
+        "bottom_quartile": 30,
+        "best_in_class": 90,
+        "unit": "percent",
+        "note": "In-app guided flows achieve 2-3x higher completion vs email-only onboarding [EST]"
+      },
+      "source": "Userpilot 2024, Appcues Onboarding Benchmarks [EST]"
+    },
+    "nps_benchmarks": {
+      "definition": "Net Promoter Score — likelihood to recommend (promoters minus detractors)",
+      "formula": "(%Promoters_9_10) - (%Detractors_0_6)",
+      "benchmarks": {
+        "b2b_saas_median": 36,
+        "b2b_saas_top_quartile": 55,
+        "b2b_saas_bottom_quartile": 15,
+        "technology_services_average": 66,
+        "b2b_software_average": 41,
+        "good_score": 50,
+        "excellent_score": 70
+      },
+      "source": "Retently 2025 NPS Benchmarks, CustomerGauge SaaS NPS"
+    }
+  },
+
+  "financial_metrics": {
+    "gross_margin": {
+      "definition": "Revenue minus cost of goods sold (hosting, support, onboarding) divided by revenue",
+      "formula": "(Revenue - COGS) / Revenue * 100",
+      "benchmarks": {
+        "subscription_only": {"median": 78, "top_quartile": 85, "bottom_quartile": 70, "unit": "percent"},
+        "total_including_services": {"median": 72, "top_quartile": 78, "bottom_quartile": 65, "unit": "percent"},
+        "minimum_for_saas": 70,
+        "target": 75,
+        "best_in_class": 85,
+        "unit": "percent"
+      },
+      "source": "KeyBanc 2024, Benchmarkit 2025, a16z SaaS guidelines"
+    },
+    "rule_of_40": {
+      "definition": "Growth rate + profit margin should exceed 40% for a healthy SaaS business",
+      "formula": "YoY_Revenue_Growth_Pct + EBITDA_Margin_Pct",
+      "benchmarks": {
+        "median_score_q1_2025": 12,
+        "median_growth_component": 10,
+        "median_margin_component": 6,
+        "target_minimum": 40,
+        "excellent": 60,
+        "pct_companies_achieving": {"range": "11-30", "unit": "percent"},
+        "valuation_premium_for_achieving": "121% valuation premium",
+        "revenue_multiple_for_achievers": 10.7,
+        "by_stage": {
+          "seed": {"typical_score": -30, "note": "Heavy investment, negative margins expected"},
+          "series_a": {"typical_score": -10, "note": "Growth dominant, margins improving"},
+          "growth": {"typical_score": 20, "note": "Approaching but often below 40"},
+          "scale": {"typical_score": 35, "note": "Best companies exceed 40"}
+        }
+      },
+      "source": "SaaS Capital 2025, The SaaS CFO 2025, Abacum Rule of 40 2026"
+    },
+    "burn_multiple": {
+      "definition": "How much cash burned to generate each dollar of net new ARR",
+      "formula": "Net_Burn / Net_New_ARR",
+      "benchmarks": {
+        "by_stage": {
+          "seed": {"median": 3.4, "top_quartile": 2.0, "bottom_quartile": 6.0},
+          "series_a": {"median": 2.5, "top_quartile": 1.8, "bottom_quartile": 4.5},
+          "series_b": {"median": 2.0, "top_quartile": 1.5, "bottom_quartile": 3.5},
+          "growth_25m_50m": {"median": 1.4, "top_quartile": 1.0, "bottom_quartile": 2.5}
+        },
+        "amazing": {"value": "<1.0"},
+        "good": {"value": "1.0-1.5"},
+        "mediocre": {"value": "1.5-2.0"},
+        "concerning": {"value": "2.0-3.0"},
+        "bad": {"value": ">3.0"}
+      },
+      "source": "David Sacks, Craft Ventures; Benchmarkit 2025; CFO Advisors 2025"
+    },
+    "magic_number": {
+      "definition": "Sales efficiency — net new ARR generated per dollar of sales & marketing spend",
+      "formula": "(Current_Quarter_ARR - Previous_Quarter_ARR) / Previous_Quarter_Sales_Marketing_Spend",
+      "benchmarks": {
+        "excellent": {"value": 1.5, "label": "Invest more aggressively"},
+        "good": {"value": 1.0, "label": "Efficient, keep investing"},
+        "mediocre": {"value": 0.75, "label": "Acceptable but optimize"},
+        "poor": {"value": 0.5, "label": "Pull back and fix efficiency"},
+        "median": 0.75,
+        "top_quartile": 1.2,
+        "bottom_quartile": 0.4
+      },
+      "source": "Scale Venture Partners, Benchmarkit 2025 [EST for quartiles]"
+    },
+    "months_of_runway": {
+      "definition": "Months of operation remaining at current burn rate",
+      "formula": "Cash_Balance / Monthly_Net_Burn",
+      "benchmarks": {
+        "by_stage": {
+          "seed": {"target": 18, "range": "12-18", "unit": "months"},
+          "series_a": {"target": 24, "range": "18-24", "unit": "months"},
+          "series_b": {"target": 24, "range": "18-30", "unit": "months"},
+          "growth": {"target": 30, "range": "24-36", "unit": "months"}
+        },
+        "investor_expectation_2025": "24-30 months minimum",
+        "danger_zone": "under 6 months",
+        "fundraising_trigger": "under 12 months"
+      },
+      "monthly_burn_by_stage": {
+        "seed": {"median": 80000, "range": "50000-150000", "unit": "USD"},
+        "series_a": {"median": 300000, "range": "200000-500000", "unit": "USD"},
+        "series_b": {"median": 700000, "range": "400000-1000000", "unit": "USD"},
+        "growth": {"median": 1500000, "range": "1000000-3000000", "unit": "USD"}
+      },
+      "source": "Lighter Capital 2025, Phoenix Strategy Group 2025, ICanPitch 2025"
+    },
+    "cac_ratio": {
+      "definition": "Sales efficiency — inverse of magic number, often expressed as quarterly spend to ARR ratio",
+      "formula": "Sales_Marketing_Spend / Net_New_ARR",
+      "benchmarks": {
+        "efficient": {"value": 1.0, "label": "Spend $1 to get $1 new ARR"},
+        "target": {"value": 1.2, "label": "Spend $1.20 to get $1 new ARR"},
+        "concerning": {"value": 2.0, "label": "Spend $2 to get $1 new ARR"}
+      },
+      "source": "Bessemer Cloud Atlas, Scale Venture Partners"
+    }
+  },
+
+  "valuation_metrics": {
+    "revenue_multiples_by_growth": {
+      "definition": "Enterprise Value / Revenue multiple segmented by growth rate",
+      "benchmarks_2024_2026": {
+        "growth_under_10_pct": {"ev_revenue": 2.5, "range": "1.5-3.5"},
+        "growth_10_20_pct": {"ev_revenue": 4.0, "range": "3.0-5.5"},
+        "growth_20_30_pct": {"ev_revenue": 6.0, "range": "4.5-8.0"},
+        "growth_30_50_pct": {"ev_revenue": 8.5, "range": "6.5-11.0"},
+        "growth_50_plus_pct": {"ev_revenue": 13.0, "range": "10.0-18.0"}
+      },
+      "public_saas_median_2025": 6.5,
+      "public_saas_top_quartile": 14.0,
+      "public_saas_bottom_quartile": 2.0,
+      "source": "Aventis Advisors 2025, Multiples.vc Oct 2025, Flippa 2025"
+    },
+    "arr_multiple_by_nrr": {
+      "definition": "How NRR level affects ARR-based valuation multiples",
+      "benchmarks": {
+        "nrr_under_90": {"arr_multiple": 1.2, "note": "Significant discount for shrinking base"},
+        "nrr_90_100": {"arr_multiple": 3.5, "note": "Below par retention"},
+        "nrr_100_110": {"arr_multiple": 6.0, "note": "Healthy retention"},
+        "nrr_110_120": {"arr_multiple": 8.0, "note": "Strong expansion dynamics"},
+        "nrr_120_130": {"arr_multiple": 10.0, "premium": "+1x for 120-130% NRR"},
+        "nrr_130_140": {"arr_multiple": 12.0, "premium": "+2x for 130-140% NRR"},
+        "nrr_140_plus": {"arr_multiple": 15.0, "premium": "+3x for 140%+ NRR"}
+      },
+      "note": "Relationship is nonlinear — improvements above 110% produce disproportionate multiple expansion",
+      "source": "SaaS Capital 2025, Aventis Advisors 2025"
+    },
+    "arr_multiple_by_growth_band": {
+      "definition": "Private company ARR multiples by YoY growth rate",
+      "benchmarks_private_market": {
+        "under_10_pct_growth": {"arr_multiple": 2.0, "range": "1.5-3.0"},
+        "10_20_pct_growth": {"arr_multiple": 3.5, "range": "2.5-4.5"},
+        "20_40_pct_growth": {"arr_multiple": 5.0, "range": "4.0-6.5"},
+        "40_80_pct_growth": {"arr_multiple": 7.5, "range": "5.5-10.0"},
+        "80_plus_pct_growth": {"arr_multiple": 12.0, "range": "8.0-18.0"}
+      },
+      "median_private_market_2025": 4.1,
+      "source": "SaaS Capital 2025, Flippa 2025, SaasRise M&A Report 2025"
+    },
+    "construction_renovation_vertical_comps": {
+      "definition": "Valuation benchmarks for construction/renovation/PropTech vertical SaaS",
+      "public_comps": {
+        "procore": {"ticker": "PCOR", "segment": "Construction management", "ev_revenue_2025": 12.0, "growth_rate": 25, "nrr": 116},
+        "buildertrend": {"segment": "Residential construction", "status": "private", "est_multiple": "6-8x"},
+        "jobber": {"segment": "Home service management", "status": "private", "est_multiple": "5-7x"},
+        "houzz_pro": {"segment": "Renovation platform", "status": "private", "est_multiple": "4-6x"},
+        "autodesk_construction": {"ticker": "ADSK", "segment": "AEC software", "ev_revenue_2025": 10.5, "growth_rate": 12, "nrr": 112},
+        "planradar": {"segment": "Construction documentation", "status": "private", "est_multiple": "5-8x"},
+        "coconstruct": {"segment": "Residential builder", "status": "private_acquired", "est_multiple": "4-6x"}
+      },
+      "vertical_saas_multiples": {
+        "proptech_average_2025": 8.8,
+        "contech_typical_range": "4-8x ARR",
+        "premium_deals": "8-12x for strong growth + low churn + competitive moat",
+        "vertical_software_ntm_median_oct_2025": 3.3,
+        "horizontal_saas_ntm_median_oct_2025": 3.0
+      },
+      "sector_characteristics": {
+        "contech_funding_2024": "4.8B USD (32% of total proptech)",
+        "revenue_cyclicality": "40% revenue volatility during economic downturns",
+        "gdp_sensitivity": "1% GDP decline = 2.5% ConTech revenue decline"
+      },
+      "source": "Finro PropTech Multiples 2025, Multiples.vc Vertical SaaS, Objective IBV PE Report"
+    },
+    "private_vs_public_discount": {
+      "definition": "Typical discount applied to private SaaS company valuations relative to public comps",
+      "benchmarks": {
+        "overall_discount": {"value": 40, "unit": "percent"},
+        "private_median_multiple": 4.1,
+        "public_median_multiple": 6.5,
+        "by_company_type": {
+          "bootstrapped_5m_50m_ev": {"range": "3-5x revenue"},
+          "equity_backed_5m_50m_ev": {"range": "4-6x revenue"},
+          "premium_vertical_saas": {"range": "7-9x revenue with Rule of 40 + strong retention"}
+        }
+      },
+      "source": "SaaS Capital 2025, Jackim Woods 2025, SaasRise M&A Report 2025"
+    }
+  },
+
+  "simulator_calibration_constants": {
+    "_note": "Derived constants for PlanO business simulator calibration",
+    "default_assumptions": {
+      "gross_margin": 0.75,
+      "monthly_logo_churn_smb": 0.035,
+      "monthly_logo_churn_midmarket": 0.015,
+      "monthly_logo_churn_enterprise": 0.005,
+      "monthly_revenue_churn_smb": 0.030,
+      "monthly_revenue_churn_midmarket": 0.012,
+      "monthly_revenue_churn_enterprise": 0.005,
+      "monthly_expansion_rate": 0.015,
+      "cac_payback_months": 18,
+      "ltv_cac_target": 3.0,
+      "quick_ratio_target": 4.0,
+      "sales_hiring_failure_rate": 0.28,
+      "ndr_target": 110,
+      "gdr_target": 90,
+      "onboarding_completion": 0.55,
+      "feature_adoption": 0.245,
+      "trial_conversion": 0.17,
+      "organic_cac_multiplier": 0.72,
+      "referral_cac_multiplier": 0.10,
+      "growth_endurance": 0.65,
+      "burn_multiple_early": 3.4,
+      "burn_multiple_scale": 1.4,
+      "arr_per_employee_median": 129724,
+      "expansion_revenue_pct_median": 0.40,
+      "smb_first_90_day_churn_concentration": 0.43
+    },
+    "contech_adjustments": {
+      "_note": "Adjustments for construction/renovation vertical",
+      "gdp_sensitivity_multiplier": 2.5,
+      "cyclicality_adjustment": 0.40,
+      "sales_cycle_premium": 1.3,
+      "valuation_premium_vertical": 1.1,
+      "seasonal_adjustment_q1_q4": 0.85,
+      "seasonal_adjustment_q2_q3": 1.15
+    },
+    "stage_transition_thresholds": {
+      "pre_revenue_to_seed": {"arr": 0, "signal": "first_paying_customer"},
+      "seed_to_series_a": {"arr": 1000000, "growth_rate_yoy": 100, "ltv_cac": 2.5},
+      "series_a_to_growth": {"arr": 5000000, "growth_rate_yoy": 60, "ltv_cac": 3.0, "ndr": 105},
+      "growth_to_scale": {"arr": 25000000, "growth_rate_yoy": 35, "rule_of_40": 30, "ndr": 110}
+    }
+  }
+}
