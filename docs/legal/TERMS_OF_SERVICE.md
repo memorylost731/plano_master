@@ -1,227 +1,241 @@
-# PlanO — Terms of Service
+# PlanO -- Terms of Service
 
-**Effective date:** [Launch Date]
-**Last updated:** 5 April 2026
-**Operator:** PlanO Pro Ltd (Malta company reg. [TBD]), Fort Cambridge, Tigne Point, Sliema, Malta
+**Effective Date:** [DATE]
+**Last Updated:** 5 April 2026
+**Version:** 1.0
 
----
+These Terms of Service ("Terms") are a legal agreement between you ("you", "your", "User") and PlanO ("we", "us", "our", "PlanO"), operated by [COMPANY LEGAL NAME], registered in Malta under company number [NUMBER], with registered address at [ADDRESS] ("Company").
 
-## 1. Agreement
-
-By creating an account or using PlanO ("Service"), you agree to these Terms of Service ("Terms"). If you do not agree, do not use the Service.
-
-PlanO is a web-based platform for creating, editing, and estimating renovation floor plans using AI-assisted tools. The Service is operated from Malta, European Union.
+By creating an account or using PlanO, you agree to these Terms. If you do not agree, do not use PlanO.
 
 ---
 
-## 2. Definitions
+## 1. What PlanO Is
 
-- **"You" / "User"** — any person or entity using the Service
-- **"User Content"** — floor plans, designs, images, text, and other materials you create, upload, or generate using the Service
-- **"Derived Data"** — anonymized, de-identified, aggregated data derived from User Content that cannot be used to identify you, your property, or any individual
-- **"Service Output"** — AI-generated results, cost estimates, material suggestions, and other outputs produced by the Service based on your inputs
-- **"Professional User"** — a licensed architect, engineer, contractor, or other building professional
+1.1. PlanO is a construction estimation and coordination platform. Users upload or draw floor plans, receive AI-assisted measurements and cost estimates, and connect with vetted local construction companies ("Providers").
+
+1.2. PlanO is a technology platform, not a construction company, architecture firm, or engineering consultancy. We facilitate connections between clients and Providers but do not perform construction work.
 
 ---
 
-## 3. Your Content — Ownership & License
+## 2. Your Account
 
-### 3.1 You Own Your Content
-You retain all intellectual property rights in your User Content. PlanO does not claim ownership of your floor plans, designs, or uploaded materials.
+2.1. You must be at least 18 years old and legally able to enter contracts to use PlanO.
 
-### 3.2 License to Operate the Service
-You grant PlanO a worldwide, non-exclusive, royalty-free license to host, store, display, reproduce, and process your User Content solely for the purpose of providing and improving the Service. This license exists only for as long as your content is on our platform, except as described in Section 3.3.
+2.2. You are responsible for keeping your login credentials secure. You are responsible for all activity under your account.
 
-### 3.3 License for AI Training & Service Improvement
-You grant PlanO a perpetual, irrevocable, worldwide, non-exclusive, royalty-free license to use **Derived Data** (anonymized, de-identified, and aggregated from your User Content) to:
-
-(a) train, improve, and develop machine learning models and AI technologies;
-(b) improve floor plan recognition accuracy;
-(c) develop cost estimation algorithms;
-(d) create benchmarks, analytics, and industry insights;
-(e) improve the Service generally.
-
-**Important:** Derived Data will never contain personally identifiable information, property addresses, or information that could identify you or your property. We strip all metadata, geolocation, and personal identifiers before any AI training use.
-
-### 3.4 Opt-Out
-You may opt out of AI training use at any time by contacting privacy@plano.hacking.eu or toggling the setting in your account. Opting out does not affect Derived Data already incorporated into trained models prior to your opt-out request.
-
-### 3.5 Data Retention After Cancellation
-When you cancel your subscription:
-- **Your projects remain accessible in read-only mode for 90 days** to allow data export.
-- After 90 days, your User Content is permanently deleted from our servers.
-- **Derived Data** (anonymized, aggregated) is retained indefinitely per Section 3.3.
-- Backups containing your data are purged within 180 days of cancellation.
+2.3. You must provide accurate information when creating your account. If we discover false information, we may suspend or terminate your account.
 
 ---
 
-## 4. Service Output — Disclaimers
+## 3. What You Can Do (License Grant)
 
-### 4.1 Not Professional Advice
-Service Output (AI-generated floor plans, cost estimates, material suggestions) is provided for **informational and planning purposes only**. It does not constitute:
+3.1. We grant you a limited, non-exclusive, non-transferable, revocable license to access and use PlanO for its intended purpose during your subscription term.
 
-(a) architectural, engineering, or construction professional advice;
-(b) a certified building plan suitable for permit submission;
-(c) a guarantee of construction costs, timelines, or outcomes;
-(d) a substitute for the professional judgment of a licensed architect or engineer.
+3.2. **Free tier:** You may use PlanO for personal, non-commercial purposes within the limits of the free plan.
 
-### 4.2 Professional Sign-Off Required
-In most EU jurisdictions, building plans submitted for permits must bear the stamp and signature of a locally registered architect or engineer. **PlanO does not replace this requirement.** You are solely responsible for obtaining professional validation of any plans before construction or permit submission.
+3.3. **Paid tiers (Starter, Pro, Agency):** You may use PlanO for commercial purposes within the limits of your subscription tier, including generating floor plans, estimates, and reports for your clients.
 
-### 4.3 Accuracy
-While we strive for accuracy, AI-generated floor plan detection, measurements, and cost estimates may contain errors. You must independently verify all dimensions, quantities, costs, and structural assessments before relying on them.
-
-### 4.4 Renovation Subsidies
-Information about renovation subsidies, tax incentives, and government programs is provided for general informational purposes only and may be incomplete or outdated. Verify eligibility with the relevant national or local authority.
+3.4. **Homeowner plan:** You may use PlanO for personal renovation planning on a per-project basis.
 
 ---
 
-## 5. Subscriptions & Payments
+## 4. Your Content -- You Own It
 
-### 5.1 Plans
-PlanO offers Free, Starter, Pro, Agency, and Homeowner tiers as described on our pricing page. Features and limits vary by tier.
+4.1. **You own your content.** All floor plans, drawings, designs, measurements, project data, and any other content you create or upload to PlanO ("Your Content") belong to you. PlanO does not claim ownership of Your Content.
 
-### 5.2 Billing
-Paid subscriptions are billed in advance on a monthly or annual basis. All prices are in EUR unless otherwise stated. VAT is added where applicable.
+4.2. **Limited license to us.** You grant PlanO a non-exclusive, worldwide, royalty-free license to host, store, display, and process Your Content solely for the purpose of providing and improving PlanO's services to you. This license ends when you delete Your Content or close your account, except for:
+- (a) Content already shared with Providers as part of a project, which they may retain for their records.
+- (b) Anonymised, aggregated data that cannot identify you (see Section 5).
 
-### 5.3 Auto-Renewal
-Paid subscriptions automatically renew at the end of each billing period unless cancelled before the renewal date. We will notify you by email at least 14 days before any price increase takes effect.
-
-### 5.4 Cancellation
-You may cancel your subscription at any time through your account settings. Cancellation takes effect at the end of the current billing period. No partial refunds are issued for unused portions of a billing period.
-
-### 5.5 EU Consumer Right of Withdrawal
-If you are a consumer in the European Union, you have the right to withdraw from your subscription within **14 days** of purchase without giving a reason, in accordance with Directive 2011/83/EU. To exercise this right, contact support@plano.hacking.eu. If you have actively used the Service during the withdrawal period, you agree to pay for the period of use on a pro-rata basis.
-
-### 5.6 Refunds
-Beyond the 14-day withdrawal period, refunds are at PlanO's sole discretion. Annual subscriptions may receive a pro-rata refund if cancelled within the first 30 days.
-
-### 5.7 Price Changes
-We may change subscription prices with at least 30 days' written notice. Price changes apply at the next renewal. You may cancel before the renewal to avoid the new price.
-
-### 5.8 Bitcoin Payments
-Bitcoin payments are processed via BTCPay Server (self-hosted). Bitcoin payments are non-refundable due to the nature of cryptocurrency transactions. The EUR-equivalent price at the time of payment applies.
+4.3. **Your responsibility.** You represent that you have all necessary rights to upload Your Content and that it does not infringe any third party's intellectual property rights.
 
 ---
 
-## 6. Acceptable Use
+## 5. AI and Machine Learning
 
-You agree not to:
+5.1. PlanO uses artificial intelligence and machine learning to detect walls, rooms, and features in floor plans, generate measurements, and produce cost estimates.
 
-(a) use the Service for any unlawful purpose;
-(b) upload content that infringes third-party intellectual property rights;
-(c) upload content containing malware, viruses, or harmful code;
-(d) attempt to gain unauthorized access to the Service or other users' accounts;
-(e) use the Service to generate plans for illegal construction;
-(f) reverse-engineer, decompile, or attempt to extract the source code of the Service;
-(g) use automated tools (bots, scrapers) to access the Service without prior written consent;
-(h) resell, sublicense, or redistribute the Service without a valid Agency subscription;
-(i) circumvent usage limits, watermarks, or tier restrictions.
+5.2. **AI training opt-out.** We may use anonymised and aggregated data derived from floor plans to improve our AI models. This data is stripped of all personal identifiers and cannot be traced back to you.
+
+5.3. **Your Content is not used for AI training by default.** We will not use Your Content (identifiable floor plans, project data, or designs) to train AI models unless you explicitly opt in via your account settings.
+
+5.4. **If you opt in**, you grant PlanO an additional non-exclusive, worldwide, royalty-free license to use Your Content for the purpose of training and improving PlanO's AI models. You may revoke this opt-in at any time via your account settings. Revocation applies to future training only; it does not affect models already trained.
+
+5.5. **No third-party AI training.** We do not sell, license, or provide Your Content to any third party for the purpose of training their AI or machine learning models.
 
 ---
 
-## 7. Intellectual Property
+## 6. Estimates and Professional Advice Disclaimer
 
-### 7.1 PlanO IP
-The Service, including its software, algorithms, AI models, design, branding, and documentation, is owned by PlanO Pro Ltd and protected by copyright, trademark, and other intellectual property laws. Your subscription grants you a limited, non-exclusive, non-transferable license to use the Service.
+6.1. **Estimates are indicative, not guaranteed.** Cost estimates generated by PlanO are based on automated measurements, regional pricing data, and Provider rates. They are intended as planning tools and may differ from final project costs.
 
-### 7.2 Feedback
-If you provide feedback, suggestions, or feature requests, you grant PlanO an unrestricted, perpetual, royalty-free license to use and incorporate that feedback into the Service without obligation to you.
+6.2. **Not a substitute for professional advice.** PlanO floor plans are not architectural drawings, structural engineering assessments, or building permit applications. They do not replace the services of a licensed architect, engineer, or surveyor.
 
-### 7.3 Open Source
-Certain components of PlanO use open-source software. Open-source licenses apply to those components and take precedence over these Terms where applicable.
+6.3. **Measurement accuracy.** While we strive for accuracy, automated measurements derived from uploaded images depend on image quality, scale references, and other variables. You should verify all measurements independently before making construction decisions.
 
----
+6.4. **No liability for construction outcomes.** PlanO is not responsible for the quality, timeliness, cost, safety, or legality of any construction work carried out based on PlanO estimates, floor plans, or Provider connections.
 
-## 8. Limitation of Liability
-
-### 8.1 Cap
-TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, PlanO's total aggregate liability to you for all claims arising from or relating to the Service shall not exceed the greater of: (a) the fees you paid to PlanO in the **12 months** preceding the claim; or (b) **€100**.
-
-### 8.2 Exclusions
-IN NO EVENT SHALL PlanO BE LIABLE FOR:
-(a) indirect, incidental, special, consequential, punitive, or exemplary damages;
-(b) loss of profits, revenue, data, business opportunities, or goodwill;
-(c) costs of procurement of substitute services;
-(d) damages arising from construction, renovation, or building work performed based on Service Output;
-(e) damages arising from reliance on AI-generated measurements, cost estimates, or material suggestions;
-(f) damages arising from decisions based on renovation subsidy information provided by the Service.
-
-### 8.3 Essential Basis
-The limitations in this Section 8 are an essential basis of the agreement between you and PlanO.
-
-### 8.4 Mandatory Consumer Rights
-Nothing in these Terms limits your rights under mandatory consumer protection laws of your jurisdiction, including but not limited to the EU Consumer Rights Directive (2011/83/EU) and national implementations thereof.
+6.5. **Vetted Provider disclaimer.** Our vetting process verifies legal status, operational capacity, and reputation of Providers. It does not constitute a guarantee or warranty of the quality of their work. Contractual relationships for construction work are between you and the Provider.
 
 ---
 
-## 9. Indemnification
+## 7. Subscription and Payments
 
-You agree to indemnify, defend, and hold harmless PlanO, its officers, directors, employees, and agents from any claims, liabilities, damages, losses, and expenses (including reasonable legal fees) arising from:
+7.1. **Pricing.** Current pricing is displayed at [URL]/pricing. All prices are in EUR and include applicable VAT for EU consumers.
 
-(a) your use of the Service;
-(b) your User Content;
-(c) your violation of these Terms;
-(d) your violation of any third-party rights;
-(e) construction or renovation work performed based on plans created or modified using the Service.
+7.2. **Auto-renewal.** Paid subscriptions renew automatically at the end of each billing cycle (monthly or annual) unless you cancel before the renewal date. We will send you a reminder email at least 7 days before each renewal.
 
----
+7.3. **Price changes.** We may change subscription prices. For existing subscribers, price changes take effect at the start of the next billing cycle. We will notify you at least 30 days before any price increase. If you do not agree with the new price, you may cancel before it takes effect.
 
-## 10. Third-Party Services
+7.4. **Payment processing.** Payments are processed by Stripe (card payments) and BTCPay Server (Bitcoin). We do not store your full payment card details. See our Privacy Policy for details.
 
-The Service may integrate with third-party services (payment processors, map providers, material suppliers). Your use of third-party services is governed by their respective terms and privacy policies. PlanO is not responsible for third-party services.
+7.5. **Free trial.** If we offer a free trial, it converts to a paid subscription at the end of the trial period unless you cancel. We will notify you at least 3 days before conversion.
 
 ---
 
-## 11. Termination
+## 8. Cancellation and Refunds
 
-### 11.1 By You
-You may terminate your account at any time by contacting support@plano.hacking.eu or through your account settings.
+8.1. **Your right to cancel.** You may cancel your subscription at any time via your account settings. Cancellation takes effect at the end of your current billing cycle. You retain access until then.
 
-### 11.2 By PlanO
-We may suspend or terminate your account if you violate these Terms, with reasonable notice where possible. We may terminate the Service entirely with 90 days' written notice.
+8.2. **EU 14-day cooling-off period.** If you are a consumer in the European Economic Area, you have 14 days from the date of purchase to withdraw from your subscription for any reason and receive a full refund, in accordance with Directive 2011/83/EU. To exercise this right, contact us at [EMAIL] or use the withdrawal button in your account settings. If you have actively used PlanO during the 14-day period, we may charge a proportionate amount for the services used.
 
-### 11.3 Effect of Termination
-Upon termination, your right to use the Service ceases. Your content is retained for 90 days (see Section 3.5). Sections 3.3, 7, 8, 9, and 13 survive termination.
+8.3. **Refunds for annual plans.** If you cancel an annual plan after the 14-day cooling-off period, we will refund the unused portion of your subscription on a pro-rata basis, minus a 10% administrative fee, provided you request the refund within 30 days of cancellation.
 
----
+8.4. **Monthly plans.** Monthly subscriptions are non-refundable after the 14-day cooling-off period. You will retain access until the end of your current billing month.
 
-## 12. Changes to Terms
+8.5. **Homeowner per-project plans.** Per-project payments are non-refundable once the estimation report has been generated and delivered.
 
-We may modify these Terms at any time. Material changes will be notified by email at least **30 days** before they take effect. Your continued use of the Service after changes take effect constitutes acceptance. If you disagree, you may cancel your subscription.
+8.6. **Withdrawal button.** In accordance with EU Directive 2023/2673, PlanO provides a clearly visible withdrawal function in your account settings.
 
 ---
 
-## 13. Governing Law & Disputes
+## 9. Data Export and Retention After Cancellation
 
-### 13.1 Governing Law
-These Terms are governed by the laws of **Malta**, without regard to conflict of law principles.
+9.1. **Data export.** You may export Your Content at any time via your account settings in JSON and PDF formats.
 
-### 13.2 Jurisdiction
-Any disputes arising from these Terms shall be submitted to the exclusive jurisdiction of the **courts of Malta**, except where mandatory consumer protection laws of your jurisdiction provide otherwise.
+9.2. **Post-cancellation access.** After cancellation or account deletion, we retain Your Content for 30 days to allow you to reactivate your account or export your data. After 30 days, Your Content is permanently deleted from our active systems.
 
-### 13.3 EU Consumer ADR
-If you are a consumer in the EU, you may also use the European Commission's Online Dispute Resolution platform at https://ec.europa.eu/consumers/odr/.
-
-### 13.4 No Class Actions
-To the maximum extent permitted by law, disputes shall be resolved on an individual basis. You waive the right to participate in class actions or class arbitrations.
+9.3. **Backup retention.** Anonymised data may persist in encrypted backups for up to 90 days after deletion, after which it is purged. This backup data is not accessible to any person and is used solely for disaster recovery.
 
 ---
 
-## 14. Miscellaneous
+## 10. Acceptable Use
 
-**14.1 Entire Agreement.** These Terms, together with the Privacy Policy and any applicable subscription agreement, constitute the entire agreement between you and PlanO.
-
-**14.2 Severability.** If any provision is found unenforceable, the remaining provisions continue in full force.
-
-**14.3 No Waiver.** Failure to enforce any provision does not constitute a waiver.
-
-**14.4 Assignment.** PlanO may assign these Terms in connection with a merger, acquisition, or sale of assets. You may not assign your rights without our written consent.
-
-**14.5 Force Majeure.** PlanO is not liable for delays or failures caused by circumstances beyond our reasonable control.
-
-**14.6 Contact.** Questions about these Terms: legal@plano.hacking.eu
+10.1. You must not:
+- (a) Use PlanO for any unlawful purpose.
+- (b) Upload content that infringes intellectual property rights of others.
+- (c) Attempt to reverse engineer, decompile, or extract source code from PlanO.
+- (d) Use automated tools (bots, scrapers) to access PlanO without our written permission.
+- (e) Resell, sublicense, or redistribute PlanO or its outputs without a valid Agency plan or written agreement.
+- (f) Interfere with or disrupt PlanO's infrastructure or other users' access.
+- (g) Upload malicious code, viruses, or harmful content.
+- (h) Use PlanO's content or data to train third-party AI or machine learning models.
+- (i) Misrepresent PlanO-generated estimates as certified architectural or engineering documents.
 
 ---
 
-*PlanO Pro Ltd — Malta, European Union*
+## 11. Intellectual Property
+
+11.1. PlanO, its logo, design, code, algorithms, AI models, and documentation are owned by the Company or its licensors. Nothing in these Terms transfers any PlanO intellectual property to you, except the limited license in Section 3.
+
+11.2. The React-Planner component is used under the MIT License. Open-source attributions are available at [URL]/licenses.
+
+---
+
+## 12. Limitation of Liability
+
+12.1. **Cap.** To the maximum extent permitted by law, PlanO's total liability to you for any and all claims arising from or related to these Terms or your use of PlanO shall not exceed the greater of: (a) the fees you paid to PlanO in the 12 months preceding the claim, or (b) EUR 100.
+
+12.2. **Exclusions.** PlanO is not liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to: loss of profits, revenue, data, business opportunities, or goodwill, even if we were advised of the possibility of such damages.
+
+12.3. **Exceptions.** Nothing in these Terms excludes or limits liability for: (a) death or personal injury caused by negligence, (b) fraud or fraudulent misrepresentation, (c) any liability that cannot be excluded under applicable law, including mandatory EU consumer protection law.
+
+12.4. **Service availability.** PlanO is provided "as is" and "as available." We do not guarantee uninterrupted, error-free, or secure operation. We will use commercially reasonable efforts to maintain 99.5% uptime but this is a goal, not a guarantee.
+
+---
+
+## 13. Indemnification
+
+13.1. You agree to indemnify and hold PlanO harmless from any claims, losses, or damages (including reasonable legal fees) arising from: (a) your breach of these Terms, (b) your use of PlanO, (c) Your Content infringing any third party's rights, or (d) any construction work carried out based on PlanO outputs.
+
+13.2. PlanO agrees to indemnify you against any third-party claims that PlanO's platform (excluding Your Content) infringes their intellectual property rights, provided you promptly notify us and allow us to control the defense.
+
+---
+
+## 14. Provider Terms (For Construction Companies)
+
+14.1. Providers accepted onto PlanO agree to additional Provider Terms governing: commission rates, pricing compliance, off-platform prohibition, lead quality standards, and performance monitoring.
+
+14.2. Provider Terms are a separate agreement and do not affect end-user rights under these Terms.
+
+---
+
+## 15. Termination
+
+15.1. **By you.** You may close your account at any time via account settings or by contacting us at [EMAIL].
+
+15.2. **By us.** We may suspend or terminate your account if you breach these Terms, subject to the following:
+- (a) For minor breaches, we will give you 14 days' notice and an opportunity to remedy the breach.
+- (b) For serious breaches (fraud, illegal activity, repeated violations), we may terminate immediately.
+
+15.3. **Effect of termination.** Upon termination, your license to use PlanO ends. Sections 4, 5, 6, 12, 13, and 17 survive termination. Your data export rights under Section 9 apply.
+
+---
+
+## 16. Changes to These Terms
+
+16.1. We may update these Terms from time to time. For material changes, we will:
+- (a) Notify you by email at least 30 days before the changes take effect.
+- (b) Post a summary of changes on our website.
+- (c) Require your affirmative acceptance for changes that materially reduce your rights.
+
+16.2. If you do not agree with the changes, you may cancel your subscription before the new terms take effect and receive a pro-rata refund for any prepaid period.
+
+16.3. Minor changes (typo corrections, clarifications that do not alter your rights) may be made without prior notice but will be reflected in the "Last Updated" date.
+
+---
+
+## 17. Dispute Resolution
+
+17.1. **Governing law.** These Terms are governed by the laws of Malta, without regard to conflict of law principles. Where EU law provides greater consumer protection, EU law prevails.
+
+17.2. **Informal resolution first.** Before filing any claim, you agree to contact us at [EMAIL] and attempt to resolve the dispute informally for at least 30 days.
+
+17.3. **Courts.** If informal resolution fails, disputes shall be submitted to the exclusive jurisdiction of the courts of Malta, except that:
+- (a) EU consumers may bring claims in the courts of their country of residence, as provided by Regulation (EU) No 1215/2012.
+- (b) Nothing prevents you from filing a complaint with your local consumer protection authority or the EU Online Dispute Resolution platform at https://ec.europa.eu/odr.
+
+17.4. **No class actions.** To the extent permitted by applicable law, disputes must be brought on an individual basis. This does not affect your rights under EU consumer law to participate in collective redress actions where available.
+
+---
+
+## 18. General
+
+18.1. **Entire agreement.** These Terms, together with the Privacy Policy and any Provider Terms, constitute the entire agreement between you and PlanO.
+
+18.2. **Severability.** If any provision is found unenforceable, the remaining provisions continue in full force.
+
+18.3. **No waiver.** Failure to enforce any right does not waive that right.
+
+18.4. **Assignment.** You may not assign these Terms. We may assign them in connection with a merger, acquisition, or sale of assets, with 30 days' notice to you.
+
+18.5. **Force majeure.** PlanO is not liable for delays or failures caused by events beyond our reasonable control (natural disasters, war, pandemic, government actions, infrastructure failures).
+
+---
+
+## 19. Contact
+
+For questions about these Terms:
+
+- **Email:** legal@[DOMAIN]
+- **Address:** [COMPANY ADDRESS], Malta
+- **Data Protection Officer:** dpo@[DOMAIN]
+
+For complaints, you may also contact:
+- **Malta Competition and Consumer Affairs Authority (MCCAA):** https://mccaa.org.mt
+- **EU Online Dispute Resolution:** https://ec.europa.eu/odr
+
+---
+
+*These Terms of Service are written in plain English. In the event of a conflict between a translated version and this English version, the English version prevails.*
