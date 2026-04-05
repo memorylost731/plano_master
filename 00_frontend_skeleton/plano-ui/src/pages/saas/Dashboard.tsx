@@ -207,11 +207,11 @@ export default function SaasDashboard() {
     };
 
     const [ui, engine, rasterLocal, dockerHealth, rasterHealth] = await Promise.all([
-      check("/"),
-      check(import.meta.env.VITE_ENGINE_URL || "http://localhost:5173"),
-      check("/api/raster/../health").catch(() => "offline" as ServiceStatus),
-      check("/api/health"),
-      check("/api/health"),
+      check(import.meta.env.BASE_URL || "/"),
+      check((import.meta.env.VITE_ENGINE_URL || "/engine") + "/"),
+      check((import.meta.env.BASE_URL || "/") + "api/health"),
+      check((import.meta.env.BASE_URL || "/") + "api/health"),
+      check((import.meta.env.BASE_URL || "/") + "api/health"),
     ]);
 
     setHealth({

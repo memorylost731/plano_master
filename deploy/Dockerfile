@@ -17,7 +17,7 @@ COPY 02_react_planner/react-planner/yarn.lock* ./
 RUN npm ci --ignore-scripts
 COPY 02_react_planner/react-planner/ ./
 # Set publicPath for /engine/ subpath in production
-RUN sed -i "s|publicPath: '/'|publicPath: '/engine/'|" demo/webpack.config.js && \
+RUN sed -i "s|publicPath: '/'|publicPath: '/plano/engine/'|" demo/webpack.config.js && \
     npm run build-demo
 
 # ── Stage 3: Runtime (nginx) ─────────────────────────────────────────────────
@@ -39,4 +39,4 @@ COPY --from=engine-build /build/demo/ /usr/share/nginx/html/engine/
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget -qO- http://localhost/ || exit 1
+  CMD wget -qO- http://localhost/plano/ || exit 1

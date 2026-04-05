@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-const ENGINE_URL = import.meta.env.VITE_ENGINE_URL || "http://localhost:5173";
+const ENGINE_URL = import.meta.env.VITE_ENGINE_URL || "/engine";
 const ENGINE_ORIGIN = new URL(ENGINE_URL, window.location.origin).origin;
 const PROTOCOL_VERSION = 1;
 

@@ -62,13 +62,22 @@ function MapBackground({
 
     (async () => {
       try {
-        const maplibregl = (await import("maplibre-gl")).default;
-        await import("maplibre-gl/dist/maplibre-gl.css");
+        const mod = await import("maplibre-gl");
+        const maplibregl = mod.default;
+        // CSS import may fail in production (already bundled) — ignore
+        try { await import("maplibre-gl/dist/maplibre-gl.css"); } catch { /* ok */ }
 
-        if (cancelled) return;
+        if (cancelled || !containerRef.current) return;
+
+        // Ensure container has dimensions
+        const rect = containerRef.current.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+          console.warn("[PlanO] Map container has zero dimensions, skipping map");
+          return;
+        }
 
         map = new maplibregl.Map({
-          container: containerRef.current!,
+          container: containerRef.current,
           style: "https://tiles.openfreemap.org/styles/liberty",
           center: [14.5146, 35.8989],
           zoom: 16,
@@ -132,7 +141,8 @@ function MapBackground({
         map.on("error", () => {
           if (!cancelled) setFailed(true);
         });
-      } catch {
+      } catch (err) {
+        console.error("[PlanO] Map failed to load:", err);
         if (!cancelled) setFailed(true);
       }
     })();

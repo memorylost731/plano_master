@@ -12,9 +12,10 @@ const bust = Date.now();
 const html = document.documentElement;
 
 // Keep your current images as-is
-html.style.setProperty("--plano-bg-landing", `url("/assets/background.png?v=${bust}")`);
-html.style.setProperty("--plano-bg-2d", `url("/assets/background.png?v=${bust}")`);
-html.style.setProperty("--plano-bg-3d", `url("/assets/3d_canvas.png?v=${bust}")`);
+const base = import.meta.env.BASE_URL || "/";
+html.style.setProperty("--plano-bg-landing", `url("${base}assets/background.png?v=${bust}")`);
+html.style.setProperty("--plano-bg-2d", `url("${base}assets/background.png?v=${bust}")`);
+html.style.setProperty("--plano-bg-3d", `url("${base}assets/3d_canvas.png?v=${bust}")`);
 
 createRoot(rootEl).render(
   <StrictMode>
