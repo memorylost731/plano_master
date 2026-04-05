@@ -33,19 +33,42 @@ LOG_DIR = BASE_DIR / "logs"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OVERPASS_TIMEOUT = 120  # seconds
 
-# Countries we sync (expand as we enter new markets)
+# ALL 27 EU member states — full market anticipation
 COUNTRIES = {
+    # Tier 1: Launch markets
     "MT": {"name": "Malta", "iso": "MT", "area_tag": "ISO3166-1", "priority": 1},
-    "BG": {"name": "Bulgaria", "iso": "BG", "area_tag": "ISO3166-1", "priority": 2},
-    "IT": {"name": "Italy", "iso": "IT", "area_tag": "ISO3166-1", "priority": 3},
+    "BG": {"name": "Bulgaria", "iso": "BG", "area_tag": "ISO3166-1", "priority": 1},
+    # Tier 2: Mediterranean expansion
+    "IT": {"name": "Italy", "iso": "IT", "area_tag": "ISO3166-1", "priority": 2},
+    "GR": {"name": "Greece", "iso": "GR", "area_tag": "ISO3166-1", "priority": 2},
+    "HR": {"name": "Croatia", "iso": "HR", "area_tag": "ISO3166-1", "priority": 2},
+    "CY": {"name": "Cyprus", "iso": "CY", "area_tag": "ISO3166-1", "priority": 2},
+    # Tier 3: Large EU markets
+    "FR": {"name": "France", "iso": "FR", "area_tag": "ISO3166-1", "priority": 3},
+    "DE": {"name": "Germany", "iso": "DE", "area_tag": "ISO3166-1", "priority": 3},
     "ES": {"name": "Spain", "iso": "ES", "area_tag": "ISO3166-1", "priority": 3},
-    "FR": {"name": "France", "iso": "FR", "area_tag": "ISO3166-1", "priority": 4},
-    "DE": {"name": "Germany", "iso": "DE", "area_tag": "ISO3166-1", "priority": 5},
-    "PT": {"name": "Portugal", "iso": "PT", "area_tag": "ISO3166-1", "priority": 6},
-    "NL": {"name": "Netherlands", "iso": "NL", "area_tag": "ISO3166-1", "priority": 7},
-    "GR": {"name": "Greece", "iso": "GR", "area_tag": "ISO3166-1", "priority": 8},
-    "IE": {"name": "Ireland", "iso": "IE", "area_tag": "ISO3166-1", "priority": 9},
-    "BE": {"name": "Belgium", "iso": "BE", "area_tag": "ISO3166-1", "priority": 10},
+    # Tier 4: Western EU
+    "NL": {"name": "Netherlands", "iso": "NL", "area_tag": "ISO3166-1", "priority": 4},
+    "BE": {"name": "Belgium", "iso": "BE", "area_tag": "ISO3166-1", "priority": 4},
+    "PT": {"name": "Portugal", "iso": "PT", "area_tag": "ISO3166-1", "priority": 4},
+    "IE": {"name": "Ireland", "iso": "IE", "area_tag": "ISO3166-1", "priority": 4},
+    "LU": {"name": "Luxembourg", "iso": "LU", "area_tag": "ISO3166-1", "priority": 4},
+    "AT": {"name": "Austria", "iso": "AT", "area_tag": "ISO3166-1", "priority": 4},
+    # Tier 5: Nordic
+    "FI": {"name": "Finland", "iso": "FI", "area_tag": "ISO3166-1", "priority": 5},
+    "SE": {"name": "Sweden", "iso": "SE", "area_tag": "ISO3166-1", "priority": 5},
+    "DK": {"name": "Denmark", "iso": "DK", "area_tag": "ISO3166-1", "priority": 5},
+    # Tier 6: Central/Eastern EU
+    "PL": {"name": "Poland", "iso": "PL", "area_tag": "ISO3166-1", "priority": 6},
+    "CZ": {"name": "Czechia", "iso": "CZ", "area_tag": "ISO3166-1", "priority": 6},
+    "RO": {"name": "Romania", "iso": "RO", "area_tag": "ISO3166-1", "priority": 6},
+    "HU": {"name": "Hungary", "iso": "HU", "area_tag": "ISO3166-1", "priority": 6},
+    "SK": {"name": "Slovakia", "iso": "SK", "area_tag": "ISO3166-1", "priority": 6},
+    "SI": {"name": "Slovenia", "iso": "SI", "area_tag": "ISO3166-1", "priority": 6},
+    # Tier 7: Baltic
+    "EE": {"name": "Estonia", "iso": "EE", "area_tag": "ISO3166-1", "priority": 7},
+    "LV": {"name": "Latvia", "iso": "LV", "area_tag": "ISO3166-1", "priority": 7},
+    "LT": {"name": "Lithuania", "iso": "LT", "area_tag": "ISO3166-1", "priority": 7},
 }
 
 logging.basicConfig(
